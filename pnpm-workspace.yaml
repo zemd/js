@@ -1,0 +1,30 @@
+saveExact: true
+
+packages:
+  - packages/*
+  - http-clients/*
+
+# Release management is handled by pnpm itself:
+#   pnpm change      -> record a change intent in .changeset/
+#   pnpm version -r  -> apply intents, bump versions, write changelogs
+#   pnpm publish -r  -> publish everything not yet on the registry
+# https://pnpm.io/versioning
+versioning:
+  changelog:
+    storage: repository
+
+catalog:
+  tsdown: 0.22.14
+  typescript: 6.0.3
+  vitest: 4.1.10
+  zod: 4.4.3
+
+minimumReleaseAgeExclude:
+  - "@zemd/*"
+
+updateConfig:
+  ignoreDependencies:
+    - typescript
+
+allowBuilds:
+  "@swc/core": false

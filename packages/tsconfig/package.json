@@ -1,0 +1,41 @@
+{
+  "name": "@zemd/tsconfig",
+  "version": "2.0.0",
+  "description": "Shared default tsconfig for my projects",
+  "keywords": [
+    "next.js tsconfig",
+    "react library tsconfig",
+    "tsconfig",
+    "typescript"
+  ],
+  "homepage": "https://github.com/zemd/js/tree/main/packages/tsconfig",
+  "bugs": {
+    "url": "https://github.com/zemd/js/issues"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemd/js.git",
+    "directory": "packages/tsconfig"
+  },
+  "funding": "https://github.com/sponsors/zemd",
+  "files": [
+    "tsconfig-base.json",
+    "tsconfig-library.json",
+    "tsconfig-next.json",
+    "tsconfig-node.json",
+    "tsconfig-react.json"
+  ],
+  "type": "module",
+  "exports": {
+    "./*": "./*"
+  },
+  "publishConfig": {
+    "provenance": true
+  }
+}

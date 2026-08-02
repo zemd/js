@@ -1,0 +1,51 @@
+{
+  "name": "@zemd/flickr-rest-api",
+  "version": "1.0.3",
+  "description": "Flickr API client simplified.",
+  "homepage": "https://github.com/zemd/js/tree/main/http-clients/flickr",
+  "bugs": {
+    "url": "https://github.com/zemd/js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemd/js.git",
+    "directory": "http-clients/flickr"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zemd/http-client": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@zemd/tsconfig": "workspace:*",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}

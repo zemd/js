@@ -1,0 +1,67 @@
+{
+  "name": "@zemd/figma-rest-api",
+  "version": "3.0.23",
+  "description": "A lightweight fetch-based and type-safe Figma Rest API client.",
+  "keywords": [
+    "api",
+    "api client",
+    "fetch",
+    "figma",
+    "figma sdk",
+    "rest",
+    "typescript"
+  ],
+  "homepage": "https://github.com/zemd/js/tree/main/http-clients/figma",
+  "bugs": {
+    "url": "https://github.com/zemd/js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemd/js.git",
+    "directory": "http-clients/figma"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json",
+    "./openapi.json": "./dist/openapi.json"
+  },
+  "publishConfig": {
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "generate-api": "node ./scripts/generate-api.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@figma/rest-api-spec": "0.41.0",
+    "@zemd/http-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "26.1.2",
+    "@zemd/openapi": "workspace:*",
+    "@zemd/tsconfig": "workspace:*",
+    "change-case": "5.4.4",
+    "ts-morph": "28.0.0",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "yaml": "2.9.0"
+  }
+}

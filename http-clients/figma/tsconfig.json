@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "@zemd/figma-rest-api",
+  "extends": "@zemd/tsconfig/tsconfig-library.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "isolatedDeclarations": false
+  },
+  "include": ["src", "scripts"],
+  "exclude": ["node_modules", "dist"]
+}

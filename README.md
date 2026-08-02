@@ -1,0 +1,82 @@
+# zemd/js
+
+[![Node.js](https://img.shields.io/badge/node-%3E%3D24-000?labelColor=000&color=0000ff)](https://nodejs.org)
+[![pnpm](https://img.shields.io/badge/pnpm-workspace-000?labelColor=000&color=0000ff)](https://pnpm.io)
+[![Turborepo](https://img.shields.io/badge/turborepo-monorepo-000?labelColor=000&color=0000ff)](https://turborepo.com)
+
+A monorepo of small, focused libraries for JavaScript environments — browsers, Node.js, and other modern runtimes.
+
+Everything here is written in TypeScript and ships with type definitions, so you get autocompletion and type safety out of the box whether your own project uses TypeScript or plain JavaScript. The packages are ESM-only, tree-shakeable, and keep external dependencies to a minimum, so you only pay for what you actually import.
+
+All packages are published to npm under the `@zemd` scope and can be used independently — pick just the one you need.
+
+## Packages
+
+### Libraries
+
+| Package                                     | Version                                                                                                                                     | License         | Description                                          |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------------------- |
+| [`@zemd/std-modules`](packages/std)         | [![npm](https://img.shields.io/npm/v/@zemd/std-modules?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/std-modules) | `BlueOak-1.0.0` | Standalone ECMAScript modules for diverse use cases  |
+| [`@zemd/http-client`](packages/http-client) | [![npm](https://img.shields.io/npm/v/@zemd/http-client?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/http-client) | `Apache-2.0`    | A lightweight framework to build your custom `fetch` |
+| [`@zemd/openapi`](packages/openapi)         | [![npm](https://img.shields.io/npm/v/@zemd/openapi?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/openapi)         | `Apache-2.0`    | OpenAPI TypeScript definitions and tools             |
+| [`@zemd/tsconfig`](packages/tsconfig)       | [![npm](https://img.shields.io/npm/v/@zemd/tsconfig?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/tsconfig)       | `MIT`           | Shared TypeScript configs with strict defaults       |
+
+### HTTP clients
+
+| Package                                        | Version                                                                                                                                             | License      | Description                                               |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ | --------------------------------------------------------- |
+| [`@zemd/figma-rest-api`](http-clients/figma)   | [![npm](https://img.shields.io/npm/v/@zemd/figma-rest-api?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/figma-rest-api)   | `Apache-2.0` | Lightweight, fetch-based, type-safe Figma REST API client |
+| [`@zemd/flickr-rest-api`](http-clients/flickr) | [![npm](https://img.shields.io/npm/v/@zemd/flickr-rest-api?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/flickr-rest-api) | `Apache-2.0` | Flickr API client simplified                              |
+
+## Getting started
+
+```sh
+git clone https://github.com/zemd/js.git
+cd js
+pnpm install
+```
+
+> [!NOTE]
+> The repository uses [pnpm](https://pnpm.io) workspaces. Install it with `corepack enable` or follow the [pnpm installation guide](https://pnpm.io/installation).
+
+## Scripts
+
+All tasks are orchestrated by [Turborepo](https://turborepo.com) and run across every workspace package.
+
+| Command                   | Description                                       |
+| ------------------------- | ------------------------------------------------- |
+| `pnpm build`              | Build all packages                                |
+| `pnpm test`               | Run unit tests                                    |
+| `pnpm test-browser`       | Run browser-based tests                           |
+| `pnpm test-browser-setup` | Download the Chromium build used by browser tests |
+| `pnpm typecheck`          | Type-check all packages                           |
+| `pnpm format`             | Format the codebase with `oxfmt`                  |
+| `pnpm format-check`       | Verify formatting without writing changes         |
+| `pnpm lint`               | Lint and auto-fix with `oxlint`                   |
+| `pnpm lint-check`         | Lint without auto-fixing                          |
+| `pnpm lint-publish`       | Validate publishable package metadata (`publint`) |
+
+To run a script for a single package, use the workspace filter:
+
+```sh
+pnpm --filter @zemd/http-client build
+```
+
+## Repository layout
+
+```
+packages/       # general-purpose libraries
+http-clients/   # API clients built on top of @zemd/http-client
+```
+
+## Contributing
+
+Issues and pull requests are welcome. Before opening a PR, please make sure that `pnpm lint-check`, `pnpm format-check`, `pnpm typecheck`, and `pnpm test` all pass.
+
+## License
+
+Each package declares its own license — see the table above and the `LICENSE` file inside every package directory. Unless stated otherwise, packages are released under **Apache-2.0** 😇.
+
+## 💙 💛 Donate
+
+[![](https://img.shields.io/static/v1?label=UNITED24&message=support%20Ukraine&color=blue)](https://u24.gov.ua/)

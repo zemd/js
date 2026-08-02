@@ -1,0 +1,47 @@
+# @zemd/flickr-rest-api
+
+## 1.0.3
+
+### Patch Changes
+
+- 4734f88: Update dependencies
+
+## 1.0.2
+
+### Patch Changes
+
+- 9db831d: Update dependencies
+- Updated dependencies [9db831d]
+  - @zemd/http-client@4.0.7
+
+## 1.0.1
+
+### Patch Changes
+
+- 0fd0294: freeze deps version
+- Updated dependencies [0fd0294]
+  - @zemd/http-client@4.0.0
+
+## 1.0.0
+
+### Major Changes
+
+- 3772bdf: improving type safety for getting results instead Response, adding tests
+
+### Patch Changes
+
+- Updated dependencies [3772bdf]
+  - @zemd/http-client@3.0.0
+
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [01691d6]
+  - @zemd/http-client@2.0.0
+
+## 0.0.1
+
+### Patch Changes
+
+- 4023ba4: initial version

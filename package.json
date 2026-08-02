@@ -1,0 +1,32 @@
+{
+  "name": "@zemd/js",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test-browser": "turbo run test-browser",
+    "test-browser-setup": "pnpm --filter @zemd/std-modules exec playwright install --with-deps chromium",
+    "typecheck": "turbo run typecheck",
+    "format": "oxfmt",
+    "format-check": "oxfmt --check",
+    "lint": "oxlint --fix",
+    "lint-check": "oxlint",
+    "lint-publish": "pnpm -r exec publint",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "9.1.7",
+    "oxfmt": "0.61.0",
+    "oxlint": "1.76.0",
+    "publint": "0.3.22",
+    "turbo": "2.10.7"
+  },
+  "packageManager": "pnpm@11.18.0+sha512.33d83c77da82f49fba836925c6f1b841181ec3132b670639bd012f7075f5c7cf634c5f870147c19aae7478fac01df09d8892e880454896edd23ee9b33757563c"
+}

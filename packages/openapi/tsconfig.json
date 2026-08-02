@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "@zemd/openapi",
+  "extends": "@zemd/tsconfig/tsconfig-library.json",
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}

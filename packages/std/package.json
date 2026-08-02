@@ -1,0 +1,85 @@
+{
+  "name": "@zemd/std-modules",
+  "version": "0.0.4",
+  "description": "Standalone ECMAScript Modules for diverse use cases",
+  "keywords": [
+    "modules",
+    "std",
+    "utilities"
+  ],
+  "homepage": "https://github.com/zemd/js/tree/main/packages/std",
+  "bugs": {
+    "url": "https://github.com/zemd/js/issues"
+  },
+  "license": "BlueOak-1.0.0",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemd/js.git",
+    "directory": "packages/std"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./package.json": "./package.json",
+    "./dom": {
+      "types": "./dist/dom.d.mts",
+      "import": "./dist/dom.mjs"
+    },
+    "./env": {
+      "types": "./dist/env.d.mts",
+      "import": "./dist/env.mjs"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.mts",
+      "import": "./dist/errors.mjs"
+    },
+    "./invariant": {
+      "types": "./dist/invariant.d.mts",
+      "import": "./dist/invariant.mjs"
+    },
+    "./math": {
+      "types": "./dist/math.d.mts",
+      "import": "./dist/math.mjs"
+    },
+    "./objects": {
+      "types": "./dist/objects.d.mts",
+      "import": "./dist/objects.mjs"
+    },
+    "./promises": {
+      "types": "./dist/promises.d.mts",
+      "import": "./dist/promises.mjs"
+    },
+    "./types": {
+      "types": "./dist/types.d.mts",
+      "import": "./dist/types.mjs"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest --run --project unit",
+    "test-browser": "vitest --run --project browser",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@swc/core": "1.15.47",
+    "@testing-library/dom": "10.4.1",
+    "@types/node": "26.1.2",
+    "@vitest/browser": "4.1.10",
+    "@vitest/browser-playwright": "4.1.10",
+    "@zemd/tsconfig": "workspace:*",
+    "happy-dom": "20.11.1",
+    "playwright": "1.62.1",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
