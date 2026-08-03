@@ -27,7 +27,15 @@ cp -r "$SRC/js/internal/fuzz/dist" "$FUZZ_PROJECT_DIR/dist"
 JAZZERJS_VERSION=$(node -p "require('$SRC/js/internal/fuzz/package.json').devDependencies['@jazzer.js/core']")
 
 cd "$FUZZ_PROJECT_DIR"
-pnpm init > /dev/null
+# Written by hand because `pnpm init` records a packageManager range that corepack rejects.
+cat > package.json <<EOF
+{
+  "name": "$FUZZ_PROJECT_NAME",
+  "version": "0.0.0",
+  "private": true
+}
+EOF
+
 # Hoisted linking keeps node_modules free of pnpm's store symlinks, which do not survive
 # the copy into $OUT.
 pnpm add --node-linker=hoisted --no-lockfile "@jazzer.js/core@${JAZZERJS_VERSION}"
