@@ -1,6 +1,6 @@
 {
   "name": "@zemd/js",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "private": true,
   "license": "Apache-2.0",
   "author": {
@@ -18,7 +18,11 @@
     "format-check": "oxfmt --check",
     "lint": "oxlint --fix",
     "lint-check": "oxlint",
-    "lint-publish": "pnpm -r exec publint",
+    "lint-publish": "pnpm -r --filter '!./internal/**' exec publint",
+    "release-change": "pnpm change",
+    "release-status": "pnpm change status",
+    "release-bump": "pnpm version -r",
+    "release-publish": "pnpm publish -r --access public",
     "prepare": "husky"
   },
   "devDependencies": {

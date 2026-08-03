@@ -13,11 +13,21 @@ const transform = async (
 };
 
 /**
+ * RFC 9110 token: the only characters allowed in an HTTP method name.
+ */
+const HTTP_TOKEN = /^[!#$%&'*+\-.^_`|~\dA-Za-z]+$/;
+
+/**
  * Set the HTTP method for the request.
  * @param name The HTTP method name (e.g., 'GET', 'POST', 'PUT', 'DELETE', etc.)
  * @returns A transformer function that sets the specified HTTP method
+ * @throws {TypeError} When the name is not a valid RFC 9110 method token
  */
 export const method = (name: string): TFetchTransformer => {
+  if (!HTTP_TOKEN.test(name)) {
+    throw new TypeError("Invalid HTTP method name.", { cause: { received: name } });
+  }
+
   return async (fetchFn: TFetchFn, ...params: TFetchFnParams): Promise<Response> => {
     return transform(fetchFn, params, { method: name });
   };

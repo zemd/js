@@ -76,6 +76,7 @@
     "@vitest/browser": "4.1.10",
     "@vitest/browser-playwright": "4.1.10",
     "@zemd/tsconfig": "workspace:*",
+    "fast-check": "catalog:",
     "happy-dom": "20.11.1",
     "playwright": "1.62.1",
     "tsdown": "catalog:",

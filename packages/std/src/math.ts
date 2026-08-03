@@ -49,7 +49,8 @@ export const radiansToDegrees = (radians: number): number => {
  */
 export const pingPong = (x: number, length: number): number => {
   const doubleLength = length * 2;
-  const mod = x % doubleLength;
+  // `%` keeps the sign of the dividend, so it is normalized to always stay in [0, doubleLength)
+  const mod = ((x % doubleLength) + doubleLength) % doubleLength;
   return length - Math.abs(mod - length);
 };
 
@@ -75,7 +76,13 @@ export const wrap = (value: number, from: number, to: number): number => {
   if (cycle === 0) {
     return maxValue;
   }
-  return value - cycle * Math.floor((value - minValue) / cycle);
+  if (!Number.isFinite(cycle)) {
+    // A range wider than the double range has nothing to reduce
+    return value;
+  }
+  // `%` keeps the sign of the dividend and, unlike a floored quotient, cannot overflow
+  const mod = (value - minValue) % cycle;
+  return minValue + (mod < 0 ? mod + cycle : mod);
 };
 
 /**

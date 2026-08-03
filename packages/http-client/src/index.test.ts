@@ -64,6 +64,28 @@ describe("HTTP Client", () => {
         }),
       });
     });
+
+    it("should accept any RFC 9110 token as a method name", () => {
+      expect(() => {
+        return method("PATCH");
+      }).not.toThrow();
+      expect(() => {
+        return method("X-CUSTOM_method.1");
+      }).not.toThrow();
+    });
+
+    it.each([
+      ["empty", ""],
+      ["with a space", "GET /admin HTTP/1.1"],
+      ["with a line feed", "GET\nX-Injected: 1"],
+      ["with a carriage return", "GET\r\nX-Injected: 1"],
+      ["with a NUL byte", "GET\u0000"],
+      ["with a non-ASCII character", "GÉT"],
+    ])("should reject a method name %s", (_label, name) => {
+      expect(() => {
+        return method(name);
+      }).toThrow(TypeError);
+    });
   });
 
   describe("header", () => {

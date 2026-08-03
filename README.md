@@ -3,6 +3,7 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D24-000?labelColor=000&color=0000ff)](https://nodejs.org)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-000?labelColor=000&color=0000ff)](https://pnpm.io)
 [![Turborepo](https://img.shields.io/badge/turborepo-monorepo-000?labelColor=000&color=0000ff)](https://turborepo.com)
+[![Fuzzing](https://img.shields.io/badge/fuzzing-ClusterFuzzLite-000?labelColor=000&color=0000ff)](https://google.github.io/clusterfuzzlite/)
 
 A monorepo of small, focused libraries for JavaScript environments — browsers, Node.js, and other modern runtimes.
 
@@ -62,12 +63,9 @@ To run a script for a single package, use the workspace filter:
 pnpm --filter @zemd/http-client build
 ```
 
-## Repository layout
+## Security
 
-```
-packages/       # general-purpose libraries
-http-clients/   # API clients built on top of @zemd/http-client
-```
+To report a vulnerability, follow [`SECURITY.md`](SECURITY.md).
 
 ## Contributing
 

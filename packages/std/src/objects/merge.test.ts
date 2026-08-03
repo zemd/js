@@ -200,4 +200,21 @@ describe("Compatibility suite with deepmerge", () => {
     hasUndefinedProperty(merge(target2, src));
     hasUndefinedProperty(merge(target3, src));
   });
+
+  test("should not let an own __proto__ key replace the prototype of the result", () => {
+    const hostile = JSON.parse('{"__proto__": {"polluted": true}}') as Record<string, unknown>;
+    const actual = merge<Record<string, unknown>>({ safe: 1 }, hostile);
+
+    expect(Object.getPrototypeOf(actual)).toBe(Object.prototype);
+    expect(actual["polluted"]).toBeUndefined();
+    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+  });
+
+  test("should ignore properties inherited from the prototype chain", () => {
+    const base = { inherited: 1 };
+    const input = Object.create(base) as Record<string, unknown>;
+    input["own"] = 2;
+
+    expect(merge(input)).toEqual({ own: 2 });
+  });
 });

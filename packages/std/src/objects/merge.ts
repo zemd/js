@@ -33,10 +33,15 @@ export const merge = <TReturn extends Record<string, any>>(
   }
   const initial: TReturn = {} as TReturn;
   return inputs.reduce<TReturn>((acc, input) => {
-    if (typeof input !== "object" || Array.isArray(input)) {
+    if (input === null || typeof input !== "object" || Array.isArray(input)) {
       return acc;
     }
-    for (const prop in input) {
+    for (const prop of Object.keys(input)) {
+      // Assigning `__proto__` would replace the prototype of the result instead of adding
+      // a property to it, handing an attacker control over every lookup made on it.
+      if (prop === "__proto__") {
+        continue;
+      }
       if (isPlainObject(input[prop]) && !Array.isArray(input[prop])) {
         acc[prop as keyof TReturn] = merge(acc[prop] as TInput, input[prop] as TInput);
       } else if (typeof input[prop] === "function") {

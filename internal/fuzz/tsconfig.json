@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "@zemd/fuzz",
+  "extends": "@zemd/tsconfig/tsconfig-node.json",
+  "compilerOptions": {
+    "lib": ["ES2025", "DOM"],
+    "module": "Preserve",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "isolatedDeclarations": false,
+    "skipLibCheck": true
+  },
+  "include": ["src", "tsdown.config.mjs"],
+  "exclude": ["node_modules", "dist"]
+}

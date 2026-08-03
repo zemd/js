@@ -137,4 +137,20 @@ describe("get function", () => {
     const language = get(user, "settings.preferences.language");
     expect(language).toBe("en");
   });
+
+  it("should not reach properties inherited from the prototype chain", () => {
+    const obj = { name: "John" };
+
+    expect(get(obj, "__proto__")).toBe(null);
+    expect(get(obj, "constructor")).toBe(null);
+    expect(get(obj, "constructor.prototype")).toBe(null);
+    expect(get(obj, "toString")).toBe(null);
+  });
+
+  it("should reach an own property that shadows a prototype key", () => {
+    const obj = JSON.parse('{"__proto__": {"polluted": true}}') as Record<string, unknown>;
+
+    expect(get(obj, "__proto__.polluted")).toBe(true);
+    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+  });
 });

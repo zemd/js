@@ -3,6 +3,7 @@ saveExact: true
 packages:
   - packages/*
   - http-clients/*
+  - internal/*
 
 # Release management is handled by pnpm itself:
 #   pnpm change      -> record a change intent in .changeset/
@@ -14,6 +15,8 @@ versioning:
     storage: repository
 
 catalog:
+  "@types/node": 26.1.2
+  fast-check: 4.9.0
   tsdown: 0.22.14
   typescript: 7.0.2
   vitest: 4.1.10

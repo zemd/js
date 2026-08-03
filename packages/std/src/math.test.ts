@@ -97,6 +97,21 @@ describe("pingPong", () => {
     expect(pingPong(10, 5)).toBe(0);
     expect(pingPong(7.5, 5)).toBe(2.5);
   });
+
+  it("should stay within [0, length] for negative values", () => {
+    expect(pingPong(-1, 2)).toBe(1);
+    expect(pingPong(-2, 2)).toBe(2);
+    expect(pingPong(-3, 2)).toBe(1);
+    expect(pingPong(-4, 2)).toBe(0);
+    expect(pingPong(-0.5, 1)).toBe(0.5);
+    expect(pingPong(Number.MIN_SAFE_INTEGER, 2)).toBe(1);
+  });
+
+  it("should be symmetric around zero", () => {
+    for (const x of [0.25, 1, 2.5, 3, 7.5]) {
+      expect(pingPong(-x, 5)).toBe(pingPong(x, 5));
+    }
+  });
 });
 
 describe("wrap", () => {
@@ -119,6 +134,16 @@ describe("wrap", () => {
 
   it("should handle zero cycle", () => {
     expect(wrap(5, 2, 2)).toBe(2);
+  });
+
+  it("should stay within range for extreme magnitudes", () => {
+    const wrapped = wrap(-1.7976931347639577e308, 9.835850317439411e297, 0);
+    expect(wrapped).toBeGreaterThanOrEqual(0);
+    expect(wrapped).toBeLessThanOrEqual(9.835850317439411e297);
+  });
+
+  it("should return the value when the range is wider than the double range", () => {
+    expect(wrap(42, -1e308, 1e308)).toBe(42);
   });
 });
 

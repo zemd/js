@@ -2,15 +2,16 @@
 
 [![npm](https://img.shields.io/npm/v/@zemd/tsconfig?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/tsconfig)
 
-Shared TypeScript configs with strict defaults for React libraries, Next.js apps, and Node.js projects.
+Shared TypeScript configs with strict defaults for React libraries, Next.js apps, bundled libraries, and Node.js projects.
 
 ## Configs
 
-| Config                | Target | Module             | Key features             |
-| --------------------- | ------ | ------------------ | ------------------------ |
-| `tsconfig-react.json` | ESNext | ESNext (Bundler)   | JSX, DOM types           |
-| `tsconfig-next.json`  | ESNext | Preserve (Bundler) | Next.js plugin, `noEmit` |
-| `tsconfig-node.json`  | ES2025 | NodeNext           | Node.js types            |
+| Config                  | Target | Module             | Key features                   |
+| ----------------------- | ------ | ------------------ | ------------------------------ |
+| `tsconfig-react.json`   | ESNext | ESNext (Bundler)   | JSX, DOM types                 |
+| `tsconfig-next.json`    | ESNext | Preserve (Bundler) | Next.js plugin, `noEmit`       |
+| `tsconfig-node.json`    | ES2025 | NodeNext           | Node.js types                  |
+| `tsconfig-library.json` | ES2022 | ESNext (Bundler)   | No source maps, `skipLibCheck` |
 
 All configs extend `tsconfig-base.json` which enables `strict` mode, `verbatimModuleSyntax`, `isolatedDeclarations`, `erasableSyntaxOnly`, and other strict checks.
 
@@ -58,6 +59,19 @@ npm install @zemd/tsconfig --save-dev
     "outDir": "./dist",
     "rootDir": "./src"
   },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}
+```
+
+### Bundled library
+
+For libraries whose final artifacts and maps are produced by a bundler:
+
+```json
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "@zemd/tsconfig/tsconfig-library.json",
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

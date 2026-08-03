@@ -25,6 +25,11 @@ export function get<ArgObject extends Record<PropertyKey, any>, ArgPath extends 
     if (result === null || result === undefined) {
       break;
     }
+    // Own properties only: reaching the prototype chain would turn a path such as
+    // `constructor.prototype` into a handle on a built-in object.
+    if (!Object.hasOwn(Object(result) as object, key)) {
+      return null as GetFieldType<ArgObject, ArgPath>;
+    }
     result = result[key];
   }
 

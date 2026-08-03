@@ -1,0 +1,9 @@
+# Tokens that steer the fuzzer towards prototype pollution.
+"__proto__"
+"constructor"
+"prototype"
+"hasOwnProperty"
+"toString"
+"valueOf"
+"isAdmin"
+"polluted"

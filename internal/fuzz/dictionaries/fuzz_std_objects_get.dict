@@ -1,0 +1,13 @@
+# Tokens that steer the fuzzer towards prototype pollution and key shadowing.
+"__proto__"
+"constructor"
+"prototype"
+"hasOwnProperty"
+"toString"
+"valueOf"
+"isAdmin"
+"polluted"
+"."
+".."
+"..."
+"a.b.c"

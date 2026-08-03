@@ -1,0 +1,13 @@
+# Tokens that steer the fuzzer towards OpenAPI server/path template parsing.
+"{"
+"}"
+"{}"
+"{{"
+"}}"
+"{var}"
+"{var"
+"var}"
+"/"
+"//"
+"__proto__"
+"x-"

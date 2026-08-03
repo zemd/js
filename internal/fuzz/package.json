@@ -1,0 +1,35 @@
+{
+  "name": "@zemd/fuzz",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Jazzer.js fuzz targets for the @zemd packages, run by ClusterFuzzLite",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemd/js.git",
+    "directory": "internal/fuzz"
+  },
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zemd/http-client": "workspace:*",
+    "@zemd/openapi": "workspace:*",
+    "@zemd/properties": "workspace:*",
+    "@zemd/std-modules": "workspace:*"
+  },
+  "devDependencies": {
+    "@jazzer.js/core": "4.0.0",
+    "@types/node": "24.10.1",
+    "@zemd/tsconfig": "workspace:*",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}
