@@ -1,0 +1,63 @@
+{
+  "name": "logtown",
+  "version": "3.2.0",
+  "description": "Versatile log wrapper for javascript projects",
+  "keywords": [
+    "facade",
+    "logger",
+    "logging",
+    "loglevel",
+    "logs",
+    "logtown",
+    "wrapper"
+  ],
+  "homepage": "https://github.com/zemd/js/tree/main/packages/logtown",
+  "bugs": {
+    "url": "https://github.com/zemd/js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemd/js.git",
+    "directory": "packages/logtown"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest --run",
+    "coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fast-printf": "1.6.10"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@zemd/tsconfig": "workspace:*",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
