@@ -27,7 +27,7 @@ if (!token || !repository) {
 
 /**
  * @param {string} path
- * @param {"GET" | "POST" | "PATCH"} method
+ * @param {"POST" | "PATCH"} method
  * @param {unknown} [body]
  */
 const api = async (path, method, body) => {
@@ -39,7 +39,7 @@ const api = async (path, method, body) => {
       "content-type": "application/json",
       "x-github-api-version": "2022-11-28",
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   const text = await response.text();
   const payload = text ? JSON.parse(text) : {};
