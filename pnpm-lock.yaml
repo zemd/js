@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@types/node':
+      specifier: 26.1.2
+      version: 26.1.2
     fast-check:
       specifier: 4.9.0
       version: 4.9.0
@@ -52,7 +55,7 @@ importers:
         version: link:../../packages/http-client
     devDependencies:
       '@types/node':
-        specifier: 26.1.2
+        specifier: 'catalog:'
         version: 26.1.2
       '@zemd/openapi':
         specifier: workspace:*
@@ -114,8 +117,8 @@ importers:
         specifier: 4.0.0
         version: 4.0.0(supports-color@7.2.0)
       '@types/node':
-        specifier: 24.10.1
-        version: 24.10.1
+        specifier: 'catalog:'
+        version: 26.1.2
       '@zemd/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -178,7 +181,7 @@ importers:
         specifier: 10.4.1
         version: 10.4.1
       '@types/node':
-        specifier: 26.1.2
+        specifier: 'catalog:'
         version: 26.1.2
       '@vitest/browser':
         specifier: 4.1.10
@@ -851,9 +854,6 @@ packages:
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
-
-  '@types/node@24.10.1':
-    resolution: {integrity: sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ==}
 
   '@types/node@26.1.2':
     resolution: {integrity: sha512-Vu4a5UFA9rIIFJ7rB/Vaafh9lrCQszopTCx6KjFboXTGQbPNasehVR5TEiithSDGyd1DEiUByggTZsg8jukeIg==}
@@ -1828,9 +1828,6 @@ packages:
   unconfig-core@7.5.0:
     resolution: {integrity: sha512-Su3FauozOGP44ZmKdHy2oE6LPjk51M/TRRjHv2HNCWiDvfvCoxC2lno6jevMA91MYAdCdwP05QnWdWpSbncX/w==}
 
-  undici-types@7.16.0:
-    resolution: {integrity: sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==}
-
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
@@ -2490,10 +2487,6 @@ snapshots:
   '@types/deep-eql@4.0.2': {}
 
   '@types/estree@1.0.9': {}
-
-  '@types/node@24.10.1':
-    dependencies:
-      undici-types: 7.16.0
 
   '@types/node@26.1.2':
     dependencies:
@@ -3312,8 +3305,6 @@ snapshots:
     dependencies:
       '@quansync/fs': 1.0.0
       quansync: 1.0.0
-
-  undici-types@7.16.0: {}
 
   undici-types@8.3.0: {}
 

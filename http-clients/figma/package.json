@@ -55,7 +55,7 @@
     "@zemd/http-client": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "26.1.2",
+    "@types/node": "catalog:",
     "@zemd/openapi": "workspace:*",
     "@zemd/tsconfig": "workspace:*",
     "change-case": "5.4.4",
