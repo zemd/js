@@ -55,7 +55,7 @@
     "typescript": "catalog:"
   },
   "peerDependencies": {
-    "hono": "*",
-    "logtown": "*"
+    "hono": "^4",
+    "logtown": "^3"
   }
 }

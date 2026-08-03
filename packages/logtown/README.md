@@ -26,9 +26,7 @@ No other log levels are supported and never will be. The decision to keep the nu
 
 ```bash
 npm install logtown
-yarn add logtown
 pnpm add logtown
-bun add logtown
 ```
 
 ## Usage
@@ -44,7 +42,7 @@ registerWrapper(ConsoleWrapper);
 logger.info("Hello %s", "World");
 // ^ prints "Hello World" to the console
 
-if (process.env.IS_GSP === "true") {
+if (process.env.IS_GCP === "true") {
   registerWrapper(new GCPSimpleWrapper());
 }
 logger.info(
@@ -86,6 +84,6 @@ if (process.env.NODE_ENV === "development") {
 
 `logtown` released under the Apache 2.0 license
 
-## Donate
+## 💙 💛 Donate
 
 [![](https://img.shields.io/static/v1?label=UNITED24&message=support%20Ukraine&color=blue)](https://u24.gov.ua/)

@@ -6,15 +6,13 @@
 
 ```bash
 npm install @logtown/hono
-yarn add @logtown/hono
 pnpm add @logtown/hono
-bun add @logtown/hono
 ```
 
 ## Usage
 
 ```typescript
-import { SimpleConsoleWrapper } from "logtown";
+import { registerWrapper, SimpleConsoleWrapper } from "logtown";
 import { loggerHttp } from "@logtown/hono";
 import { Hono } from "hono";
 import { getConnInfo } from "@hono/node-server/conninfo";
@@ -52,7 +50,6 @@ serve({
 
 `@logtown/hono` released under the Apache 2.0 license
 
-## Donate
+## 💙 💛 Donate
 
-[![](https://img.shields.io/badge/patreon-donate-yellow.svg)](https://www.patreon.com/red_rabbit)
 [![](https://img.shields.io/static/v1?label=UNITED24&message=support%20Ukraine&color=blue)](https://u24.gov.ua/)

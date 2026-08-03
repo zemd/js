@@ -11,6 +11,9 @@ export class GCPSimpleWrapper implements LoggerWrapper {
     payloadType: "json" | "text" | "proto";
   }> = {}) {
     this.#payloadType = payloadType;
+    if (payloadType === "proto") {
+      throw new Error("Proto is not supported yet.");
+    }
   }
   #createLogEntry(payload: LoggerPayload) {
     const LevelToSeverity: Record<LogLevel, string> = {
@@ -48,12 +51,11 @@ export class GCPSimpleWrapper implements LoggerWrapper {
       }, {});
 
     const metaKeys = Object.keys(meta);
-    metaKeys.filter((metaKey) => {
-      return !reservedKeys.includes(metaKey);
-    });
 
     const entryOverrides = metaKeys.reduce<Record<string, any>>((acc, key) => {
-      acc[key] = meta[key];
+      if (reservedKeys.includes(key)) {
+        acc[key] = meta[key];
+      }
       return acc;
     }, {});
 

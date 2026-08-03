@@ -95,7 +95,11 @@ class Logger implements ILogger {
                 if (p instanceof Error) {
                   return p;
                 }
-                return JSON.stringify(p);
+                try {
+                  return JSON.stringify(p);
+                } catch {
+                  return String(p);
+                }
               })
               .join(" ")}`;
     const data = typeof msg === "string" ? optionalParams : [msg, ...optionalParams];
@@ -204,7 +208,8 @@ export default createLogger;
 
 function addRule(rule: LogRule): void {
   const [id, level] = rule.split(".") as [string, LogLevel | "*"];
-  const pureId = id.replace("!", "").toLowerCase();
+  const pureId = id.replace(/^!/, "").toLowerCase();
+  const normalizedLevel = (level === "*" ? "*" : level.toUpperCase()) as LogLevel | "*";
 
   if (!((globalThis as any)[LOGTOWN_RULES_SYMBOL] as LogRuleStorage).get(pureId)) {
     // @ts-ignore
@@ -213,7 +218,7 @@ function addRule(rule: LogRule): void {
 
   ((globalThis as any)[LOGTOWN_RULES_SYMBOL] as LogRuleStorage)
     .get(pureId)
-    ?.set(level, rule.startsWith("!") ? "enabled" : "disabled");
+    ?.set(normalizedLevel, rule.startsWith("!") ? "enabled" : "disabled");
 }
 
 function getStatus(id: string, level: LogLevel): ModuleLogLevelStatus {

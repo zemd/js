@@ -70,7 +70,14 @@ const CLF_MONTH = [
 const transformers: Partial<Record<SupportedTransformers, TransformerFn>> = {
   "remote-addr": (_context, info) => info.connInfo?.remote.address ?? "-",
   method: (context) => context.req.method,
-  url: (context) => decodeURI(context.req.raw.url),
+  url: (context) => {
+    const { url } = context.req.raw;
+    try {
+      return decodeURI(url);
+    } catch {
+      return url;
+    }
+  },
   referrer: (context) => context.req.header("referer") ?? context.req.header("referrer") ?? "-",
   "user-agent": (context) => context.req.header("user-agent") ?? "-",
   status: (context, executionInfo) => {
@@ -141,7 +148,8 @@ const trimLogMessage = (message: string) => {
 // inspired by expressjs/morgan
 const compile = (format: string) => {
   const keys: string[] = [];
-  const code = format.replace(/:([-\w]{2,})(?:\[([^\]]+)\])?/g, (_, key, arg) => {
+  const escapeLiteral = (text: string) => text.replace(/[\\`]/g, "\\$&").replace(/\$\{/g, "\\${");
+  const code = escapeLiteral(format).replace(/:([-\w]{2,})(?:\[([^\]]+)\])?/g, (_, key, arg) => {
     keys.push(
       `${JSON.stringify(key)}: transformers?.[${JSON.stringify(key)}]?.(context, info, ${JSON.stringify(arg)}) ?? ""`,
     );
@@ -168,9 +176,10 @@ export const loggerHttp = ({
   getConnInfo,
   transformers: customTransformers,
 }: Partial<LoggerHttpOptions> = {}): MiddlewareHandler => {
-  if (customTransformers) {
-    Object.assign(transformers, customTransformers);
-  }
+  const activeTransformers: Partial<Record<SupportedTransformers, TransformerFn>> = {
+    ...transformers,
+    ...customTransformers,
+  };
 
   const fmt = FORMATS[format as FormatName] ?? format ?? FORMATS["apache-combined"];
   const compiled = compile(fmt);
@@ -179,17 +188,23 @@ export const loggerHttp = ({
     const connInfo = getConnInfo?.(context);
     const startAt = performance.now();
 
-    const incommingMessage = compiled(transformers, context, {
+    const incommingMessage = compiled(activeTransformers, context, {
       connInfo,
       stage: "before",
       startAt,
     });
     logger.info(incommingMessage);
 
-    await next();
-
-    const outgoingMessage = compiled(transformers, context, { connInfo, stage: "after", startAt });
-    logger.info(outgoingMessage);
+    try {
+      await next();
+    } finally {
+      const outgoingMessage = compiled(activeTransformers, context, {
+        connInfo,
+        stage: "after",
+        startAt,
+      });
+      logger.info(outgoingMessage);
+    }
   };
 };
 
