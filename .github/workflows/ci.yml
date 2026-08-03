@@ -11,6 +11,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # https://consoledonottrack.com - opts out of Turborepo and other CLI telemetry
+  DO_NOT_TRACK: 1
+
 jobs:
   quality:
     name: Lint & Format
