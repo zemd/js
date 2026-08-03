@@ -32,7 +32,7 @@ jobs:
         with:
           language: javascript
           sanitizer: none
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           fuzz-seconds: 600
           mode: prune
 
@@ -56,6 +56,6 @@ jobs:
         with:
           language: javascript
           sanitizer: coverage
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           fuzz-seconds: 600
           mode: coverage

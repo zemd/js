@@ -70,14 +70,10 @@ jobs:
       - name: Open release pull request
         if: steps.version.outputs.pending == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -C release/main
-          git add -A
-          git commit -m "chore(release): version packages"
-          git push --force origin release/main
+          node .github/scripts/signed-commit.mjs release/main "chore(release): version packages"
           pr="$(gh pr list --head release/main --base main --state open --json number --jq '.[].number')"
           if [ -z "$pr" ]; then
             gh pr create \

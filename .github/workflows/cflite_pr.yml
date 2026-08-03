@@ -33,7 +33,7 @@ jobs:
         with:
           language: javascript
           sanitizer: none
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
 
       - name: Run Fuzzers
         id: run
@@ -41,7 +41,7 @@ jobs:
         with:
           language: javascript
           sanitizer: none
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           fuzz-seconds: 300
           mode: code-change
           output-sarif: true

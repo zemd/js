@@ -130,8 +130,5 @@ if (releases.length === 0) {
 
 out.push("---");
 out.push("");
-out.push(
-  "<sub>Generated automatically by the Release workflow. Do not edit this branch by hand.</sub>",
-);
 
 process.stdout.write(`${out.join("\n")}\n`);

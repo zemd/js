@@ -33,7 +33,7 @@ jobs:
         with:
           language: javascript
           sanitizer: none
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           fuzz-seconds: 1800
           mode: batch
           output-sarif: true
