@@ -175,6 +175,53 @@ describe("logtown", () => {
       );
     });
 
+    test("disables all logs for a dotted module id", () => {
+      const mockWrapper = vi.fn();
+      registerWrapper(mockWrapper);
+
+      disableOutput(["app.db.*"]);
+      const testLogger = createLogger("app.db");
+
+      testLogger.info("This should not be logged");
+
+      expect(mockWrapper).not.toHaveBeenCalled();
+    });
+
+    test("normalizes lowercase rule levels", () => {
+      const mockWrapper = vi.fn();
+      registerWrapper(mockWrapper);
+
+      disableOutput(["mymodule2.verbose"]);
+      const testLogger = createLogger("mymodule2");
+
+      testLogger.verbose("This should not be logged");
+      testLogger.debug("This should be logged");
+
+      expect(mockWrapper).toHaveBeenCalledTimes(1);
+      expect(mockWrapper).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: "DEBUG",
+        }),
+      );
+    });
+
+    test("preserves exclamation marks inside module ids", () => {
+      const mockWrapper = vi.fn();
+      registerWrapper(mockWrapper);
+
+      disableOutput(["test!module.*"]);
+
+      createLogger("test!module").info("This should not be logged");
+      createLogger("testmodule").info("This should be logged");
+
+      expect(mockWrapper).toHaveBeenCalledTimes(1);
+      expect(mockWrapper).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "testmodule",
+        }),
+      );
+    });
+
     test("handles negation rules", () => {
       const mockWrapper = vi.fn();
       registerWrapper(mockWrapper);

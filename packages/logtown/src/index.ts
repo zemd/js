@@ -43,10 +43,11 @@ export type LoggerPayload = {
 };
 
 type ExcludableLogRule<TRule extends string> = TRule | `!${TRule}`;
+type LogRuleLevel = LogLevel | Lowercase<LogLevel>;
 export type LogRule =
   | ExcludableLogRule<`${string}.*`> // for example, "my-logger.*" disables all logs from "my-logger"
-  | ExcludableLogRule<`${string}.${LogLevel}`> // for example, "my-logger.INFO" disables only INFO logs from "my-logger"
-  | ExcludableLogRule<`*.${LogLevel}`>; // for example, "*.INFO" disables all INFO logs
+  | ExcludableLogRule<`${string}.${LogRuleLevel}`> // for example, "my-logger.info" disables only INFO logs from "my-logger"
+  | ExcludableLogRule<`*.${LogRuleLevel}`>; // for example, "*.INFO" disables all INFO logs
 
 type ModuleLogLevelStatus = "disabled" | "enabled";
 export const LOGTOWN_RULES_SYMBOL: unique symbol = Symbol.for("logtown_rules");
