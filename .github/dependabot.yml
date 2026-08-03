@@ -10,7 +10,6 @@ updates:
       - "/"
       - "/packages/*"
       - "/http-clients/*"
-      - "/internal/*"
     schedule:
       interval: "weekly"
     versioning-strategy: "increase" # the workspace pins exact versions (saveExact)
@@ -29,7 +28,3 @@ updates:
       github-actions:
         patterns:
           - "*"
-  - package-ecosystem: "docker" # ClusterFuzzLite build image
-    directory: "/.clusterfuzzlite"
-    schedule:
-      interval: "weekly"

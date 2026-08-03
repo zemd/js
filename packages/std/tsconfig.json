@@ -3,11 +3,7 @@
   "display": "@zemd/std-modules",
   "extends": "@zemd/tsconfig/tsconfig-library.json",
   "compilerOptions": {
-    "types": ["node"],
-    // `@zemd/properties` is private and unpublished, so it is mapped instead of depended on.
-    "paths": {
-      "@zemd/properties/*": ["../../internal/properties/src/*.ts"]
-    }
+    "types": ["node"]
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

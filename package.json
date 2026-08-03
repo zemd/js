@@ -18,7 +18,7 @@
     "format-check": "oxfmt --check",
     "lint": "oxlint --fix",
     "lint-check": "oxlint",
-    "lint-publish": "pnpm -r --filter '!./internal/**' exec publint",
+    "lint-publish": "pnpm -r exec publint",
     "release-change": "pnpm change",
     "release-status": "pnpm change status",
     "release-bump": "pnpm version -r",

@@ -52,7 +52,14 @@ class Builder<ArgObj extends Record<PropertyKey, any>> {
     }
     const result = {} as ArgObj;
     for (const [key, value] of this.#data) {
-      result[key] = value;
+      // Assigning would let a `__proto__` key replace the prototype of the result instead
+      // of adding a property to it, handing its source control over every lookup made on it.
+      Object.defineProperty(result, key, {
+        value,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     }
     this.#cache = result;
     return result;

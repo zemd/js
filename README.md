@@ -3,7 +3,7 @@
 [![Node.js](https://img.shields.io/badge/node-%3E%3D24-000?labelColor=000&color=0000ff)](https://nodejs.org)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-000?labelColor=000&color=0000ff)](https://pnpm.io)
 [![Turborepo](https://img.shields.io/badge/turborepo-monorepo-000?labelColor=000&color=0000ff)](https://turborepo.com)
-[![Fuzzing](https://img.shields.io/badge/fuzzing-ClusterFuzzLite-000?labelColor=000&color=0000ff)](https://google.github.io/clusterfuzzlite/)
+[![fast-check](https://img.shields.io/badge/property%20testing-fast--check-000?labelColor=000&color=0000ff)](https://fast-check.dev)
 
 A monorepo of small, focused libraries for JavaScript environments — browsers, Node.js, and other modern runtimes.
 

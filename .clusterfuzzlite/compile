@@ -1,9 +1,0 @@
-#!/bin/bash -eu
-# ClusterFuzzLite's CIFuzz config only accepts address/memory/undefined/coverage, while
-# OSS-Fuzz's compile refuses to build JavaScript projects with any sanitizer. Shadowing
-# compile on $PATH is the only place left to reconcile the two.
-if [ "${SANITIZER:-}" != "coverage" ]; then
-  export SANITIZER=none
-fi
-
-exec /usr/local/bin/compile "$@"

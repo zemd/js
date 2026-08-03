@@ -3,11 +3,7 @@
   "display": "@zemd/http-client",
   "extends": "@zemd/tsconfig/tsconfig-library.json",
   "compilerOptions": {
-    "isolatedDeclarations": false,
-    // `@zemd/properties` is private and unpublished, so it is mapped instead of depended on.
-    "paths": {
-      "@zemd/properties/*": ["../../internal/properties/src/*.ts"]
-    }
+    "isolatedDeclarations": false
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

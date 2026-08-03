@@ -46,6 +46,7 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
+    "test": "vitest --run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -53,7 +54,9 @@
   },
   "devDependencies": {
     "@zemd/tsconfig": "workspace:*",
+    "fast-check": "catalog:",
     "tsdown": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
