@@ -120,7 +120,9 @@ if (releases.length === 0) {
       : `<b>${release.to}</b>`;
     out.push("<details>");
     out.push(`<summary><code>${release.name}</code> &nbsp;&middot;&nbsp; ${transition}</summary>`);
-    out.push("<br/>");
+    out.push("");
+    out.push("<br>");
+    out.push("");
     out.push(entry || "_No changelog entry recorded._");
     out.push("");
     out.push("</details>");
