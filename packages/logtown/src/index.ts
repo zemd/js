@@ -73,6 +73,30 @@ const LOGGERS = new Map<string, Logger>();
 
 (globalThis as any)[LOGTOWN_RULES_SYMBOL] = (globalThis as any)[LOGTOWN_RULES_SYMBOL] ?? new Map();
 
+const formatMessage = (message: string, optionalParams: unknown[]): string => {
+  if (!message.includes("%")) {
+    return message;
+  }
+
+  try {
+    return format(message, ...optionalParams);
+  } catch {
+    return message;
+  }
+};
+
+const coerceToString = (value: unknown): string => {
+  try {
+    return String(value);
+  } catch {
+    try {
+      return Object.prototype.toString.call(value);
+    } catch {
+      return "[Unserializable value]";
+    }
+  }
+};
+
 class Logger implements ILogger {
   public readonly id: string;
   constructor(id: string) {
@@ -86,19 +110,18 @@ class Logger implements ILogger {
 
     const message =
       typeof msg === "string"
-        ? format(msg, ...optionalParams)
+        ? formatMessage(msg, optionalParams)
         : typeof msg === "object" && msg && "message" in msg && typeof msg.message === "string"
           ? msg.message
-          : // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Logger values intentionally use JavaScript string coercion.
-            `${String(msg)} ${optionalParams
+          : `${coerceToString(msg)} ${optionalParams
               .map((p) => {
                 if (p instanceof Error) {
-                  return p;
+                  return coerceToString(p);
                 }
                 try {
                   return JSON.stringify(p);
                 } catch {
-                  return String(p);
+                  return coerceToString(p);
                 }
               })
               .join(" ")}`;
@@ -207,7 +230,9 @@ export const disableOutput = (rules: LogRule[]): void => {
 export default createLogger;
 
 function addRule(rule: LogRule): void {
-  const [id, level] = rule.split(".") as [string, LogLevel | "*"];
+  const separatorIndex = rule.lastIndexOf(".");
+  const id = rule.slice(0, separatorIndex);
+  const level = rule.slice(separatorIndex + 1) as LogLevel | "*";
   const pureId = id.replace(/^!/, "").toLowerCase();
   const normalizedLevel = (level === "*" ? "*" : level.toUpperCase()) as LogLevel | "*";
 
