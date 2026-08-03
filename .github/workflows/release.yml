@@ -42,6 +42,9 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
+      - name: Snapshot current versions
+        run: pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/versions-before.json"
+
       # Consumes the change intents in .changeset/, bumps every affected package
       # and its workspace dependents, and writes the changelog entries.
       - name: Apply pending release intents
@@ -55,6 +58,15 @@ jobs:
             echo "pending=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Render release pull request body
+        if: steps.version.outputs.pending == 'true'
+        run: |
+          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/versions-after.json"
+          node .github/scripts/release-pr-body.mjs \
+            "${RUNNER_TEMP}/versions-before.json" \
+            "${RUNNER_TEMP}/versions-after.json" > "${RUNNER_TEMP}/pr-body.md"
+          cat "${RUNNER_TEMP}/pr-body.md" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Open release pull request
         if: steps.version.outputs.pending == 'true'
         env:
@@ -66,12 +78,15 @@ jobs:
           git add -A
           git commit -m "chore(release): version packages"
           git push --force origin release/main
-          if [ -z "$(gh pr list --head release/main --base main --state open --json number --jq '.[].number')" ]; then
+          pr="$(gh pr list --head release/main --base main --state open --json number --jq '.[].number')"
+          if [ -z "$pr" ]; then
             gh pr create \
               --base main \
               --head release/main \
               --title "chore(release): version packages" \
-              --body "Automated version bump produced by \`pnpm version -r\`. Merging this pull request publishes the packages listed in the diff."
+              --body-file "${RUNNER_TEMP}/pr-body.md"
+          else
+            gh pr edit "$pr" --body-file "${RUNNER_TEMP}/pr-body.md"
           fi
 
   # No intents were pending, so main already holds the released versions.

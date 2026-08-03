@@ -11,6 +11,11 @@ with, or reported to, the OSS-Fuzz infrastructure.
 | `Dockerfile`   | Build image; copies the working tree into the container          |
 | `build.sh`     | Builds the workspace and compiles each target into `$OUT`        |
 
+Versions are pinned but never duplicated: pnpm comes from the root `packageManager` field
+(installed by corepack, which verifies its integrity hash), Jazzer.js from the
+`@jazzer.js/core` devDependency of [`../internal/fuzz`](../internal/fuzz), and the build
+image from the digest in the `Dockerfile`. Dependabot updates all three.
+
 The workflows that drive it are `.github/workflows/cflite_pr.yml` (fuzz code changed by a
 pull request), `cflite_batch.yml` (nightly batch fuzzing) and `cflite_cron.yml` (weekly
 corpus pruning and coverage report). Crashing inputs, corpora and coverage reports are
