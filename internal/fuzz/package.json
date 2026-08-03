@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@jazzer.js/core": "4.0.0",
-    "@types/node": "24.10.1",
+    "@types/node": "26.1.2",
     "@zemd/tsconfig": "workspace:*",
     "tsdown": "catalog:",
     "typescript": "catalog:"
