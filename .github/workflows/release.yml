@@ -93,7 +93,7 @@ jobs:
     if: needs.version.outputs.pending == 'false'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # create git tags and GitHub releases
       id-token: write # npm trusted publishing (OIDC)
     steps:
       - name: Checkout Repo
@@ -120,4 +120,14 @@ jobs:
         run: pnpm run lint-publish
 
       - name: Publish to npm
-        run: pnpm publish -r --access public --no-git-checks
+        run: pnpm publish -r --access public --no-git-checks --report-summary
+
+      # pnpm only talks to the registry, so tags and the release are created here.
+      - name: Tag packages and create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/versions.json"
+          node .github/scripts/github-releases.mjs \
+            pnpm-publish-summary.json \
+            "${RUNNER_TEMP}/versions.json"
