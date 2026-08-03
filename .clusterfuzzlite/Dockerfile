@@ -4,4 +4,8 @@ FROM gcr.io/oss-fuzz-base/base-builder-javascript:v1@sha256:2e218dedc1603f15e34c
 COPY . $SRC/js
 COPY ./.clusterfuzzlite/build.sh $SRC/
 
+COPY ./.clusterfuzzlite/compile /opt/cflite/compile
+RUN chmod +x /opt/cflite/compile
+ENV PATH="/opt/cflite:${PATH}"
+
 WORKDIR $SRC/js

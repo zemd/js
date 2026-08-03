@@ -5,11 +5,12 @@ targets from [`../internal/fuzz`](../internal/fuzz) directly in this repository'
 reuses the OSS-Fuzz build toolchain, but the project is self-hosted: nothing is registered
 with, or reported to, the OSS-Fuzz infrastructure.
 
-| File           | Purpose                                                          |
-| -------------- | ---------------------------------------------------------------- |
-| `project.yaml` | Language, sanitizer and fuzzing engine used to build the targets |
-| `Dockerfile`   | Build image; copies the working tree into the container          |
-| `build.sh`     | Builds the workspace and compiles each target into `$OUT`        |
+| File           | Purpose                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `project.yaml` | Language, sanitizer and fuzzing engine used to build the targets                                                          |
+| `Dockerfile`   | Build image; copies the working tree into the container                                                                   |
+| `build.sh`     | Builds the workspace and compiles each target into `$OUT`                                                                 |
+| `compile`      | Wrapper forcing `SANITIZER=none`, which is the only value OSS-Fuzz accepts for JavaScript while CIFuzz refuses to pass it |
 
 Versions are pinned but never duplicated: pnpm comes from the root `packageManager` field
 (installed by corepack, which verifies its integrity hash), Jazzer.js from the
@@ -33,8 +34,8 @@ cd oss-fuzz
 export PATH_TO_PROJECT=/path/to/js
 
 python3 infra/helper.py build_image --external "$PATH_TO_PROJECT"
-python3 infra/helper.py build_fuzzers --external "$PATH_TO_PROJECT" --sanitizer address
-python3 infra/helper.py check_build --external "$PATH_TO_PROJECT" --sanitizer address
+python3 infra/helper.py build_fuzzers --external "$PATH_TO_PROJECT" --sanitizer none
+python3 infra/helper.py check_build --external "$PATH_TO_PROJECT" --sanitizer none
 python3 infra/helper.py run_fuzzer --external --corpus-dir=/tmp/corpus \
   "$PATH_TO_PROJECT" fuzz_http_client_headers
 ```
