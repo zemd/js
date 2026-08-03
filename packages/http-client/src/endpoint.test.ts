@@ -38,10 +38,12 @@ describe("createEndpoint", () => {
       };
 
       const headerTransformer: TFetchTransformer = async (fetchFn, url, options) => {
-        // eslint-disable-next-line @typescript-eslint/no-misused-spread
+        const headers = new Headers(options?.headers);
+        headers.set("Content-Type", "application/json");
+
         return fetchFn(url, {
           ...options,
-          headers: { ...options?.headers, "Content-Type": "application/json" },
+          headers,
         });
       };
 

@@ -53,8 +53,8 @@ All tasks are orchestrated by [Turborepo](https://turborepo.com) and run across 
 | `pnpm typecheck`          | Type-check all packages                           |
 | `pnpm format`             | Format the codebase with `oxfmt`                  |
 | `pnpm format-check`       | Verify formatting without writing changes         |
-| `pnpm lint`               | Lint and auto-fix with `oxlint`                   |
-| `pnpm lint-check`         | Lint without auto-fixing                          |
+| `pnpm lint`               | Run type-aware linting and auto-fix with `oxlint` |
+| `pnpm lint-check`         | Run type-aware linting and fail on warnings       |
 | `pnpm lint-publish`       | Validate publishable package metadata (`publint`) |
 
 To run a script for a single package, use the workspace filter:
