@@ -24,14 +24,14 @@ jobs:
         uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
         with:
           language: javascript
-          sanitizer: none
+          sanitizer: address
 
       - name: Run Fuzzers
         id: run
         uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
         with:
           language: javascript
-          sanitizer: none
+          sanitizer: address
           github-token: ${{ github.token }}
           fuzz-seconds: 600
           mode: prune

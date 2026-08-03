@@ -33,8 +33,8 @@ cd oss-fuzz
 export PATH_TO_PROJECT=/path/to/js
 
 python3 infra/helper.py build_image --external "$PATH_TO_PROJECT"
-python3 infra/helper.py build_fuzzers --external "$PATH_TO_PROJECT" --sanitizer none
-python3 infra/helper.py check_build --external "$PATH_TO_PROJECT" --sanitizer none
+python3 infra/helper.py build_fuzzers --external "$PATH_TO_PROJECT" --sanitizer address
+python3 infra/helper.py check_build --external "$PATH_TO_PROJECT" --sanitizer address
 python3 infra/helper.py run_fuzzer --external --corpus-dir=/tmp/corpus \
   "$PATH_TO_PROJECT" fuzz_http_client_headers
 ```
