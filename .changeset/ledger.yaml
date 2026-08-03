@@ -1,0 +1,21 @@
+"@zemd/flickr-rest-api@2.0.0":
+  dir: http-clients/flickr
+  intents:
+    - flickr-http-client-sync
+"@zemd/http-client@4.1.0":
+  dir: packages/http-client
+  intents:
+    - validate-http-method
+"@zemd/openapi@0.0.2":
+  dir: packages/openapi
+  intents:
+    - builder-own-properties
+"@zemd/std-modules@0.1.0":
+  dir: packages/std
+  intents:
+    - fix-range-functions
+    - harden-objects-prototype-chain
+"@zemd/tsconfig@2.1.0":
+  dir: packages/tsconfig
+  intents:
+    - add-library-tsconfig
