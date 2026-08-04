@@ -49,13 +49,13 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@zemd/tsconfig": "workspace:*",
-    "hono": "4.12.32",
+    "hono": "4.12.34",
     "logtown": "workspace:*",
     "tsdown": "catalog:",
     "typescript": "catalog:"
   },
   "peerDependencies": {
     "hono": "^4",
-    "logtown": "^3"
+    "logtown": "workspace:*"
   }
 }
