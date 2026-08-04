@@ -42,15 +42,12 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Snapshot current versions
-        run: pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/versions-before.json"
-
       # Consumes the change intents in .changeset/, bumps every affected package
       # and its workspace dependents, and writes the changelog entries.
       - name: Apply pending release intents
         id: version
         run: |
-          pnpm version -r
+          pnpm version -r --json > "${RUNNER_TEMP}/releases.json"
           pnpm install --lockfile-only
           if [ -n "$(git status --porcelain)" ]; then
             echo "pending=true" >> "$GITHUB_OUTPUT"
@@ -61,10 +58,10 @@ jobs:
       - name: Render release pull request body
         if: steps.version.outputs.pending == 'true'
         run: |
-          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/versions-after.json"
+          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/workspace.json"
           node .github/scripts/release-pr-body.mjs \
-            "${RUNNER_TEMP}/versions-before.json" \
-            "${RUNNER_TEMP}/versions-after.json" > "${RUNNER_TEMP}/pr-body.md"
+            "${RUNNER_TEMP}/releases.json" \
+            "${RUNNER_TEMP}/workspace.json" > "${RUNNER_TEMP}/pr-body.md"
           cat "${RUNNER_TEMP}/pr-body.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open release pull request
@@ -109,6 +106,9 @@ jobs:
         with:
           node-version: "lts/*"
           cache: "pnpm"
+          # OIDC cannot authenticate the first publish because an npm package
+          # must exist before its trusted publisher can be configured.
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
@@ -120,6 +120,10 @@ jobs:
         run: pnpm run lint-publish
 
       - name: Publish to npm
+        env:
+          # pnpm prefers OIDC when it succeeds and falls back to this token for
+          # the first publish of a package that does not exist in npm yet.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm publish -r --access public --no-git-checks --report-summary
 
       # pnpm only talks to the registry, so tags and the release are created here.

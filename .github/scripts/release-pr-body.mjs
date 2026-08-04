@@ -1,26 +1,14 @@
 #!/usr/bin/env node
-// Renders the body of the automated release pull request by diffing the
-// workspace package versions captured before and after `pnpm version -r`.
+// Renders the body of the automated release pull request from the releases
+// applied by `pnpm version -r --json` and the current workspace package list.
 //
-// Usage: node .github/scripts/release-pr-body.mjs <before.json> <after.json>
-// where each file is the output of `pnpm list -r --depth -1 --json`.
+// Usage: node .github/scripts/release-pr-body.mjs <releases.json> <workspace-list.json>
+// where the first file is written by `pnpm version -r --json` and the second
+// is the output of `pnpm list -r --depth -1 --json`.
 
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-const [beforePath, afterPath] = process.argv.slice(2);
-
-if (!beforePath || !afterPath) {
-  console.error("usage: release-pr-body.mjs <before.json> <after.json>");
-  process.exit(1);
-}
-
-/** @param {string} file */
-const readSnapshot = (file) => {
-  /** @type {Array<{ name: string, version: string, path: string, private: boolean }>} */
-  const entries = JSON.parse(readFileSync(file, "utf8"));
-  return new Map(entries.filter((entry) => !entry.private).map((entry) => [entry.name, entry]));
-};
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 /** @param {string} version */
 const parseVersion = (version) => {
@@ -65,19 +53,6 @@ const changelogEntry = (packagePath, version) => {
     .trim();
 };
 
-const before = readSnapshot(beforePath);
-const after = readSnapshot(afterPath);
-
-const releases = [...after.values()]
-  .map((entry) => ({
-    name: entry.name,
-    path: entry.path,
-    from: before.get(entry.name)?.version,
-    to: entry.version,
-  }))
-  .filter((release) => release.from !== release.to)
-  .sort((a, b) => a.name.localeCompare(b.name));
-
 const badge = {
   major: "**major**",
   minor: "**minor**",
@@ -86,50 +61,97 @@ const badge = {
   new: "first release",
 };
 
-const out = [];
-
-out.push("## Release summary");
-out.push("");
-
-if (releases.length === 0) {
-  out.push("No publishable package versions changed.");
-} else {
-  const count = releases.length;
-  out.push(
-    `\`pnpm version -r\` consumed the pending change intents and bumped **${count}** package${count === 1 ? "" : "s"}.`,
+/**
+ * @param {Array<{ name: string, currentVersion: string, newVersion: string }>} applied
+ * @param {Array<{ name: string, path: string, private?: boolean }>} workspace
+ */
+export const renderReleasePrBody = (applied, workspace) => {
+  const packages = new Map(
+    workspace.filter((entry) => !entry.private).map((entry) => [entry.name, entry]),
   );
-  out.push("Merging this pull request publishes the versions listed below.");
-  out.push("");
-  out.push("| Package | Bump | Current | Next |");
-  out.push("| :--- | :---: | ---: | ---: |");
+  const releases = applied
+    .map((release) => {
+      const entry = packages.get(release.name);
+      if (!entry) {
+        throw new Error(`release package ${release.name} is missing from the workspace snapshot`);
+      }
+      const firstRelease = release.currentVersion === release.newVersion;
+      return {
+        name: release.name,
+        path: entry.path,
+        from: firstRelease ? undefined : release.currentVersion,
+        to: release.newVersion,
+        kind: firstRelease ? "new" : bumpType(release.currentVersion, release.newVersion),
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  for (const release of releases) {
-    const kind = release.from ? bumpType(release.from, release.to) : "new";
-    const current = release.from ? `\`${release.from}\`` : "—";
-    out.push(`| \`${release.name}\` | ${badge[kind]} | ${current} | \`${release.to}\` |`);
+  const out = [];
+
+  out.push("## Release summary");
+  out.push("");
+
+  if (releases.length === 0) {
+    out.push("No publishable packages were prepared for release.");
+  } else {
+    const count = releases.length;
+    out.push(
+      `\`pnpm version -r\` consumed the pending change intents and prepared **${count}** package${count === 1 ? "" : "s"} for release.`,
+    );
+    out.push("Merging this pull request publishes the versions listed below.");
+    out.push("");
+    out.push("| Package | Bump | Current | Next |");
+    out.push("| :--- | :---: | ---: | ---: |");
+
+    for (const release of releases) {
+      const current = release.from ? `\`${release.from}\`` : "—";
+      out.push(`| \`${release.name}\` | ${badge[release.kind]} | ${current} | \`${release.to}\` |`);
+    }
+
+    out.push("");
+    out.push("### Changelogs");
+    out.push("");
+
+    for (const release of releases) {
+      const entry = changelogEntry(release.path, release.to);
+      const transition = release.from
+        ? `${release.from} &rarr; <b>${release.to}</b>`
+        : `<b>${release.to}</b>`;
+      out.push("<details>");
+      out.push(
+        `<summary><code>${release.name}</code> &nbsp;&middot;&nbsp; ${transition}</summary>`,
+      );
+      out.push("");
+      out.push("<br>");
+      out.push("");
+      out.push(entry || "_No changelog entry recorded._");
+      out.push("");
+      out.push("</details>");
+      out.push("");
+    }
   }
 
   out.push("");
-  out.push("### Changelogs");
-  out.push("");
 
-  for (const release of releases) {
-    const entry = changelogEntry(release.path, release.to);
-    const transition = release.from
-      ? `${release.from} &rarr; <b>${release.to}</b>`
-      : `<b>${release.to}</b>`;
-    out.push("<details>");
-    out.push(`<summary><code>${release.name}</code> &nbsp;&middot;&nbsp; ${transition}</summary>`);
-    out.push("");
-    out.push("<br>");
-    out.push("");
-    out.push(entry || "_No changelog entry recorded._");
-    out.push("");
-    out.push("</details>");
-    out.push("");
+  return `${out.join("\n")}\n`;
+};
+
+const main = () => {
+  const [releasesPath, workspacePath] = process.argv.slice(2);
+
+  if (!releasesPath || !workspacePath) {
+    console.error("usage: release-pr-body.mjs <releases.json> <workspace-list.json>");
+    process.exit(1);
   }
+
+  /** @type {Array<{ name: string, currentVersion: string, newVersion: string }>} */
+  const releases = JSON.parse(readFileSync(releasesPath, "utf8"));
+  /** @type {Array<{ name: string, path: string, private?: boolean }>} */
+  const workspace = JSON.parse(readFileSync(workspacePath, "utf8"));
+
+  process.stdout.write(renderReleasePrBody(releases, workspace));
+};
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  main();
 }
-
-out.push("");
-
-process.stdout.write(`${out.join("\n")}\n`);

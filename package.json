@@ -10,7 +10,8 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "test": "turbo run test",
+    "test": "turbo run test && pnpm run test-release",
+    "test-release": "node --test .github/scripts/release-pr-body.test.mjs .github/scripts/release-workflow.test.mjs",
     "test-browser": "turbo run test-browser",
     "test-browser-setup": "pnpm --filter @zemd/std-modules exec playwright install --with-deps chromium",
     "typecheck": "turbo run typecheck",
