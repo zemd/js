@@ -8,9 +8,6 @@ Typed, tree-shakeable color utilities for converting between sRGB, linear sRGB, 
 
 ```sh
 npm install @zemd/color
-```
-
-```sh
 pnpm add @zemd/color
 ```
 
@@ -85,3 +82,7 @@ The OKLab conversion and gamut calculations follow Björn Ottosson's [OKLab colo
 ## License
 
 `@zemd/color` is released under the Apache 2.0 license.
+
+## 💙 💛 Donate
+
+[![](https://img.shields.io/static/v1?label=UNITED24&message=support%20Ukraine&color=blue)](https://u24.gov.ua/)
