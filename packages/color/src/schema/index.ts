@@ -35,10 +35,14 @@ export const LchSchema = z.object({
 });
 export type Lch = z.infer<typeof LchSchema>;
 
-export const HueDirectionSchema = z.object({
-  a: z.number().min(-1).max(1), // Normalized OKLab a direction, -1 to 1.
-  b: z.number().min(-1).max(1), // Normalized OKLab b direction, -1 to 1.
-});
+export const HueDirectionSchema = z
+  .object({
+    a: z.number().min(-1).max(1), // Normalized OKLab a direction, -1 to 1.
+    b: z.number().min(-1).max(1), // Normalized OKLab b direction, -1 to 1.
+  })
+  .refine(({ a, b }) => Math.abs(a * a + b * b - 1) < 1e-12, {
+    message: "Hue direction must be normalized so that a^2 + b^2 = 1.",
+  });
 export type HueDirection = z.infer<typeof HueDirectionSchema>;
 
 export const GamutLineSchema = z.object({
