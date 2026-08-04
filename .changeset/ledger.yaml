@@ -1,3 +1,7 @@
+"@zemd/color@1.0.0":
+  dir: packages/color
+  intents:
+    - light-plums-shine
 "@zemd/flickr-rest-api@2.0.0":
   dir: http-clients/flickr
   intents:
