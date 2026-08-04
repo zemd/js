@@ -1,5 +1,11 @@
 # logtown
 
+## 3.2.1
+
+### Patch Changes
+
+- Harden logging against formatter and string-coercion failures, and support output rules for dotted logger IDs and lowercase log levels.
+
 ## 3.2.0
 
 ### Minor Changes
