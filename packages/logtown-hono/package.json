@@ -1,0 +1,61 @@
+{
+  "name": "@logtown/hono",
+  "version": "5.0.0",
+  "description": "Hono middleware for logging using logtown",
+  "keywords": [
+    "apache",
+    "hono",
+    "logging",
+    "logtown",
+    "middleware"
+  ],
+  "homepage": "https://github.com/zemd/js/tree/main/packages/logtown-hono",
+  "bugs": {
+    "url": "https://github.com/zemd/js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemd/js.git",
+    "directory": "packages/logtown-hono"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@zemd/tsconfig": "workspace:*",
+    "hono": "4.12.32",
+    "logtown": "workspace:*",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "hono": "^4",
+    "logtown": "^3"
+  }
+}

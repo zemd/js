@@ -12,6 +12,8 @@ Security fixes are provided **only for the latest released version** of each pac
 | `@zemd/http-client`     | Latest published release |
 | `@zemd/openapi`         | Latest published release |
 | `@zemd/tsconfig`        | Latest published release |
+| `logtown`               | Latest published release |
+| `@logtown/hono`         | Latest published release |
 | `@zemd/figma-rest-api`  | Latest published release |
 | `@zemd/flickr-rest-api` | Latest published release |
 | Any prior version       | **Not supported**        |
@@ -62,7 +64,7 @@ By submitting a report, you agree to the following, which constitute conditions 
 
 ## Scope
 
-**In scope:** the source code contained in this repository and the artifacts published to npm under the `@zemd` scope from this repository.
+**In scope:** the source code contained in this repository and the `@zemd/*`, `logtown`, and `@logtown/*` artifacts published to npm from this repository.
 
 **Out of scope**, and expressly excluded from the Safe Harbor below:
 

@@ -9,7 +9,7 @@ A monorepo of small, focused libraries for JavaScript environments — browsers,
 
 Everything here is written in TypeScript and ships with type definitions, so you get autocompletion and type safety out of the box whether your own project uses TypeScript or plain JavaScript. The packages are ESM-only, tree-shakeable, and keep external dependencies to a minimum, so you only pay for what you actually import.
 
-All packages are published to npm under the `@zemd` scope and can be used independently — pick just the one you need.
+Each package is published independently to npm, using the `@zemd` and `@logtown` scopes where applicable — pick just the one you need.
 
 ## Packages
 
@@ -21,6 +21,8 @@ All packages are published to npm under the `@zemd` scope and can be used indepe
 | [`@zemd/http-client`](packages/http-client) | [![npm](https://img.shields.io/npm/v/@zemd/http-client?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/http-client) | `Apache-2.0`    | A lightweight framework to build your custom `fetch` |
 | [`@zemd/openapi`](packages/openapi)         | [![npm](https://img.shields.io/npm/v/@zemd/openapi?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/openapi)         | `Apache-2.0`    | OpenAPI TypeScript definitions and tools             |
 | [`@zemd/tsconfig`](packages/tsconfig)       | [![npm](https://img.shields.io/npm/v/@zemd/tsconfig?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/tsconfig)       | `MIT`           | Shared TypeScript configs with strict defaults       |
+| [`logtown`](packages/logtown)               | [![npm](https://img.shields.io/npm/v/logtown?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/logtown)                     | `Apache-2.0`    | Versatile logging wrapper for JavaScript projects    |
+| [`@logtown/hono`](packages/logtown-hono)    | [![npm](https://img.shields.io/npm/v/@logtown/hono?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@logtown/hono)         | `Apache-2.0`    | Hono middleware for logging with `logtown`           |
 
 ### HTTP clients
 
