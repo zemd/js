@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "@zemd/color",
+  "extends": "@zemd/tsconfig/tsconfig-library.json",
+  "compilerOptions": {
+    // Exported Zod schemas require TypeScript to infer their declarations.
+    "isolatedDeclarations": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
