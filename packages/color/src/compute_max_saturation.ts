@@ -9,7 +9,14 @@ export const compute_max_saturation = (direction: HueDirection): number => {
   // Max saturation will be when one of r, g or b goes below zero.
 
   // Select different coefficients depending on which component goes below zero first
-  let k0, k1, k2, k3, k4, wl, wm, ws;
+  let k0: number,
+    k1: number,
+    k2: number,
+    k3: number,
+    k4: number,
+    wl: number,
+    wm: number,
+    ws: number;
 
   if (-1.881_703_28 * a - 0.809_364_93 * b > 1) {
     // Red component

@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  decodeSrgbChannel,
-  encodeLinearSrgbChannel,
-  encodeLinearSrgbChannelTo8Bit,
-} from "./utils.js";
+import { decodeSrgbChannel, encodeLinearSrgbChannel, encodeLinearSrgbChannelTo8Bit } from "./utils";
 
 describe("sRGB channel utilities", () => {
   it("decodes channel endpoints", () => {

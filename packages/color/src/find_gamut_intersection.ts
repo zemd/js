@@ -80,18 +80,19 @@ export const find_gamut_intersection = ({ direction, line }: GamutIntersectionIn
         const u_g: number = g1 / (g1 * g1 - 0.5 * g * g2);
         let t_g: number = -g * u_g;
 
-        const b: number = -0.004_196_086_3 * l - 0.703_418_614_7 * m + 1.707_614_701 * s - 1;
-        const b1: number = -0.004_196_086_3 * ldt - 0.703_418_614_7 * mdt + 1.707_614_701 * sdt;
-        const b2: number = -0.004_196_086_3 * ldt2 - 0.703_418_614_7 * mdt2 + 1.707_614_701 * sdt2;
+        const blue: number = -0.004_196_086_3 * l - 0.703_418_614_7 * m + 1.707_614_701 * s - 1;
+        const blue1: number = -0.004_196_086_3 * ldt - 0.703_418_614_7 * mdt + 1.707_614_701 * sdt;
+        const blue2: number =
+          -0.004_196_086_3 * ldt2 - 0.703_418_614_7 * mdt2 + 1.707_614_701 * sdt2;
 
-        const u_b: number = b1 / (b1 * b1 - 0.5 * b * b2);
-        let t_b: number = -b * u_b;
+        const u_blue: number = blue1 / (blue1 * blue1 - 0.5 * blue * blue2);
+        let t_blue: number = -blue * u_blue;
 
         t_r = u_r >= 0 ? t_r : Number.MAX_VALUE; // FLT_MAX;
         t_g = u_g >= 0 ? t_g : Number.MAX_VALUE; // FLT_MAX;
-        t_b = u_b >= 0 ? t_b : Number.MAX_VALUE; // FLT_MAX;
+        t_blue = u_blue >= 0 ? t_blue : Number.MAX_VALUE; // FLT_MAX;
 
-        t += Math.min(t_r, Math.min(t_g, t_b));
+        t += Math.min(t_r, Math.min(t_g, t_blue));
       }
     }
   }
