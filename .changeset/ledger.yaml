@@ -19,3 +19,7 @@
   dir: packages/tsconfig
   intents:
     - add-library-tsconfig
+logtown@3.2.1:
+  dir: packages/logtown
+  intents:
+    - eager-clowns-lie
