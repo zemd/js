@@ -101,6 +101,31 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  packages/color:
+    dependencies:
+      '@zemd/std-modules':
+        specifier: workspace:*
+        version: link:../std
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@zemd/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      fast-check:
+        specifier: 'catalog:'
+        version: 4.9.0
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.22.14(publint@0.3.22)(typescript@7.0.2)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@26.1.2)(@vitest/browser-playwright@4.1.10)(happy-dom@20.11.1)(vite@8.2.0(@types/node@26.1.2)(yaml@2.9.0))
+
   packages/http-client:
     devDependencies:
       '@zemd/tsconfig':

@@ -8,6 +8,7 @@ Security fixes are provided **only for the latest released version** of each pac
 
 | Package                 | Supported                |
 | ----------------------- | ------------------------ |
+| `@zemd/color`           | Latest published release |
 | `@zemd/std-modules`     | Latest published release |
 | `@zemd/http-client`     | Latest published release |
 | `@zemd/openapi`         | Latest published release |

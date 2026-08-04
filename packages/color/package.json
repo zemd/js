@@ -1,0 +1,65 @@
+{
+  "name": "@zemd/color",
+  "version": "0.0.0",
+  "description": "Typed sRGB, OKLab, and OKLCH conversion, gamut, and validation utilities",
+  "keywords": [
+    "color",
+    "color conversion",
+    "color space",
+    "gamut",
+    "oklab",
+    "oklch",
+    "srgb",
+    "typescript",
+    "zod"
+  ],
+  "homepage": "https://github.com/zemd/js/tree/main/packages/color",
+  "bugs": {
+    "url": "https://github.com/zemd/js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemd/js.git",
+    "directory": "packages/color"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "vitest --run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@zemd/std-modules": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@zemd/tsconfig": "workspace:*",
+    "fast-check": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
