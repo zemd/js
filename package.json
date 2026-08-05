@@ -22,8 +22,6 @@
     "lint-publish": "pnpm -r exec publint",
     "release-change": "pnpm change",
     "release-status": "pnpm change status",
-    "release-bump": "pnpm version -r",
-    "release-publish": "pnpm publish -r --access public",
     "prepare": "husky"
   },
   "devDependencies": {
