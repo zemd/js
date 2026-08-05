@@ -1,0 +1,38 @@
+name: CI
+
+permissions: {}
+
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI
+    uses: zemd/js/.github/workflows/shared-ci.yml@__SHA__ # v1
+    permissions:
+      contents: read
+    # Every input is optional; the defaults below match the shared workflow.
+    # with:
+    #   node-version: "lts/*"
+    #   os-matrix: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+    #   lint-script: lint-check
+    #   format-script: format-check
+    #   typecheck-script: typecheck
+    #   build-script: build
+    #   test-script: test
+    #   publint-script: lint-publish
+    #   report-change-intents: true
+    #   dependency-review: true
+    #   dependency-review-severity: high
+    #   dependency-review-scopes: "runtime, development, unknown"
+    #
+    # Opt in to Playwright by naming the script and the package that owns the
+    # playwright dependency. Leave `browser-test-script` empty to skip the job.
+    #   browser-test-script: test-browser
+    #   playwright-filter: "@acme/browser-tests"

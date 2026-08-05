@@ -1,16 +1,9 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
 version: 2
 updates:
-  - package-ecosystem: "npm" # See documentation for possible values
+  - package-ecosystem: "npm"
     directories: # Every workspace project plus the root manifest
       - "/"
       - "/packages/*"
-      - "/http-clients/*"
-      - "/internal/*"
     schedule:
       interval: "weekly"
     versioning-strategy: "increase" # the workspace pins exact versions (saveExact)
@@ -20,6 +13,9 @@ updates:
         dependency-type: "production"
       development-dependencies:
         dependency-type: "development"
+
+  # Also keeps the `zemd/js/.github/workflows/shared-*.yml@<sha>` pins current,
+  # rewriting both the SHA and the `# v1` comment.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

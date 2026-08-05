@@ -9,129 +9,35 @@ on:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
-env:
-  # https://consoledonottrack.com - opts out of Turborepo and other CLI telemetry
-  DO_NOT_TRACK: 1
-
 jobs:
-  version:
-    name: Version
-    runs-on: ubuntu-latest
+  release:
+    name: Release
+    uses: ./.github/workflows/shared-release.yml
     permissions:
       contents: write
       pull-requests: write
-    outputs:
-      pending: ${{ steps.version.outputs.pending }}
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
+      id-token: write
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "lts/*"
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
-
-      # Consumes the change intents in .changeset/, bumps every affected package
-      # and its workspace dependents, and writes the changelog entries.
-      - name: Apply pending release intents
-        id: version
-        run: |
-          pnpm version -r --json > "${RUNNER_TEMP}/releases.json"
-          pnpm install --lockfile-only
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "pending=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "pending=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Render release pull request body
-        if: steps.version.outputs.pending == 'true'
-        run: |
-          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/workspace.json"
-          node .github/scripts/release-pr-body.mjs \
-            "${RUNNER_TEMP}/releases.json" \
-            "${RUNNER_TEMP}/workspace.json" > "${RUNNER_TEMP}/pr-body.md"
-          cat "${RUNNER_TEMP}/pr-body.md" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Open release pull request
-        if: steps.version.outputs.pending == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          node .github/scripts/signed-commit.mjs release/main "chore(release): version packages"
-          pr="$(gh pr list --head release/main --base main --state open --json number --jq '.[].number')"
-          if [ -z "$pr" ]; then
-            gh pr create \
-              --base main \
-              --head release/main \
-              --title "chore(release): version packages" \
-              --body-file "${RUNNER_TEMP}/pr-body.md"
-          else
-            gh pr edit "$pr" --body-file "${RUNNER_TEMP}/pr-body.md"
-          fi
-
-  # No intents were pending, so main already holds the released versions.
-  # `pnpm publish -r` skips anything the registry already serves.
-  publish:
-    name: Publish
-    needs: version
-    if: needs.version.outputs.pending == 'false'
+  # Publishes the `shared-*.yml` contract itself: a `vX.Y.Z` tag, a moving `vX`
+  # tag and a release whose body carries SHA-pinned `uses:` lines to copy.
+  shared-workflows:
+    name: Publish shared workflows
+    needs: release
+    if: needs.release.outputs.pending == 'false'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # create git tags and GitHub releases
-      id-token: write # npm trusted publishing (OIDC)
+      contents: write
+
     steps:
       - name: Checkout Repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
-          run_install: false
+          persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "lts/*"
-          cache: "pnpm"
-          # OIDC cannot authenticate the first publish because an npm package
-          # must exist before its trusted publisher can be configured.
-          registry-url: "https://registry.npmjs.org"
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Build
-        run: pnpm run build
-
-      - name: Validate publishable packages
-        run: pnpm run lint-publish
-
-      - name: Publish to npm
-        env:
-          # pnpm prefers OIDC when it succeeds and falls back to this token for
-          # the first publish of a package that does not exist in npm yet.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm publish -r --access public --no-git-checks --report-summary
-
-      # pnpm only talks to the registry, so tags and the release are created here.
-      - name: Tag packages and create GitHub release
+      - name: Tag and release the shared workflows
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/versions.json"
-          node .github/scripts/github-releases.mjs \
-            pnpm-publish-summary.json \
-            "${RUNNER_TEMP}/versions.json"
+          node .github/scripts/gha.mjs shared-workflows-release internal/gha/package.json .github/workflows

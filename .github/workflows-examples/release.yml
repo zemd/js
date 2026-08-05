@@ -1,0 +1,33 @@
+# Keep this file named `release.yml`: npm trusted publishing validates the
+# *calling* workflow filename, not the reusable workflow that runs `npm publish`.
+name: Release
+
+permissions: {}
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    name: Release
+    uses: zemd/js/.github/workflows/shared-release.yml@__SHA__ # v1
+    permissions:
+      contents: write # release branch, git tags and GitHub releases
+      pull-requests: write # open and refresh the release pull request
+      id-token: write # npm trusted publishing (OIDC)
+    secrets:
+      # Only needed until every package exists on npm: a trusted publisher
+      # cannot be configured for a package that has never been published.
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    # with:
+    #   node-version: "lts/*"
+    #   base-branch: main
+    #   release-branch: release/main
+    #   release-title: "chore(release): version packages"
+    #   build-script: build
+    #   publint-script: lint-publish
+    #   registry-url: "https://registry.npmjs.org"

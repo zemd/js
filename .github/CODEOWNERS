@@ -1,1 +1,6 @@
 * @zemd
+
+# Consumed by other repositories through `uses: zemd/js/.github/workflows/shared-*.yml@<sha>`.
+/.github/workflows/shared-*.yml @zemd
+/.github/scripts/ @zemd
+/internal/gha/ @zemd
