@@ -6,6 +6,10 @@
   dir: http-clients/flickr
   intents:
     - flickr-http-client-sync
+"@zemd/gha@1.0.0":
+  dir: internal/gha
+  intents:
+    - shared-github-workflows
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
