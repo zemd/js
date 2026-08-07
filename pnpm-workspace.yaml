@@ -3,6 +3,7 @@ saveExact: true
 packages:
   - packages/*
   - http-clients/*
+  - internal/*
 
 versioning:
   changelog:

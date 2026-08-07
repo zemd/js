@@ -1,1 +1,4 @@
 * text=auto eol=lf
+
+# Built from internal/gha, collapsed in pull request diffs.
+.github/scripts/*.mjs linguist-generated=true

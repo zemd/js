@@ -11,134 +11,18 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # https://consoledonottrack.com - opts out of Turborepo and other CLI telemetry
-  DO_NOT_TRACK: 1
-
 jobs:
-  quality:
-    name: Lint & Format
-    runs-on: ubuntu-latest
+  ci:
+    name: CI
+    uses: ./.github/workflows/shared-ci.yml
     permissions:
       contents: read
+    with:
+      browser-test-script: test-browser
+      playwright-filter: "@zemd/std-modules"
 
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "lts/*"
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Lint
-        run: pnpm run lint-check
-
-      - name: Check formatting
-        run: pnpm run format-check
-
-      - name: Report pending release intents
-        run: pnpm change status
-
-  test:
-    name: "Build & Test: ${{ matrix.os }}"
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "lts/*"
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Typecheck
-        run: pnpm run typecheck
-
-      - name: Build
-        run: pnpm run build
-
-      - name: Run tests
-        run: pnpm run test
-
-      - name: Validate publishable packages
-        run: pnpm run lint-publish
-
-  browser:
-    name: Browser Tests
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-        with:
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "lts/*"
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Resolve Playwright version
-        id: playwright
-        run: echo "version=$(pnpm --filter @zemd/std-modules exec playwright --version | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
-
-      - name: Restore Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.playwright.outputs.version }}-chromium
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter @zemd/std-modules exec playwright install --with-deps chromium
-
-      # Cached browser binaries still need the OS-level libraries they link against.
-      - name: Install Playwright system dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter @zemd/std-modules exec playwright install-deps chromium
-
-      - name: Run browser tests
-        run: pnpm run test-browser
-
-  dependency-review:
-    name: Dependency Review
+  shared-version:
+    name: Shared workflow contract
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -147,10 +31,55 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Review dependency changes
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
-          fail-on-severity: high
-          fail-on-scopes: runtime, development, unknown
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      # .github/scripts is committed build output, so a stale copy would ship
+      # different behaviour than internal/gha/src describes.
+      - name: Check the committed tooling matches its source
+        run: |
+          pnpm --filter @zemd/gha run build
+          if [ -n "$(git status --porcelain -- .github/scripts)" ]; then
+            echo "::error::.github/scripts is stale, rebuild @zemd/gha and commit the result"
+            git --no-pager diff -- .github/scripts
+            exit 1
+          fi
+
+      # Consumers pin `shared-*.yml` by SHA, so a behaviour change that skips the
+      # version bump would never reach them through the moving `vX` tag.
+      - name: Require a release intent when the shared contract changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+            echo "pull request SHAs unavailable; skipping shared contract check"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$BASE_SHA...$HEAD_SHA" -- \
+            '.github/workflows/shared-*.yml' .github/scripts)"
+          if [ -z "$changed" ]; then
+            echo "shared contract untouched"
+            exit 0
+          fi
+          if ! grep -rlF '"@zemd/gha"' .changeset >/dev/null 2>&1; then
+            echo "::error::Add a change intent for @zemd/gha, these shared files changed:"
+            printf '%s\n' "$changed"
+            exit 1
+          fi
+          echo "release intent recorded alongside:"
+          printf '%s\n' "$changed"

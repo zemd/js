@@ -1,11 +1,16 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "stream",
-  "globalDependencies": ["packages/tsconfig/tsconfig-*.json"],
+  "globalDependencies": [
+    "packages/tsconfig/tsconfig-*.json",
+    ".github/workflows/*.yml",
+    ".github/workflows-examples/*.yml",
+    ".github/scripts/*.mjs"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "tsconfig.json", "tsdown.config.js", "package.json"],
+      "inputs": ["src/**", "scripts/**", "tsconfig.json", "tsdown.config.js", "package.json"],
       "outputs": ["dist/**"]
     },
     "test": {

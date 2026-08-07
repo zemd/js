@@ -20,8 +20,10 @@ concurrency:
 jobs:
   codeql:
     name: CodeQL
-    uses: ./.github/workflows/shared-codeql.yml
+    uses: zemd/js/.github/workflows/shared-codeql.yml@__SHA__ # v1
     permissions:
       contents: read
       actions: read
       security-events: write
+    # with:
+    #   languages: '["actions", "javascript-typescript"]'

@@ -1,0 +1,31 @@
+{
+  "name": "@zemd/gha",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Release tooling executed by the shared GitHub Actions workflows",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemd/js.git",
+    "directory": "internal/gha"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsdown && node ./scripts/sync.ts",
+    "dev": "tsdown --watch",
+    "test": "vitest --run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@zemd/tsconfig": "workspace:*",
+    "tsdown": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
