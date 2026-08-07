@@ -19,15 +19,18 @@ jobs:
       contents: write # release branch, git tags and GitHub releases
       pull-requests: write # open and refresh the release pull request
       id-token: write # npm trusted publishing (OIDC)
+    with:
+      # Keep this SHA equal to the one in `uses` above.
+      shared-tooling-repository: zemd/js
+      shared-tooling-ref: __SHA__
+      # node-version: "lts/*"
+      # base-branch: main
+      # release-branch: release/main
+      # release-title: "chore(release): version packages"
+      # build-script: build
+      # publint-script: lint-publish
+      # registry-url: "https://registry.npmjs.org"
     secrets:
       # Only needed until every package exists on npm: a trusted publisher
       # cannot be configured for a package that has never been published.
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-    # with:
-    #   node-version: "lts/*"
-    #   base-branch: main
-    #   release-branch: release/main
-    #   release-title: "chore(release): version packages"
-    #   build-script: build
-    #   publint-script: lint-publish
-    #   registry-url: "https://registry.npmjs.org"

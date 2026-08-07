@@ -56,7 +56,10 @@ test("creates the exact tag and moves the major tag", async () => {
 });
 
 test("is a no-op when the version was already released", async () => {
-  const github = fakeGitHub({ existingTags: ["v1.0.0"] });
+  const github = fakeGitHub({
+    existingTags: ["v1.0.0", "v1"],
+    releases: [{ tag_name: "v1.0.0", created_at: "2026-08-01T00:00:00Z" }],
+  });
 
   await releaseSharedWorkflows({
     api: github.api,
@@ -70,8 +73,59 @@ test("is a no-op when the version was already released", async () => {
   expect(github.createdReleases).toEqual([]);
 });
 
+test("resumes after moving the major tag fails", async () => {
+  const github = fakeGitHub({
+    existingTags: ["v2"],
+    updateRefFailures: { "refs/tags/v2": 1 },
+  });
+  const input = {
+    api: github.api,
+    sha: SHA,
+    version: "2.1.0",
+    packagePath: "internal/gha",
+    workflows: WORKFLOWS,
+  };
+
+  await expect(releaseSharedWorkflows(input)).rejects.toThrow(/could not move the major tag/);
+
+  expect(github.tags.has("v2.1.0")).toBe(true);
+  expect(github.createdReleases).toEqual([]);
+
+  await releaseSharedWorkflows(input);
+
+  expect(github.createdRefs).toEqual([{ ref: "refs/tags/v2.1.0", sha: SHA }]);
+  expect(github.updatedRefs).toEqual([{ ref: "refs/tags/v2", sha: SHA }]);
+  expect(github.createdReleases).toHaveLength(1);
+});
+
+test("resumes after creating the GitHub release fails", async () => {
+  const github = fakeGitHub({ releaseCreationFailures: 1 });
+  const input = {
+    api: github.api,
+    sha: SHA,
+    version: "3.0.0",
+    packagePath: "internal/gha",
+    workflows: WORKFLOWS,
+  };
+
+  await expect(releaseSharedWorkflows(input)).rejects.toThrow(/failed to create release/);
+
+  expect(github.tags.has("v3.0.0")).toBe(true);
+  expect(github.tags.has("v3")).toBe(true);
+  expect(github.createdReleases).toEqual([]);
+
+  await releaseSharedWorkflows(input);
+
+  expect(github.createdRefs).toEqual([
+    { ref: "refs/tags/v3.0.0", sha: SHA },
+    { ref: "refs/tags/v3", sha: SHA },
+  ]);
+  expect(github.updatedRefs).toEqual([{ ref: "refs/tags/v3", sha: SHA }]);
+  expect(github.createdReleases).toHaveLength(1);
+});
+
 test("moves an existing major tag instead of failing", async () => {
-  const github = fakeGitHub({ refusedRefs: ["refs/tags/v2"] });
+  const github = fakeGitHub({ existingTags: ["v2"] });
 
   await releaseSharedWorkflows({
     api: github.api,

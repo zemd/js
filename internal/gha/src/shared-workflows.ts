@@ -105,13 +105,14 @@ export const releaseSharedWorkflows = async ({
   }
 
   const tag = `v${version}`;
+  const releases = await api.listReleases();
 
-  if (await api.tagExists(tag)) {
+  if (releases.some((release) => release.tag_name === tag)) {
     console.log(`${tag} already released, nothing to do`);
     return;
   }
 
-  if (!(await putTag(api, tag, sha, false))) {
+  if (!(await api.tagExists(tag)) && !(await putTag(api, tag, sha, false))) {
     throw new Error(`could not create ${tag}`);
   }
   if (!(await putTag(api, `v${version.split(".")[0]}`, sha, true))) {
@@ -119,7 +120,7 @@ export const releaseSharedWorkflows = async ({
   }
 
   const previousTag =
-    (await api.listReleases())
+    releases
       .filter((release) => isReleaseVersion(release.tag_name.replace(/^v/, "")))
       .sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.tag_name ?? "";
 

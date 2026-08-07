@@ -24,7 +24,7 @@ those can be renamed or disabled through workflow inputs — see the commented
 
    ```sh
    SHA="$(gh api repos/zemd/js/git/ref/tags/v1 --jq .object.sha)"
-   sed -i.bak "s|@__SHA__|@${SHA}|g" .github/workflows/*.yml && rm .github/workflows/*.bak
+   sed -i.bak "s|__SHA__|${SHA}|g" .github/workflows/*.yml && rm .github/workflows/*.bak
    ```
 
    Every [`v*` release](https://github.com/zemd/js/releases) also lists the
@@ -33,8 +33,9 @@ those can be renamed or disabled through workflow inputs — see the commented
 3. Adjust the `with:` inputs if the repository's scripts differ from the
    defaults, and delete the workflows you do not need.
 
-Dependabot rewrites both the SHA and the trailing `# v1` comment from then on,
-so the pins stay current without dropping to a mutable ref.
+Dependabot rewrites both the SHA and the trailing `# v1` comment from then on.
+When it updates `release.yml`, keep `shared-tooling-ref` equal to the SHA in the
+`uses:` line so the release scripts and reusable workflow stay on one revision.
 
 ## Release setup
 
@@ -71,6 +72,7 @@ For npm **trusted publishing**:
   the same `concurrency.group` on both sides with `cancel-in-progress: true`.
 - Permissions can only be narrowed by the called workflow, never widened, which
   is why each example declares them on the calling job.
-- `shared-release.yml` checks out its own revision into `.shared-ci/` to reach
-  the bundled `gha.mjs` CLI, and adds that path to `.git/info/exclude` so it can
-  never land in a release commit.
+- `shared-release.yml` checks out the explicit `shared-tooling-repository` and
+  `shared-tooling-ref` into `.shared-ci/` to reach the bundled `gha.mjs` CLI.
+  Keep the ref equal to the SHA that pins the reusable workflow. The checkout is
+  added to `.git/info/exclude` so it can never land in a release commit.

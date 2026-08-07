@@ -46,6 +46,7 @@ export interface GitHubApiOptions {
   readonly token: string;
   readonly repository: string;
   readonly apiUrl?: string;
+  readonly graphqlUrl?: string;
   readonly fetch?: typeof globalThis.fetch;
 }
 
@@ -62,14 +63,15 @@ const COMMIT_MUTATION = `
 export const createGitHubApi = (options: GitHubApiOptions): GitHubApi => {
   const { token, repository } = options;
   const apiUrl = options.apiUrl ?? "https://api.github.com";
+  const graphqlUrl = options.graphqlUrl ?? "https://api.github.com/graphql";
   const doFetch = options.fetch ?? globalThis.fetch;
 
-  const request = async <T>(
-    path: string,
+  const requestUrl = async <T>(
+    url: string,
     method: HttpMethod,
     body?: unknown,
   ): Promise<GitHubResponse<T>> => {
-    const response = await doFetch(`${apiUrl}${path}`, {
+    const response = await doFetch(url, {
       method,
       headers: {
         accept: "application/vnd.github+json",
@@ -87,11 +89,17 @@ export const createGitHubApi = (options: GitHubApiOptions): GitHubApi => {
     };
   };
 
+  const request = <T>(
+    path: string,
+    method: HttpMethod,
+    body?: unknown,
+  ): Promise<GitHubResponse<T>> => requestUrl(`${apiUrl}${path}`, method, body);
+
   const api: GitHubApi = {
     repository,
     request,
 
-    graphql: (query, variables) => request("/graphql", "POST", { query, variables }),
+    graphql: (query, variables) => requestUrl(graphqlUrl, "POST", { query, variables }),
 
     tagExists: async (tag) =>
       (await request(`/repos/${repository}/git/ref/tags/${encodeURIComponent(tag)}`, "GET")).ok,

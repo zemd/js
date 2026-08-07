@@ -25,10 +25,10 @@ export const collectChanges = ({ git, read }: WorkingTreeOptions): FileChanges =
     const state = record.slice(0, 2);
     const path = record.slice(3);
 
-    if (state[0] === "R" || state[0] === "C") {
+    if (state.includes("R") || state.includes("C")) {
       const origin = records[index + 1];
       index += 1;
-      if (state[0] === "R" && origin) deleted.add(origin);
+      if (state.includes("R") && origin) deleted.add(origin);
       added.add(path);
       continue;
     }

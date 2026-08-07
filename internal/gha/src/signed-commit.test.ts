@@ -45,8 +45,22 @@ test("splits a rename into an addition and a deletion", () => {
   expect(changes.deletions).toEqual([{ path: "old.ts" }]);
 });
 
+test("splits a work-tree rename into an addition and a deletion", () => {
+  const changes = collectChanges({ git: gitStub(" R new.ts\0old.ts\0"), read });
+
+  expect(changes.additions.map((entry) => entry.path)).toEqual(["new.ts"]);
+  expect(changes.deletions).toEqual([{ path: "old.ts" }]);
+});
+
 test("treats a copy as an addition only", () => {
   const changes = collectChanges({ git: gitStub("C  copy.ts\0source.ts\0"), read });
+
+  expect(changes.additions.map((entry) => entry.path)).toEqual(["copy.ts"]);
+  expect(changes.deletions).toEqual([]);
+});
+
+test("treats a work-tree copy as an addition only", () => {
+  const changes = collectChanges({ git: gitStub(" C copy.ts\0source.ts\0"), read });
 
   expect(changes.additions.map((entry) => entry.path)).toEqual(["copy.ts"]);
   expect(changes.deletions).toEqual([]);

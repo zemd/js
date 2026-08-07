@@ -20,6 +20,30 @@ test("authenticates and versions every REST call", async () => {
   });
 });
 
+test("uses GitHub.com's GraphQL endpoint by default", async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(okResponse({}));
+  const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
+
+  await api.graphql("query { viewer { login } }", {});
+
+  expect(fetch.mock.calls[0]?.[0]).toBe("https://api.github.com/graphql");
+});
+
+test("uses the configured GraphQL endpoint independently of the REST endpoint", async () => {
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(okResponse({}));
+  const api = createGitHubApi({
+    token: "secret",
+    repository: "acme/repo",
+    apiUrl: "https://github.example.com/api/v3",
+    graphqlUrl: "https://github.example.com/api/graphql",
+    fetch,
+  });
+
+  await api.graphql("query { viewer { login } }", {});
+
+  expect(fetch.mock.calls[0]?.[0]).toBe("https://github.example.com/api/graphql");
+});
+
 test("omits a body for GET requests", async () => {
   const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(okResponse({}));
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });

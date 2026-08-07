@@ -13,6 +13,14 @@ permissions: {}
 on:
   workflow_call:
     inputs:
+      shared-tooling-repository:
+        description: Repository containing the scripts bundled with this reusable workflow.
+        type: string
+        required: true
+      shared-tooling-ref:
+        description: Commit SHA for the shared tooling; keep it equal to the workflow's pinned SHA.
+        type: string
+        required: true
       node-version:
         description: Node.js version passed to actions/setup-node.
         type: string
@@ -113,10 +121,10 @@ jobs:
         if: steps.version.outputs.pending == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The repository and commit this workflow file itself came from, so the
-          # scripts always match the revision the caller pinned.
-          repository: ${{ job.workflow_repository }}
-          ref: ${{ job.workflow_sha }}
+          # The caller must pass the repository and commit SHA matching its
+          # pinned workflow reference, so the scripts use the same revision.
+          repository: ${{ inputs.shared-tooling-repository }}
+          ref: ${{ inputs.shared-tooling-ref }}
           path: .shared-ci
           persist-credentials: false
 
@@ -205,8 +213,8 @@ jobs:
       - name: Checkout shared tooling
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ job.workflow_repository }}
-          ref: ${{ job.workflow_sha }}
+          repository: ${{ inputs.shared-tooling-repository }}
+          ref: ${{ inputs.shared-tooling-ref }}
           path: .shared-ci
           persist-credentials: false
 

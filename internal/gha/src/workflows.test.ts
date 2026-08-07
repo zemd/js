@@ -83,11 +83,20 @@ test("shared workflows set the telemetry opt-out themselves", () => {
 
 test("the release tooling is checked out from the pinned shared revision", () => {
   const source = read(workflowsDir, "shared-release.yml");
+  const caller = read(workflowsDir, "release.yml");
+  const example = read(examplesDir, "release.yml");
 
   // `actions/checkout` pulls the *caller* repository, so the CLI this workflow
-  // runs has to come from a second checkout of its own revision.
-  expect(source).toMatch(/repository: \$\{\{ job\.workflow_repository \}\}/);
-  expect(source).toMatch(/ref: \$\{\{ job\.workflow_sha \}\}/);
+  // runs has to come from an explicitly configured second checkout.
+  expect(source).toMatch(/shared-tooling-repository:\n(?: {8}.*\n){2} {8}required: true/);
+  expect(source).toMatch(/shared-tooling-ref:\n(?: {8}.*\n){2} {8}required: true/);
+  expect(source).toMatch(/repository: \$\{\{ inputs\.shared-tooling-repository \}\}/);
+  expect(source).toMatch(/ref: \$\{\{ inputs\.shared-tooling-ref \}\}/);
+  expect(source).not.toContain("job.workflow_");
+  expect(caller).toMatch(/shared-tooling-repository: \$\{\{ github\.repository \}\}/);
+  expect(caller).toMatch(/shared-tooling-ref: \$\{\{ github\.sha \}\}/);
+  expect(example).toMatch(/shared-tooling-repository: zemd\/js/);
+  expect(example).toMatch(/shared-tooling-ref: __SHA__/);
   expect(source).toMatch(/path: \.shared-ci/);
   expect(source).toMatch(/echo "\/\.shared-ci\/" >> \.git\/info\/exclude/);
   expect(source).toContain(`SHARED_CLI: .shared-ci/.github/scripts/${BUNDLE}`);

@@ -13,7 +13,13 @@ export const changelogEntry = (packagePath: string, version: string): string => 
   }
 
   const lines = changelog.split("\n");
-  const start = lines.findIndex((line) => line.trim().replace(/[[\]]/g, "") === `## ${version}`);
+  const start = lines.findIndex(
+    (line) =>
+      line
+        .trim()
+        .replace(/\s+-\s+\d{4}-\d{2}-\d{2}$/, "")
+        .replace(/[[\]]/g, "") === `## ${version}`,
+  );
   if (start === -1) return "";
 
   const rest = lines.slice(start + 1);

@@ -24,7 +24,7 @@ const changelogEntry = (packagePath, version) => {
 		return "";
 	}
 	const lines = changelog.split("\n");
-	const start = lines.findIndex((line) => line.trim().replace(/[[\]]/g, "") === `## ${version}`);
+	const start = lines.findIndex((line) => line.trim().replace(/\s+-\s+\d{4}-\d{2}-\d{2}$/, "").replace(/[[\]]/g, "") === `## ${version}`);
 	if (start === -1) return "";
 	const rest = lines.slice(start + 1);
 	const end = rest.findIndex((line) => line.startsWith("## "));
@@ -179,9 +179,10 @@ const COMMIT_MUTATION = `
 const createGitHubApi = (options) => {
 	const { token, repository } = options;
 	const apiUrl = options.apiUrl ?? "https://api.github.com";
+	const graphqlUrl = options.graphqlUrl ?? "https://api.github.com/graphql";
 	const doFetch = options.fetch ?? globalThis.fetch;
-	const request = async (path, method, body) => {
-		const response = await doFetch(`${apiUrl}${path}`, {
+	const requestUrl = async (url, method, body) => {
+		const response = await doFetch(url, {
 			method,
 			headers: {
 				accept: "application/vnd.github+json",
@@ -198,10 +199,11 @@ const createGitHubApi = (options) => {
 			payload: text ? JSON.parse(text) : {}
 		};
 	};
+	const request = (path, method, body) => requestUrl(`${apiUrl}${path}`, method, body);
 	const api = {
 		repository,
 		request,
-		graphql: (query, variables) => request("/graphql", "POST", {
+		graphql: (query, variables) => requestUrl(graphqlUrl, "POST", {
 			query,
 			variables
 		}),
@@ -266,7 +268,8 @@ const createGitHubApi = (options) => {
 const apiFromEnv = () => createGitHubApi({
 	token: requireEnv("GITHUB_TOKEN"),
 	repository: requireEnv("GITHUB_REPOSITORY"),
-	apiUrl: optionalEnv("GITHUB_API_URL", "https://api.github.com")
+	apiUrl: optionalEnv("GITHUB_API_URL", "https://api.github.com"),
+	graphqlUrl: optionalEnv("GITHUB_GRAPHQL_URL", "https://api.github.com/graphql")
 });
 
 //#endregion
@@ -448,13 +451,14 @@ const releaseSharedWorkflows = async ({ api, sha, version, packagePath, workflow
 	if (!isReleaseVersion(version)) throw new Error(`expected a plain semver version, got "${version}"`);
 	if (workflows.length === 0) throw new Error("no shared-*.yml workflows found");
 	const tag = `v${version}`;
-	if (await api.tagExists(tag)) {
+	const releases = await api.listReleases();
+	if (releases.some((release) => release.tag_name === tag)) {
 		console.log(`${tag} already released, nothing to do`);
 		return;
 	}
-	if (!await putTag(api, tag, sha, false)) throw new Error(`could not create ${tag}`);
+	if (!await api.tagExists(tag) && !await putTag(api, tag, sha, false)) throw new Error(`could not create ${tag}`);
 	if (!await putTag(api, `v${version.split(".")[0]}`, sha, true)) throw new Error(`could not move the major tag for ${tag}`);
-	const previousTag = (await api.listReleases()).filter((release) => isReleaseVersion(release.tag_name.replace(/^v/, ""))).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.tag_name ?? "";
+	const previousTag = releases.filter((release) => isReleaseVersion(release.tag_name.replace(/^v/, ""))).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.tag_name ?? "";
 	const created = await api.createRelease({
 		tag,
 		name: `Shared workflows ${tag}`,
@@ -511,10 +515,10 @@ const collectChanges = ({ git, read }) => {
 		const record = records[index] ?? "";
 		const state = record.slice(0, 2);
 		const path = record.slice(3);
-		if (state[0] === "R" || state[0] === "C") {
+		if (state.includes("R") || state.includes("C")) {
 			const origin = records[index + 1];
 			index += 1;
-			if (state[0] === "R" && origin) deleted.add(origin);
+			if (state.includes("R") && origin) deleted.add(origin);
 			added.add(path);
 			continue;
 		}

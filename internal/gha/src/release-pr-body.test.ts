@@ -49,10 +49,10 @@ test("renders a same-version unpublished package as a first release", () => {
   expect(body).toContain("Publish the initial package.");
 });
 
-test("renders an ordinary version bump from pnpm's applied release data", () => {
+test("renders an ordinary version bump from a dated Keep a Changelog entry", () => {
   const path = packageFixture(`# example
 
-## [2.0.0]
+## [2.0.0] - 2026-01-01
 
 ### Major Changes
 

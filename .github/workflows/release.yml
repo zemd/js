@@ -17,6 +17,9 @@ jobs:
       contents: write
       pull-requests: write
       id-token: write
+    with:
+      shared-tooling-repository: ${{ github.repository }}
+      shared-tooling-ref: ${{ github.sha }}
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 

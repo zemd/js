@@ -66,6 +66,10 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+            echo "pull request SHAs unavailable; skipping shared contract check"
+            exit 0
+          fi
           changed="$(git diff --name-only "$BASE_SHA...$HEAD_SHA" -- \
             '.github/workflows/shared-*.yml' .github/scripts)"
           if [ -z "$changed" ]; then
