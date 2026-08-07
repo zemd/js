@@ -8,6 +8,7 @@ Copy-paste callers for the reusable workflows published from this repository.
 | [`release.yml`](./release.yml)       | `shared-release.yml`   | Release pull request, npm publish, git tags, GitHub release                |
 | [`codeql.yml`](./codeql.yml)         | `shared-codeql.yml`    | CodeQL analysis                                                            |
 | [`scorecard.yml`](./scorecard.yml)   | `shared-scorecard.yml` | OpenSSF Scorecard                                                          |
+| [`zizmor.yml`](./zizmor.yml)         | `shared-zizmor.yml`    | Blocking security lint for GitHub Actions and Dependabot                   |
 | [`dependabot.yml`](./dependabot.yml) | —                      | Keeps the pinned SHAs current                                              |
 
 They assume a pnpm workspace with `lint-check`, `format-check`, `typecheck`,
@@ -17,7 +18,7 @@ those can be renamed or disabled through workflow inputs — see the commented
 
 ## Install
 
-1. Copy the four workflow files into `.github/workflows/` of the target
+1. Copy the five workflow files into `.github/workflows/` of the target
    repository and `dependabot.yml` into `.github/`.
 
 2. Replace the `__SHA__` placeholder with the commit of the release you want:
@@ -72,6 +73,9 @@ For npm **trusted publishing**:
   the same `concurrency.group` on both sides with `cancel-in-progress: true`.
 - Permissions can only be narrowed by the called workflow, never widened, which
   is why each example declares them on the calling job.
+- `shared-zizmor.yml` deliberately uses annotation output instead of SARIF so
+  any finding fails the job. Its weekly caller also catches advisories published
+  after an action was pinned; CodeQL remains the stateful code-scanning feed.
 - `shared-release.yml` checks out the explicit `shared-tooling-repository` and
   `shared-tooling-ref` into `.shared-ci/` to reach the bundled `gha.mjs` CLI.
   Keep the ref equal to the SHA that pins the reusable workflow. The checkout is

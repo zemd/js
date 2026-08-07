@@ -22,8 +22,8 @@ jobs:
     name: CodeQL
     uses: zemd/js/.github/workflows/shared-codeql.yml@__SHA__ # v1
     permissions:
-      contents: read
-      actions: read
-      security-events: write
+      contents: read # checkout the repository for analysis
+      actions: read # let CodeQL read workflow-run metadata
+      security-events: write # upload results to code scanning
     # with:
     #   languages: '["actions", "javascript-typescript"]'

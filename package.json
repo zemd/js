@@ -18,6 +18,7 @@
     "format-check": "oxfmt --check",
     "lint": "oxlint --type-aware --fix --ignore-pattern=.github/scripts",
     "lint-check": "oxlint --type-aware --deny-warnings --ignore-pattern=.github/scripts",
+    "lint-actions": "zizmor --strict-collection --collect=default --persona=pedantic .",
     "lint-publish": "pnpm -r --filter='!./internal/**' exec publint",
     "release-change": "pnpm change",
     "release-status": "pnpm change status",

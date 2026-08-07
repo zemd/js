@@ -22,6 +22,6 @@ jobs:
     name: CodeQL
     uses: ./.github/workflows/shared-codeql.yml
     permissions:
-      contents: read
-      actions: read
-      security-events: write
+      contents: read # checkout the repository for analysis
+      actions: read # let CodeQL read workflow-run metadata
+      security-events: write # upload results to code scanning

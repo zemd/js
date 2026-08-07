@@ -17,6 +17,9 @@ catalog:
   vitest: 4.1.10
   zod: 4.4.3
 
+# Seven days; keep aligned with Dependabot's npm cooldown.
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
 minimumReleaseAgeExclude:
   - "@zemd/*"
 

@@ -19,9 +19,9 @@ jobs:
     name: "Analyze: ${{ matrix.language }}"
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      actions: read
-      security-events: write
+      contents: read # checkout the caller repository for analysis
+      actions: read # let CodeQL read workflow-run metadata
+      security-events: write # upload results to code scanning
 
     strategy:
       fail-fast: false
