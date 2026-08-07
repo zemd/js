@@ -10,6 +10,7 @@
   dir: internal/gha
   intents:
     - shared-github-workflows
+    - six-aliens-rule
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
