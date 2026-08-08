@@ -1,0 +1,47 @@
+name: Shared zizmor
+
+# Blocking GitHub Actions security linting for workflows, custom actions and
+# Dependabot configuration. Call it from a repository with:
+#   uses: zemd/js/.github/workflows/shared-zizmor.yml@<sha> # v1
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      audit-inputs:
+        description: Whitespace-separated repository paths for zizmor to audit.
+        type: string
+        default: "."
+      persona:
+        description: zizmor audit persona; regular is the recommended CI default.
+        type: string
+        default: "regular"
+
+jobs:
+  audit:
+    name: Audit GitHub Actions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # checkout and online audits, including private callers
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Plain/annotation output preserves zizmor's non-zero finding exit codes.
+      # SARIF mode always exits zero for findings and is therefore not a merge gate.
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        with:
+          inputs: ${{ inputs.audit-inputs }}
+          collect: default
+          online-audits: true
+          persona: ${{ inputs.persona }}
+          version: "1.29.0"
+          advanced-security: false
+          annotations: true
+          fail-on-no-inputs: true

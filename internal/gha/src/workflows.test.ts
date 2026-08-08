@@ -16,6 +16,28 @@ const yamlFiles = (directory: string): string[] =>
 
 const read = (directory: string, file: string): string => readFileSync(directory + file, "utf8");
 
+const dependabotUpdater = (source: string, ecosystem: string): string => {
+  const marker = `  - package-ecosystem: "${ecosystem}"`;
+  const start = source.indexOf(marker);
+  if (start < 0) throw new Error(`Dependabot does not configure ${ecosystem}`);
+
+  const end = source.indexOf("\n  - package-ecosystem:", start + marker.length);
+  return source.slice(start, end < 0 ? source.length : end);
+};
+
+const yamlStringList = (source: string, key: string, indentation: number): string[] => {
+  const keyIndent = " ".repeat(indentation);
+  const itemIndent = " ".repeat(indentation + 2);
+  const match = source.match(
+    new RegExp(`^${keyIndent}${key}:\\n((?:^${itemIndent}- .+\\n?)*)`, "m"),
+  );
+
+  return (match?.[1] ?? "")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.slice(indentation + 4).replace(/^["']|["']$/g, ""));
+};
+
 // `- uses: owner/repo/path@ref # comment`
 const USES = /^\s*(?:-\s+)?uses:\s*(\S+?)\s*(?:#\s*(\S+))?$/gm;
 
@@ -62,6 +84,7 @@ test("callers delegate to the shared workflows", () => {
     ["ci.yml", "shared-ci.yml"],
     ["codeql.yml", "shared-codeql.yml"],
     ["scorecard.yml", "shared-scorecard.yml"],
+    ["zizmor.yml", "shared-zizmor.yml"],
     // npm trusted publishing validates the caller filename, so it is part of the contract.
     ["release.yml", "shared-release.yml"],
   ];
@@ -111,6 +134,69 @@ test("keeps OIDC with an npm token fallback for first publishes", () => {
   expect(source).toMatch(
     /- name: Publish to npm\n\s+env:\n(?:\s+#.*\n){2}\s+NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}\n\s+run: pnpm publish -r/,
   );
+});
+
+test("zizmor is pinned and fails the workflow on every finding", () => {
+  const source = read(workflowsDir, "shared-zizmor.yml");
+  const caller = read(workflowsDir, "zizmor.yml");
+  const manifest = JSON.parse(readFileSync(`${root}package.json`, "utf8")) as {
+    scripts: Record<string, string>;
+  };
+
+  expect(source).toContain(
+    "uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2",
+  );
+  expect(source).toMatch(/^ {10}version: "1\.29\.0"$/m);
+  expect(source).toMatch(/^ {10}collect: default$/m);
+  expect(source).toMatch(/^ {10}online-audits: true$/m);
+  expect(source).toMatch(/^ {10}advanced-security: false$/m);
+  expect(source).toMatch(/^ {10}annotations: true$/m);
+  expect(source).toMatch(/^ {10}fail-on-no-inputs: true$/m);
+  expect(source).not.toContain("security-events:");
+  expect(caller).toMatch(/^ {6}persona: pedantic$/m);
+  expect(manifest.scripts["lint-actions"]).toBe(
+    "zizmor --strict-collection --collect=default --persona=pedantic .",
+  );
+});
+
+test("Dependabot npm cooldowns match pnpm's release-age policy", () => {
+  const workspace = readFileSync(`${root}pnpm-workspace.yaml`, "utf8");
+  const configuredMinimumReleaseAge = workspace.match(/^minimumReleaseAge: (\d+)$/m)?.[1];
+  if (configuredMinimumReleaseAge === undefined) {
+    throw new Error("pnpm must explicitly configure minimumReleaseAge");
+  }
+
+  const minimumReleaseAgeMinutes = Number(configuredMinimumReleaseAge);
+  expect(minimumReleaseAgeMinutes % 1440).toBe(0);
+  expect(workspace).toMatch(/^minimumReleaseAgeStrict: true$/m);
+
+  const cooldownDays = minimumReleaseAgeMinutes / 1440;
+  const exclusions = yamlStringList(workspace, "minimumReleaseAgeExclude", 0).filter((selector) =>
+    selector.startsWith("@") ? selector.indexOf("@", 1) < 0 : !selector.includes("@"),
+  );
+  expect(exclusions.length).toBeGreaterThan(0);
+
+  for (const [directory, file] of [
+    [`${root}.github/`, "dependabot.yml"],
+    [examplesDir, "dependabot.yml"],
+  ] as const) {
+    const npm = dependabotUpdater(read(directory, file), "npm");
+
+    expect(npm, `${file} must match pnpm's minimumReleaseAge`).toMatch(
+      new RegExp(`^ {6}default-days: ${cooldownDays}(?: |$)`, "m"),
+    );
+    expect(yamlStringList(npm, "exclude", 6)).toStrictEqual(exclusions);
+  }
+});
+
+test("Dependabot keeps GitHub Actions behind a seven-day cooldown", () => {
+  for (const [directory, file] of [
+    [`${root}.github/`, "dependabot.yml"],
+    [examplesDir, "dependabot.yml"],
+  ] as const) {
+    const githubActions = dependabotUpdater(read(directory, file), "github-actions");
+    expect(githubActions).toMatch(/^ {6}default-days: 7$/m);
+  }
 });
 
 test("examples pin the shared workflows through a replaceable placeholder", () => {

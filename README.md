@@ -58,7 +58,12 @@ All tasks are orchestrated by [Turborepo](https://turborepo.com) and run across 
 | `pnpm format-check`       | Verify formatting without writing changes         |
 | `pnpm lint`               | Run type-aware linting and auto-fix with `oxlint` |
 | `pnpm lint-check`         | Run type-aware linting and fail on warnings       |
+| `pnpm lint-actions`       | Audit GitHub Actions with `zizmor`                |
 | `pnpm lint-publish`       | Validate publishable package metadata (`publint`) |
+
+`pnpm lint-actions` requires [`zizmor`](https://docs.zizmor.sh/installation/)
+1.29.0, matching the exact version pinned by CI. Set `GH_TOKEN` (for example,
+from `gh auth token`) to include online audits when running it locally.
 
 To run a script for a single package, use the workspace filter:
 
@@ -72,7 +77,7 @@ To report a vulnerability, follow [`SECURITY.md`](SECURITY.md).
 
 ## Contributing
 
-Issues and pull requests are welcome. Before opening a PR, please make sure that `pnpm lint-check`, `pnpm format-check`, `pnpm typecheck`, and `pnpm test` all pass.
+Issues and pull requests are welcome. Before opening a PR, please make sure that `pnpm lint-check`, `pnpm lint-actions`, `pnpm format-check`, `pnpm typecheck`, and `pnpm test` all pass.
 
 ## License
 

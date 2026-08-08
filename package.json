@@ -18,6 +18,7 @@
     "format-check": "oxfmt --check",
     "lint": "oxlint --type-aware --fix --ignore-pattern=.github/scripts",
     "lint-check": "oxlint --type-aware --deny-warnings --ignore-pattern=.github/scripts",
+    "lint-actions": "zizmor --strict-collection --collect=default --persona=pedantic .",
     "lint-publish": "pnpm -r --filter='!./internal/**' exec publint",
     "release-change": "pnpm change",
     "release-status": "pnpm change status",
@@ -25,10 +26,10 @@
   },
   "devDependencies": {
     "husky": "9.1.7",
-    "oxfmt": "0.62.0",
-    "oxlint": "1.77.0",
+    "oxfmt": "0.61.0",
+    "oxlint": "1.76.0",
     "oxlint-tsgolint": "7.0.2001",
-    "publint": "0.3.23",
+    "publint": "0.3.22",
     "turbo": "2.10.8"
   },
   "packageManager": "pnpm@11.20.0+sha512.9a6f330a95b66446ea088faf1521405a8a01f07fde7124cc9958dfed52d4bb436737e65b08f85f37b46fcba375092558ac51262b816844b22f63406ed166bfee"

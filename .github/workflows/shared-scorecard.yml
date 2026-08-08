@@ -23,12 +23,10 @@ jobs:
     name: Scorecard analysis
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      # Read the workflow run history that the Dangerous-Workflow checks rely on.
-      actions: read
-      security-events: write
-      # Publish the result to the OpenSSF REST API.
-      id-token: write
+      contents: read # checkout the caller repository for analysis
+      actions: read # inspect workflow runs for dangerous patterns
+      security-events: write # upload results to code scanning
+      id-token: write # publish results to the OpenSSF REST API
 
     steps:
       - name: Checkout Repo

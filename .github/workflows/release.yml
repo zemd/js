@@ -7,16 +7,20 @@ on:
     branches:
       - main
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+# A release must finish once started; serialize runs without cancelling one that
+# may already be publishing packages or moving tags.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Release
     uses: ./.github/workflows/shared-release.yml
     permissions:
-      contents: write
-      pull-requests: write
-      id-token: write
+      contents: write # release branch, git tags and GitHub releases
+      pull-requests: write # open and refresh the release pull request
+      id-token: write # npm trusted publishing (OIDC)
     with:
       shared-tooling-repository: ${{ github.repository }}
       shared-tooling-ref: ${{ github.sha }}
@@ -31,7 +35,7 @@ jobs:
     if: needs.release.outputs.pending == 'false'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # publish the shared workflow tags and GitHub release
 
     steps:
       - name: Checkout Repo

@@ -6,6 +6,12 @@ updates:
       - "/packages/*"
     schedule:
       interval: "weekly"
+    # Match pnpm's release-age policy for npm packages.
+    cooldown:
+      default-days: 7 # pnpm-workspace.yaml: minimumReleaseAge / 1440
+      # Keep exemptions aligned with pnpm-workspace.yaml.
+      exclude:
+        - "@zemd/*"
     versioning-strategy: "increase" # the workspace pins exact versions (saveExact)
     open-pull-requests-limit: 10
     groups:
@@ -20,6 +26,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     groups:
       github-actions:

@@ -35,3 +35,4 @@ yarn-error.log*
 
 # release
 pnpm-publish-summary.json
+.pnpm-store

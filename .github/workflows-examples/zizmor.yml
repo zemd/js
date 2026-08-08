@@ -1,0 +1,29 @@
+name: zizmor
+
+permissions: {}
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Re-check pinned actions when new advisories or stale-reference data lands.
+    - cron: "13 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: zizmor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    name: zizmor
+    uses: zemd/js/.github/workflows/shared-zizmor.yml@__SHA__ # v1
+    permissions:
+      contents: read # checkout and online audits
+    # with:
+    #   audit-inputs: "."
+    #   persona: regular

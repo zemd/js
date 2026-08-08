@@ -19,7 +19,7 @@ jobs:
     name: Scorecard
     uses: ./.github/workflows/shared-scorecard.yml
     permissions:
-      contents: read
-      actions: read
-      security-events: write
-      id-token: write
+      contents: read # checkout the repository for analysis
+      actions: read # inspect workflow runs for dangerous patterns
+      security-events: write # upload results to code scanning
+      id-token: write # publish results to the OpenSSF API
