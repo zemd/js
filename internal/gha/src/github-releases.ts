@@ -4,16 +4,30 @@ import type { PublishedPackage, WorkspacePackage } from "./pnpm";
 
 const RELEASE_TAG_PREFIX = "release-";
 
+export type NpmReleaseState = "published" | "staged";
+
 export interface CombinedRelease {
   readonly published: readonly PublishedPackage[];
   readonly paths: ReadonlyMap<string, string>;
+  readonly npmState?: NpmReleaseState;
   readonly notes?: string;
 }
 
-export const renderCombinedReleaseBody = ({ published, paths, notes }: CombinedRelease): string => {
+export const renderCombinedReleaseBody = ({
+  published,
+  paths,
+  npmState = "published",
+  notes,
+}: CombinedRelease): string => {
   const out: string[] = [];
 
-  out.push("## Published packages");
+  out.push(npmState === "staged" ? "## Packages staged on npm" : "## Published packages");
+  if (npmState === "staged") {
+    out.push("");
+    out.push(
+      "These versions require maintainer approval with 2FA before they become available from npm.",
+    );
+  }
   out.push("");
   out.push("| Package | Version |");
   out.push("| :--- | ---: |");
@@ -94,20 +108,22 @@ export interface PackageReleaseInput {
   readonly sha: string;
   readonly published: readonly PublishedPackage[];
   readonly workspace: readonly WorkspacePackage[];
+  readonly npmState?: NpmReleaseState;
   readonly now?: Date;
 }
 
-// `pnpm publish` only talks to the registry, so the tags and the combined
-// GitHub release for the run are created here.
+// pnpm's direct and staged publish commands only talk to the registry, so the
+// tags and the combined GitHub release for the run are created here.
 export const releasePublishedPackages = async ({
   api,
   sha,
   published,
   workspace,
+  npmState = "published",
   now = new Date(),
 }: PackageReleaseInput): Promise<void> => {
   if (published.length === 0) {
-    console.log("no packages were published, nothing to release");
+    console.log(`no packages were ${npmState}, nothing to release`);
     return;
   }
 
@@ -128,7 +144,7 @@ export const releasePublishedPackages = async ({
     tag: releaseTag,
     name: releaseTag,
     targetCommitish: sha,
-    body: renderCombinedReleaseBody({ published: releases, paths, notes }),
+    body: renderCombinedReleaseBody({ published: releases, paths, npmState, notes }),
     prerelease: releases.every(({ version }) => version.includes("-")),
   });
 

@@ -125,15 +125,49 @@ test("the release tooling is checked out from the pinned shared revision", () =>
   expect(source).toContain(`SHARED_CLI: .shared-ci/.github/scripts/${BUNDLE}`);
 });
 
-test("keeps OIDC with an npm token fallback for first publishes", () => {
+test("uses staged publishing by default and keeps direct publishing configurable", () => {
   const source = read(workflowsDir, "shared-release.yml");
+  const example = read(examplesDir, "release.yml");
 
   expect(source).toMatch(/id-token: write # npm trusted publishing \(OIDC\)/);
   expect(source).toMatch(/default: "https:\/\/registry\.npmjs\.org"/);
   expect(source).toMatch(/registry-url: \$\{\{ inputs\.registry-url \}\}/);
+  expect(source).toMatch(/staged-publishing:\n(?: {8}.*\n){2} {8}default: true/);
   expect(source).toMatch(
-    /- name: Publish to npm\n\s+env:\n(?:\s+#.*\n){2}\s+NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}\n\s+run: pnpm publish -r/,
+    /- name: Stage packages on npm\n\s+if: inputs\.staged-publishing\n(?:\s+.*\n)*?\s+run: pnpm stage publish -r .*--report-summary/,
   );
+  expect(source).toMatch(
+    /- name: Publish packages to npm directly\n\s+if: inputs\.staged-publishing == false\n(?:\s+.*\n)*?\s+run: pnpm publish -r .*--report-summary/,
+  );
+  expect(source.match(/NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/g)).toHaveLength(2);
+  expect(source).toContain(
+    "NPM_RELEASE_STATE: ${{ inputs.staged-publishing && 'staged' || 'published' }}",
+  );
+  expect(source).toContain('"$NPM_RELEASE_STATE"');
+  expect(example).toContain("# staged-publishing: true");
+});
+
+test("can advance a private release-contract version before pnpm consumes its intents", () => {
+  const source = read(workflowsDir, "shared-release.yml");
+  const caller = read(workflowsDir, "release.yml");
+  const example = read(examplesDir, "release.yml");
+
+  expect(source).toMatch(/contract-version-package:\n(?: {8}.*\n){2} {8}default: ""/);
+  expect(caller).toContain("contract-version-package: internal/gha/package.json");
+  expect(example).toContain('# contract-version-package: ""');
+  expect(source).toContain("CONTRACT_VERSION_PACKAGE: ${{ inputs.contract-version-package }}");
+  expect(source).toContain('node "${SHARED_CLI}" contract-version prepare');
+  expect(source).toContain("pnpm version -r --json --no-git-checks");
+  expect(source).toContain('node "${SHARED_CLI}" contract-version finalize');
+
+  const toolingCheckout = source.indexOf("- name: Checkout shared tooling");
+  const prepare = source.indexOf("contract-version prepare");
+  const version = source.indexOf("pnpm version -r --json");
+  const finalize = source.indexOf("contract-version finalize");
+  expect(toolingCheckout).toBeGreaterThan(-1);
+  expect(toolingCheckout).toBeLessThan(prepare);
+  expect(prepare).toBeLessThan(version);
+  expect(version).toBeLessThan(finalize);
 });
 
 test("zizmor is pinned and fails the workflow on every finding", () => {

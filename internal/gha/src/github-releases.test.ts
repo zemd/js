@@ -24,6 +24,18 @@ test("renders one npm link and one changelog block per package", () => {
   expect(body).toContain("## What's Changed");
 });
 
+test("labels packages that still require npm staged-publish approval", () => {
+  const body = renderCombinedReleaseBody({
+    published: [{ name: "@acme/one", version: "1.0.0" }],
+    paths: new Map(),
+    npmState: "staged",
+  });
+
+  expect(body).toContain("## Packages staged on npm");
+  expect(body).toContain("require maintainer approval with 2FA");
+  expect(body).not.toContain("## Published packages");
+});
+
 test("builds a minute-stamped release tag", async () => {
   const github = fakeGitHub();
 

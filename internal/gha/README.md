@@ -18,7 +18,9 @@ Its version is the shared workflow contract version: the release workflow tags
 ## Commands
 
 ```
-gha.mjs github-releases          <publish-summary.json> <workspace-list.json>
+gha.mjs contract-version         prepare <package.json> <intents-dir> <state.json>
+gha.mjs contract-version         finalize <state.json> <releases.json>
+gha.mjs github-releases          <publish-summary.json> <workspace-list.json> [published|staged]
 gha.mjs release-pr-body          <releases.json> <workspace-list.json>
 gha.mjs shared-workflows-release <package.json> <workflows-dir>
 gha.mjs signed-commit            <branch> <message>

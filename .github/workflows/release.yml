@@ -24,6 +24,8 @@ jobs:
     with:
       shared-tooling-repository: ${{ github.repository }}
       shared-tooling-ref: ${{ github.sha }}
+      # pnpm does not advance this private, unpublished contract package.
+      contract-version-package: internal/gha/package.json
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
