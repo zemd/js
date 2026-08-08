@@ -203,8 +203,8 @@ importers:
         specifier: workspace:*
         version: link:../tsconfig
       hono:
-        specifier: ^4.12.34
-        version: 4.12.34
+        specifier: 4.13.1
+        version: 4.13.1
       logtown:
         specifier: workspace:*
         version: link:../logtown
@@ -1267,8 +1267,8 @@ packages:
     resolution: {integrity: sha512-XSt8tMzbW9ymE7687xztkO1ckR7qJNQ3LywY9vlYGhGi3zXrGBHuUo2Cl1ztZaICW+1eAGdkLbj6iwVqDT33kg==}
     engines: {node: '>=20.0.0'}
 
-  hono@4.12.34:
-    resolution: {integrity: sha512-GqXJqY/xJkJmuloTrnV1ZEXG3fqte+VjkUqoRNZXcrUidiUOP4fMSIHHY4tsqZBK++kVyWmt/AAfSUuy57/eSA==}
+  hono@4.13.1:
+    resolution: {integrity: sha512-kdJoFVv2xmayw6cY09H7AbMJMt8Jn5jdlEdXsP7AGBdF2DIptVlKlOLKXP41yPip4/a3yQPv9gVcJYI8YY04dw==}
     engines: {node: '>=16.9.0'}
 
   hookable@6.1.1:
@@ -2371,7 +2371,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  hono@4.12.34: {}
+  hono@4.13.1: {}
 
   hookable@6.1.1: {}
 

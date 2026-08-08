@@ -22,7 +22,7 @@ minimumReleaseAge: 10080
 minimumReleaseAgeStrict: true
 minimumReleaseAgeExclude:
   - "@zemd/*"
-  - hono@4.12.34
+  - hono@4.13.1
   - nanoid@3.3.17
 
 allowBuilds:
