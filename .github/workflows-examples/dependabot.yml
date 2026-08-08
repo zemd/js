@@ -8,7 +8,7 @@ updates:
       interval: "weekly"
     # Match pnpm's release-age policy for npm packages.
     cooldown:
-      default-days: 1 # pnpm-workspace.yaml: minimumReleaseAge / 1440
+      default-days: 7 # pnpm-workspace.yaml: minimumReleaseAge / 1440
       # Keep exemptions aligned with pnpm-workspace.yaml.
       exclude:
         - "@zemd/*"
