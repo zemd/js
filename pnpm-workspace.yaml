@@ -18,7 +18,7 @@ catalog:
   zod: 4.4.3
 
 # Seven days; keep aligned with Dependabot's npm cooldown.
-minimumReleaseAge: 1440
+minimumReleaseAge: 10080
 minimumReleaseAgeStrict: true
 minimumReleaseAgeExclude:
   - "@zemd/*"
