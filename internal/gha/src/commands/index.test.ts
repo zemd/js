@@ -4,6 +4,7 @@ import { commands, usage } from "./index";
 
 test("exposes every release step the shared workflows need", () => {
   expect(Object.keys(commands).sort()).toEqual([
+    "contract-version",
     "github-releases",
     "release-pr-body",
     "shared-workflows-release",

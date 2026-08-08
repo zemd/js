@@ -1,5 +1,5 @@
 # Keep this file named `release.yml`: npm trusted publishing validates the
-# *calling* workflow filename, not the reusable workflow that runs `npm publish`.
+# *calling* workflow filename, not the reusable workflow that submits packages.
 name: Release
 
 permissions: {}
@@ -31,8 +31,10 @@ jobs:
       # base-branch: main
       # release-branch: release/main
       # release-title: "chore(release): version packages"
+      # contract-version-package: "" # Private workflow/tooling contract, if any.
       # build-script: build
       # publint-script: lint-publish
+      # staged-publishing: true # Set false for direct or first-time publishes.
       # registry-url: "https://registry.npmjs.org"
     secrets:
       # Only needed until every package exists on npm: a trusted publisher
