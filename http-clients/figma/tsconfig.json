@@ -6,6 +6,6 @@
     "types": ["node"],
     "isolatedDeclarations": false
   },
-  "include": ["src", "scripts"],
+  "include": ["src/**/*.ts", "scripts", "tsdown.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

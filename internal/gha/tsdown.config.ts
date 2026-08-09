@@ -1,6 +1,6 @@
-import { defineConfig } from "tsdown";
+import { defineConfig, type UserConfig } from "tsdown";
 
-export default defineConfig({
+const config: UserConfig = defineConfig({
   // A single entry keeps the output a single file: the shared workflows run it
   // straight from a checkout, without a package manager or node_modules around.
   entry: { gha: "src/cli.ts" },
@@ -11,3 +11,5 @@ export default defineConfig({
   minify: false,
   target: false,
 });
+
+export default config;
