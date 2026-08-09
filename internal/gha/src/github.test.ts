@@ -64,6 +64,30 @@ test("escapes tags when checking whether they exist", async () => {
   );
 });
 
+test("only treats a 404 as a missing tag", async () => {
+  const missingFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValue(new Response("{}", { status: 404 }));
+  const missingApi = createGitHubApi({
+    token: "secret",
+    repository: "acme/repo",
+    fetch: missingFetch,
+  });
+
+  await expect(missingApi.tagExists("@acme/pkg@1.0.0")).resolves.toBe(false);
+
+  const failedFetch = vi
+    .fn<typeof globalThis.fetch>()
+    .mockResolvedValue(new Response("{}", { status: 503 }));
+  const failedApi = createGitHubApi({
+    token: "secret",
+    repository: "acme/repo",
+    fetch: failedFetch,
+  });
+
+  await expect(failedApi.tagExists("@acme/pkg@1.0.0")).rejects.toThrow(/GitHub returned 503/);
+});
+
 test("tolerates an empty response body", async () => {
   const fetch = vi
     .fn<typeof globalThis.fetch>()

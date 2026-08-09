@@ -1,7 +1,7 @@
 name: Shared Release
 
 # Shared release pipeline: opens/refreshes a release pull request while intents
-# are pending, and publishes to npm once main holds the released versions.
+# are pending, and submits packages to npm once main holds the released versions.
 # Call it from a repository with:
 #   uses: zemd/js/.github/workflows/shared-release.yml@<sha> # v1
 #
@@ -33,6 +33,10 @@ on:
         description: Commit message and title of the release pull request.
         type: string
         default: "chore(release): version packages"
+      contract-version-package:
+        description: Private package manifest whose version is advanced manually from matching change intents.
+        type: string
+        default: ""
       base-branch:
         description: Branch the release pull request targets.
         type: string
@@ -45,17 +49,21 @@ on:
         description: package.json script that validates publishable packages. Empty skips the step.
         type: string
         default: "lint-publish"
+      staged-publishing:
+        description: Stage existing packages for npm approval without making rejection roll back the submitted version. First releases publish directly.
+        type: boolean
+        default: true
       registry-url:
-        description: Registry written to .npmrc so the NODE_AUTH_TOKEN fallback works.
+        description: Registry used for package-existence checks and written to .npmrc for publishing.
         type: string
         default: "https://registry.npmjs.org"
     secrets:
       NPM_TOKEN:
-        description: Fallback token for the first publish of a package that does not exist on npm yet.
+        description: Optional authentication for regular publishing; required when a package does not exist in the registry yet.
         required: false
     outputs:
       pending:
-        description: "'true' when the run opened or refreshed a release pull request instead of publishing."
+        description: "'true' when the run opened or refreshed a release pull request instead of submitting packages."
         value: ${{ jobs.version.outputs.pending }}
 
 # Not inherited from the caller: `env` defined at the caller's workflow level is
@@ -72,6 +80,7 @@ jobs:
   version:
     name: Version
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # create or update the release branch
       pull-requests: write # open and refresh the release pull request
@@ -82,6 +91,21 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
+
+      # Kept out of git's view so it never lands in the release commit that
+      # the signed-commit command builds from the working tree.
+      - name: Ignore the shared tooling checkout
+        run: echo "/.shared-ci/" >> .git/info/exclude
+
+      - name: Checkout shared tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The caller must pass the repository and commit SHA matching its
+          # pinned workflow reference, so the scripts use the same revision.
+          repository: ${{ inputs.shared-tooling-repository }}
+          ref: ${{ inputs.shared-tooling-ref }}
+          path: .shared-ci
           persist-credentials: false
 
       - name: Setup pnpm
@@ -98,35 +122,41 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
+      # pnpm preserves the version of a private package that is absent from the
+      # registry. Prepare that contract version explicitly before it consumes
+      # the intents, then repair its same-version entry in the release report.
+      - name: Prepare private contract version
+        if: inputs.contract-version-package != ''
+        env:
+          CONTRACT_VERSION_PACKAGE: ${{ inputs.contract-version-package }}
+        run: |
+          node "${SHARED_CLI}" contract-version prepare \
+            "$CONTRACT_VERSION_PACKAGE" \
+            .changeset \
+            "${RUNNER_TEMP}/contract-version.json"
+
       # Consumes the change intents in .changeset/, bumps every affected package
       # and its workspace dependents, and writes the changelog entries.
       - name: Apply pending release intents
+        run: |
+          pnpm version -r --json --no-git-checks > "${RUNNER_TEMP}/releases.json"
+          pnpm install --lockfile-only
+
+      - name: Finalize private contract version
+        if: inputs.contract-version-package != ''
+        run: |
+          node "${SHARED_CLI}" contract-version finalize \
+            "${RUNNER_TEMP}/contract-version.json" \
+            "${RUNNER_TEMP}/releases.json"
+
+      - name: Detect pending release
         id: version
         run: |
-          pnpm version -r --json > "${RUNNER_TEMP}/releases.json"
-          pnpm install --lockfile-only
           if [ -n "$(git status --porcelain)" ]; then
             echo "pending=true" >> "$GITHUB_OUTPUT"
           else
             echo "pending=false" >> "$GITHUB_OUTPUT"
           fi
-
-      # Kept out of git's view so it never lands in the release commit that
-      # signed-commit.mjs builds from the working tree.
-      - name: Ignore the shared tooling checkout
-        if: steps.version.outputs.pending == 'true'
-        run: echo "/.shared-ci/" >> .git/info/exclude
-
-      - name: Checkout shared tooling
-        if: steps.version.outputs.pending == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # The caller must pass the repository and commit SHA matching its
-          # pinned workflow reference, so the scripts use the same revision.
-          repository: ${{ inputs.shared-tooling-repository }}
-          ref: ${{ inputs.shared-tooling-ref }}
-          path: .shared-ci
-          persist-credentials: false
 
       - name: Render release pull request body
         if: steps.version.outputs.pending == 'true'
@@ -159,12 +189,13 @@ jobs:
           fi
 
   # No intents were pending, so main already holds the released versions.
-  # `pnpm publish -r` skips anything the registry already serves.
+  # Both recursive publish modes skip anything the registry already serves.
   publish:
-    name: Publish
+    name: Submit packages to npm
     needs: version
     if: needs.version.outputs.pending == 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # create git tags and GitHub releases
       id-token: write # npm trusted publishing (OIDC)
@@ -172,6 +203,14 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+
+      - name: Checkout shared tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.shared-tooling-repository }}
+          ref: ${{ inputs.shared-tooling-ref }}
+          path: .shared-ci
           persist-credentials: false
 
       - name: Setup pnpm
@@ -203,27 +242,69 @@ jobs:
           SCRIPT: ${{ inputs.publint-script }}
         run: pnpm run "$SCRIPT"
 
-      - name: Publish to npm
+      # npm cannot stage a package that does not exist in the registry. Keep
+      # existing packages on stage-only OIDC while routing only first releases
+      # through regular publishing with the optional token.
+      - name: Select npm publishing mode
+        id: publishing
         env:
-          # pnpm prefers OIDC when it succeeds and falls back to this token for
-          # the first publish of a package that does not exist in npm yet.
+          GITHUB_TOKEN: ${{ github.token }}
+          REGISTRY_URL: ${{ inputs.registry-url }}
+          STAGED_PUBLISHING: ${{ inputs.staged-publishing }}
+        run: |
+          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/workspace.json"
+          node "${SHARED_CLI}" npm-publishing-mode \
+            "${RUNNER_TEMP}/workspace.json" \
+            "$REGISTRY_URL" \
+            "$STAGED_PUBLISHING" \
+            "${RUNNER_TEMP}/first-releases.txt" \
+            "${RUNNER_TEMP}/direct-packages.txt" \
+            "${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"
+
+      - name: Publish packages to npm directly
+        if: steps.publishing.outputs.direct == 'true'
+        env:
+          DIRECT_PACKAGES_FILE: ${{ runner.temp }}/direct-packages.txt
+          FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm publish -r --access public --no-git-checks --report-summary
+        run: |
+          if [ "$FIRST_RELEASE" = "true" ] && [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is required to publish a package that does not exist in the registry."
+            exit 1
+          fi
 
-      - name: Checkout shared tooling
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ inputs.shared-tooling-repository }}
-          ref: ${{ inputs.shared-tooling-ref }}
-          path: .shared-ci
-          persist-credentials: false
+          mapfile -t packages < "$DIRECT_PACKAGES_FILE"
+          filters=()
+          for package in "${packages[@]}"; do
+            filters+=("--filter=$package")
+          done
 
-      # pnpm only talks to the registry, so tags and the release are created here.
+          pnpm publish -r "${filters[@]}" --access public --no-git-checks --report-summary
+          if [ -f pnpm-publish-summary.json ]; then
+            mv pnpm-publish-summary.json "${RUNNER_TEMP}/published-summary.json"
+          fi
+
+      - name: Stage packages on npm
+        if: steps.publishing.outputs.stage == 'true'
+        env:
+          STAGED_PACKAGES_FILE: ${{ runner.temp }}/staged-packages.txt
+        run: |
+          mapfile -t packages < "$STAGED_PACKAGES_FILE"
+          filters=()
+          for package in "${packages[@]}"; do
+            filters+=("--filter=$package")
+          done
+
+          pnpm stage publish -r "${filters[@]}" --access public --no-git-checks --report-summary
+          mv pnpm-publish-summary.json "${RUNNER_TEMP}/staged-summary.json"
+
+      # Submission is the immutable release point. Tag direct and staged
+      # versions alike so rejection cannot cause a later run to reuse one.
       - name: Tag packages and create GitHub release
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/versions.json"
           node "${SHARED_CLI}" github-releases \
-            pnpm-publish-summary.json \
-            "${RUNNER_TEMP}/versions.json"
+            "${RUNNER_TEMP}/published-summary.json" \
+            "${RUNNER_TEMP}/staged-summary.json" \
+            "${RUNNER_TEMP}/workspace.json"

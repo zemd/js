@@ -24,6 +24,34 @@ test("renders one npm link and one changelog block per package", () => {
   expect(body).toContain("## What's Changed");
 });
 
+test("labels packages that still require npm staged-publish approval", () => {
+  const body = renderCombinedReleaseBody({
+    published: [],
+    staged: [{ name: "@acme/one", version: "1.0.0" }],
+    paths: new Map(),
+  });
+
+  expect(body).toContain("## Packages staged on npm");
+  expect(body).toContain("require maintainer approval with 2FA");
+  expect(body).toContain("does not roll back this release or make its version reusable");
+  expect(body).not.toContain("## Published packages");
+});
+
+test("separates directly published first releases from staged updates", () => {
+  const body = renderCombinedReleaseBody({
+    published: [{ name: "@acme/new", version: "1.0.0" }],
+    staged: [{ name: "@acme/existing", version: "2.0.0" }],
+    paths: new Map(),
+  });
+
+  expect(body).toContain("## Published packages");
+  expect(body).toContain("| [`@acme/new`](https://www.npmjs.com/package/@acme/new) | `1.0.0` |");
+  expect(body).toContain("## Packages staged on npm");
+  expect(body).toContain(
+    "| [`@acme/existing`](https://www.npmjs.com/package/@acme/existing) | `2.0.0` |",
+  );
+});
+
 test("builds a minute-stamped release tag", async () => {
   const github = fakeGitHub();
 
@@ -50,7 +78,7 @@ test("picks the newest previous combined release", async () => {
   expect(await previousReleaseTag(github.api)).toBe("release-2026-06-01-0000");
 });
 
-test("tags every published package and creates one combined release", async () => {
+test("tags every submitted package and creates one combined release", async () => {
   const github = fakeGitHub();
 
   await releasePublishedPackages({
@@ -60,16 +88,19 @@ test("tags every published package and creates one combined release", async () =
       { name: "@acme/two", version: "2.0.0" },
       { name: "@acme/one", version: "1.0.0" },
     ],
+    staged: [{ name: "@acme/staged", version: "3.0.0" }],
     workspace: [],
     now: NOW,
   });
 
   expect(github.createdRefs.map((entry) => entry.ref)).toEqual([
     "refs/tags/@acme/one@1.0.0",
+    "refs/tags/@acme/staged@3.0.0",
     "refs/tags/@acme/two@2.0.0",
   ]);
   expect(github.createdReleases[0]?.tag).toBe("release-2026-08-05-0941");
   expect(github.createdReleases[0]?.prerelease).toBe(false);
+  expect(github.createdReleases[0]?.body).toContain("## Packages staged on npm");
 });
 
 test("marks the release as a prerelease when every version is one", async () => {

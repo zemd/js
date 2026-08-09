@@ -10,6 +10,7 @@ const examplesDir = `${root}.github/workflows-examples/`;
 const scriptsDir = `${root}.github/scripts/`;
 
 const BUNDLE = "gha.mjs";
+const MAX_JOB_TIMEOUT_MINUTES = 15;
 
 const yamlFiles = (directory: string): string[] =>
   readdirSync(directory).filter((file) => file.endsWith(".yml"));
@@ -50,6 +51,44 @@ const usesReferences = (source: string): Array<{ reference: string; comment?: st
     reference: reference ?? "",
     ...(comment === undefined ? {} : { comment }),
   }));
+
+const workflowStep = (source: string, name: string): string => {
+  const lines = source.split("\n");
+  const marker = `- name: ${name}`;
+  const start = lines.findIndex((line) => line.trimStart() === marker);
+  if (start < 0) throw new Error(`Workflow does not define the "${name}" step`);
+
+  const firstLine = lines[start];
+  if (firstLine === undefined) throw new Error(`Workflow does not define the "${name}" step`);
+
+  const indentation = firstLine.length - firstLine.trimStart().length;
+  let end = start + 1;
+
+  while (end < lines.length) {
+    const line = lines[end];
+    if (line === undefined) break;
+
+    const trimmed = line.trimStart();
+    if (trimmed.length > 0 && line.length - trimmed.length <= indentation) break;
+    end += 1;
+  }
+
+  return lines.slice(start, end).join("\n");
+};
+
+test("workflow step extraction does not cross whitespace-heavy sibling boundaries", () => {
+  const source = [
+    "      - name: Stage packages on npm",
+    "        if: inputs.staged-publishing",
+    ...Array.from({ length: 10_000 }, () => "        "),
+    "      - name: Later step",
+    "        run: pnpm stage publish -r --report-summary",
+  ].join("\n");
+
+  const step = workflowStep(source, "Stage packages on npm");
+  expect(step).not.toContain("Later step");
+  expect(step).not.toContain("run:");
+});
 
 test("every action and workflow reference is pinned to a full commit SHA", () => {
   for (const file of yamlFiles(workflowsDir)) {
@@ -96,6 +135,38 @@ test("callers delegate to the shared workflows", () => {
   }
 });
 
+test("every runner job has a bounded timeout", () => {
+  for (const file of yamlFiles(workflowsDir)) {
+    const lines = read(workflowsDir, file).split("\n");
+
+    for (const [lineIndex, line] of lines.entries()) {
+      if (!/^ {4}runs-on:/.test(line)) continue;
+
+      const precedingLines = lines.slice(0, lineIndex).reverse();
+      const jobOffset = precedingLines.findIndex((candidate) =>
+        /^ {2}[A-Za-z_][A-Za-z0-9_-]*:$/.test(candidate),
+      );
+      expect(jobOffset, `${file}:${lineIndex + 1} must belong to a job`).toBeGreaterThanOrEqual(0);
+
+      const jobStart = lineIndex - jobOffset - 1;
+      const nextJobOffset = lines
+        .slice(jobStart + 1)
+        .findIndex((candidate) => /^ {2}[A-Za-z_][A-Za-z0-9_-]*:$/.test(candidate));
+      const jobEnd = nextJobOffset < 0 ? lines.length : jobStart + 1 + nextJobOffset;
+      const job = lines.slice(jobStart, jobEnd).join("\n");
+      const jobName = lines[jobStart]?.trim().replace(/:$/, "") ?? "unknown";
+      const timeout = job.match(/^ {4}timeout-minutes: (\d+)$/m)?.[1];
+
+      expect(timeout, `${file}:${jobName} must set timeout-minutes`).toBeDefined();
+      expect(Number(timeout), `${file}:${jobName} timeout must be positive`).toBeGreaterThan(0);
+      expect(
+        Number(timeout),
+        `${file}:${jobName} timeout must not exceed ${MAX_JOB_TIMEOUT_MINUTES} minutes`,
+      ).toBeLessThanOrEqual(MAX_JOB_TIMEOUT_MINUTES);
+    }
+  }
+});
+
 test("shared workflows set the telemetry opt-out themselves", () => {
   for (const file of ["shared-ci.yml", "shared-release.yml"]) {
     expect(read(workflowsDir, file), `${file} must set DO_NOT_TRACK`).toMatch(
@@ -125,15 +196,76 @@ test("the release tooling is checked out from the pinned shared revision", () =>
   expect(source).toContain(`SHARED_CLI: .shared-ci/.github/scripts/${BUNDLE}`);
 });
 
-test("keeps OIDC with an npm token fallback for first publishes", () => {
+test("keeps tokens out of staging and uses direct publishing for first releases", () => {
   const source = read(workflowsDir, "shared-release.yml");
+  const example = read(examplesDir, "release.yml");
+  const publishingModeStep = workflowStep(source, "Select npm publishing mode");
+  const stagedPublishingStep = workflowStep(source, "Stage packages on npm");
+  const directPublishingStep = workflowStep(source, "Publish packages to npm directly");
 
   expect(source).toMatch(/id-token: write # npm trusted publishing \(OIDC\)/);
   expect(source).toMatch(/default: "https:\/\/registry\.npmjs\.org"/);
   expect(source).toMatch(/registry-url: \$\{\{ inputs\.registry-url \}\}/);
-  expect(source).toMatch(
-    /- name: Publish to npm\n\s+env:\n(?:\s+#.*\n){2}\s+NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}\n\s+run: pnpm publish -r/,
+  expect(source).toMatch(/staged-publishing:\n(?: {8}.*\n){2} {8}default: true/);
+  expect(publishingModeStep).toMatch(/^ {8}id: publishing$/m);
+  expect(publishingModeStep).toContain("GITHUB_TOKEN: ${{ github.token }}");
+  expect(publishingModeStep).toContain('node "${SHARED_CLI}" npm-publishing-mode');
+  expect(publishingModeStep).toContain('"${RUNNER_TEMP}/first-releases.txt"');
+  expect(publishingModeStep).toContain('"${RUNNER_TEMP}/direct-packages.txt"');
+  expect(publishingModeStep).toContain('"${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"');
+  expect(stagedPublishingStep).toMatch(/^ {8}if: steps\.publishing\.outputs\.stage == 'true'$/m);
+  expect(stagedPublishingStep).toContain(
+    'pnpm stage publish -r "${filters[@]}" --access public --no-git-checks --report-summary',
   );
+  expect(stagedPublishingStep).toContain(
+    "STAGED_PACKAGES_FILE: ${{ runner.temp }}/staged-packages.txt",
+  );
+  expect(stagedPublishingStep).toContain('filters+=("--filter=$package")');
+  expect(stagedPublishingStep).not.toContain("NPM_TOKEN");
+  expect(stagedPublishingStep).not.toContain("NODE_AUTH_TOKEN");
+  expect(directPublishingStep).toMatch(/^ {8}if: steps\.publishing\.outputs\.direct == 'true'$/m);
+  expect(directPublishingStep).toContain(
+    "FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}",
+  );
+  expect(directPublishingStep).toContain(
+    "DIRECT_PACKAGES_FILE: ${{ runner.temp }}/direct-packages.txt",
+  );
+  expect(directPublishingStep).toContain('mapfile -t packages < "$DIRECT_PACKAGES_FILE"');
+  expect(directPublishingStep).toContain('filters+=("--filter=$package")');
+  expect(directPublishingStep).not.toContain("DIRECT_ALL");
+  expect(directPublishingStep).toContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}");
+  expect(directPublishingStep).toContain(
+    'pnpm publish -r "${filters[@]}" --access public --no-git-checks --report-summary',
+  );
+  expect(source.match(/NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/g)).toHaveLength(1);
+  expect(source).toMatch(/NPM_TOKEN:\n(?: {8}.*\n) {8}required: false/);
+  expect(source).toContain('"${RUNNER_TEMP}/published-summary.json"');
+  expect(source).toContain('"${RUNNER_TEMP}/staged-summary.json"');
+  expect(example).toContain("# staged-publishing: true");
+  expect(example).toContain("NPM_TOKEN: ${{ secrets.NPM_TOKEN }}");
+});
+
+test("can advance a private release-contract version before pnpm consumes its intents", () => {
+  const source = read(workflowsDir, "shared-release.yml");
+  const caller = read(workflowsDir, "release.yml");
+  const example = read(examplesDir, "release.yml");
+
+  expect(source).toMatch(/contract-version-package:\n(?: {8}.*\n){2} {8}default: ""/);
+  expect(caller).toContain("contract-version-package: internal/gha/package.json");
+  expect(example).toContain('# contract-version-package: ""');
+  expect(source).toContain("CONTRACT_VERSION_PACKAGE: ${{ inputs.contract-version-package }}");
+  expect(source).toContain('node "${SHARED_CLI}" contract-version prepare');
+  expect(source).toContain("pnpm version -r --json --no-git-checks");
+  expect(source).toContain('node "${SHARED_CLI}" contract-version finalize');
+
+  const toolingCheckout = source.indexOf("- name: Checkout shared tooling");
+  const prepare = source.indexOf("contract-version prepare");
+  const version = source.indexOf("pnpm version -r --json");
+  const finalize = source.indexOf("contract-version finalize");
+  expect(toolingCheckout).toBeGreaterThan(-1);
+  expect(toolingCheckout).toBeLessThan(prepare);
+  expect(prepare).toBeLessThan(version);
+  expect(version).toBeLessThan(finalize);
 });
 
 test("zizmor is pinned and fails the workflow on every finding", () => {

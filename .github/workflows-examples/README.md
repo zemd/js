@@ -5,7 +5,7 @@ Copy-paste callers for the reusable workflows published from this repository.
 | File                                 | Calls                  | Purpose                                                                    |
 | :----------------------------------- | :--------------------- | :------------------------------------------------------------------------- |
 | [`ci.yml`](./ci.yml)                 | `shared-ci.yml`        | Lint, format, typecheck, build, test matrix, Playwright, dependency review |
-| [`release.yml`](./release.yml)       | `shared-release.yml`   | Release pull request, npm publish, git tags, GitHub release                |
+| [`release.yml`](./release.yml)       | `shared-release.yml`   | Release pull request, npm submission, git tags, GitHub release             |
 | [`codeql.yml`](./codeql.yml)         | `shared-codeql.yml`    | CodeQL analysis                                                            |
 | [`scorecard.yml`](./scorecard.yml)   | `shared-scorecard.yml` | OpenSSF Scorecard                                                          |
 | [`zizmor.yml`](./zizmor.yml)         | `shared-zizmor.yml`    | Blocking security lint for GitHub Actions and Dependabot                   |
@@ -38,21 +38,46 @@ Dependabot rewrites both the SHA and the trailing `# v1` comment from then on.
 When it updates `release.yml`, keep `shared-tooling-ref` equal to the SHA in the
 `uses:` line so the release scripts and reusable workflow stay on one revision.
 
+`contract-version-package` is empty by default. Set it to a private package's
+manifest only when that package versions a release contract but is never
+published to npm. The release workflow advances it from its matching change
+intents before pnpm prepares the release pull request.
+
 ## Release setup
 
 `shared-release.yml` expects [`pnpm change`](https://pnpm.io) intents on `main`.
 On every push it either opens/refreshes a `release/main` pull request, or — when
-no intents are pending — publishes, tags and creates a combined GitHub release.
+no intents are pending — stages packages on npm, tags them and creates a combined
+GitHub release. A maintainer must then review and approve each staged package
+with 2FA before it becomes available from npm. If any publishable workspace
+package does not exist in the registry, the workflow publishes that package
+regularly so it can be created while still staging updates to existing packages.
 
-For npm **trusted publishing**:
+Submission is the immutable release boundary. The workflow tags both directly
+published and staged package versions immediately. Approval only controls npm
+availability: rejecting a staged package does not roll back its release or let a
+later run reuse that version. Record a new change intent so the next attempt uses
+the next version.
+
+[Staged publishing](https://docs.npmjs.com/staged-publishing/) is the default.
+Set `staged-publishing: false` in the caller's `with:` block when packages must
+always publish immediately. npm cannot stage a package that does not exist yet,
+so first-release detection overrides the staged default for that package.
+
+For npm [**trusted publishing**](https://docs.npmjs.com/trusted-publishers/):
 
 - Keep the caller named `release.yml`. npm validates the calling workflow's
   filename, not the reusable workflow that runs the publish.
 - Register the trusted publisher per package with the _consumer_ repository and
   `release.yml`.
+- Configure each existing package's trusted publisher to allow only
+  `npm stage publish` for the default behavior. Consumers that disable staged
+  publishing must allow `npm publish` instead (or allow both actions).
 - `id-token: write` must be granted by the caller job, which the example does.
-- Keep `NPM_TOKEN` until every package exists on npm; a trusted publisher cannot
-  be configured for a package that was never published.
+- Pass `NPM_TOKEN` as the optional reusable-workflow secret until every package
+  exists on npm. It is exposed only to regular publishing and is required when
+  first-release detection adds the package-creation step. After the first release,
+  configure that package's stage-only trusted publisher.
 - `repository.url` in each `package.json` must match the repository exactly.
 
 ## Repository settings
