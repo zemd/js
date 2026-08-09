@@ -49,12 +49,14 @@ intents before pnpm prepares the release pull request.
 On every push it either opens/refreshes a `release/main` pull request, or — when
 no intents are pending — stages packages on npm, tags them and creates a combined
 GitHub release. A maintainer must then review and approve each staged package
-with 2FA before it becomes available from npm.
+with 2FA before it becomes available from npm. If any publishable workspace
+package does not exist in the registry, the workflow publishes that package
+regularly so it can be created while still staging updates to existing packages.
 
 [Staged publishing](https://docs.npmjs.com/staged-publishing/) is the default.
 Set `staged-publishing: false` in the caller's `with:` block when packages must
-publish immediately. npm cannot stage a package that does not exist yet, so use
-direct publishing for its first release, then return to the staged default.
+always publish immediately. npm cannot stage a package that does not exist yet,
+so first-release detection overrides the staged default for that package.
 
 For npm [**trusted publishing**](https://docs.npmjs.com/trusted-publishers/):
 
@@ -62,12 +64,14 @@ For npm [**trusted publishing**](https://docs.npmjs.com/trusted-publishers/):
   filename, not the reusable workflow that runs the publish.
 - Register the trusted publisher per package with the _consumer_ repository and
   `release.yml`.
-- Allow `npm stage publish` for the default behavior. Consumers that disable
-  staged publishing must allow `npm publish` instead (or allow both actions).
+- Configure each existing package's trusted publisher to allow only
+  `npm stage publish` for the default behavior. Consumers that disable staged
+  publishing must allow `npm publish` instead (or allow both actions).
 - `id-token: write` must be granted by the caller job, which the example does.
-- Keep `NPM_TOKEN` until every package exists on npm. Set
-  `staged-publishing: false` for that first publish because neither staged nor
-  trusted publishing can bootstrap a new package.
+- Pass `NPM_TOKEN` as the optional reusable-workflow secret until every package
+  exists on npm. It is exposed only to regular publishing and is required when
+  first-release detection adds the package-creation step. After the first release,
+  configure that package's stage-only trusted publisher.
 - `repository.url` in each `package.json` must match the repository exactly.
 
 ## Repository settings

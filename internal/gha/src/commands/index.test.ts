@@ -6,6 +6,7 @@ test("exposes every release step the shared workflows need", () => {
   expect(Object.keys(commands).sort()).toEqual([
     "contract-version",
     "github-releases",
+    "npm-publishing-mode",
     "release-pr-body",
     "shared-workflows-release",
     "signed-commit",

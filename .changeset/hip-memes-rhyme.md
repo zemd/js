@@ -2,4 +2,4 @@
 "@zemd/gha": patch
 ---
 
-Use npm staged publishing by default, allow consumers to opt into direct publishing, and advance the private shared-workflow contract version in release pull requests.
+Use token-free OIDC staging by default, automatically direct-publish only first releases with an optional npm token, and advance the private shared-workflow contract version in release pull requests.

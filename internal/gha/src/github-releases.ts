@@ -4,25 +4,23 @@ import type { PublishedPackage, WorkspacePackage } from "./pnpm";
 
 const RELEASE_TAG_PREFIX = "release-";
 
-export type NpmReleaseState = "published" | "staged";
-
 export interface CombinedRelease {
   readonly published: readonly PublishedPackage[];
+  readonly staged?: readonly PublishedPackage[];
   readonly paths: ReadonlyMap<string, string>;
-  readonly npmState?: NpmReleaseState;
   readonly notes?: string;
 }
 
-export const renderCombinedReleaseBody = ({
-  published,
-  paths,
-  npmState = "published",
-  notes,
-}: CombinedRelease): string => {
-  const out: string[] = [];
+const appendPackageTable = (
+  out: string[],
+  heading: string,
+  packages: readonly PublishedPackage[],
+  approvalRequired: boolean,
+): void => {
+  if (packages.length === 0) return;
 
-  out.push(npmState === "staged" ? "## Packages staged on npm" : "## Published packages");
-  if (npmState === "staged") {
+  out.push(`## ${heading}`);
+  if (approvalRequired) {
     out.push("");
     out.push(
       "These versions require maintainer approval with 2FA before they become available from npm.",
@@ -32,15 +30,27 @@ export const renderCombinedReleaseBody = ({
   out.push("| Package | Version |");
   out.push("| :--- | ---: |");
 
-  for (const { name, version } of published) {
+  for (const { name, version } of packages) {
     out.push(`| [\`${name}\`](https://www.npmjs.com/package/${name}) | \`${version}\` |`);
   }
-
   out.push("");
+};
+
+export const renderCombinedReleaseBody = ({
+  published,
+  staged = [],
+  paths,
+  notes,
+}: CombinedRelease): string => {
+  const out: string[] = [];
+  const submitted = [...published, ...staged];
+
+  appendPackageTable(out, "Published packages", published, false);
+  appendPackageTable(out, "Packages staged on npm", staged, true);
   out.push("### Changelogs");
   out.push("");
 
-  for (const { name, version } of published) {
+  for (const { name, version } of submitted) {
     const packagePath = paths.get(name);
     out.push("<details>");
     out.push(`<summary><code>${name}@${version}</code></summary>`);
@@ -107,8 +117,8 @@ export interface PackageReleaseInput {
   readonly api: GitHubApi;
   readonly sha: string;
   readonly published: readonly PublishedPackage[];
+  readonly staged?: readonly PublishedPackage[];
   readonly workspace: readonly WorkspacePackage[];
-  readonly npmState?: NpmReleaseState;
   readonly now?: Date;
 }
 
@@ -118,16 +128,20 @@ export const releasePublishedPackages = async ({
   api,
   sha,
   published,
+  staged = [],
   workspace,
-  npmState = "published",
   now = new Date(),
 }: PackageReleaseInput): Promise<void> => {
-  if (published.length === 0) {
-    console.log(`no packages were ${npmState}, nothing to release`);
+  if (published.length === 0 && staged.length === 0) {
+    console.log("no packages were submitted to npm, nothing to release");
     return;
   }
 
-  const releases = [...published].sort((a, b) => a.name.localeCompare(b.name));
+  const publishedReleases = [...published].sort((a, b) => a.name.localeCompare(b.name));
+  const stagedReleases = [...staged].sort((a, b) => a.name.localeCompare(b.name));
+  const releases = [...publishedReleases, ...stagedReleases].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
   const paths = new Map(workspace.map((entry) => [entry.name, entry.path]));
 
   let failed = false;
@@ -144,7 +158,12 @@ export const releasePublishedPackages = async ({
     tag: releaseTag,
     name: releaseTag,
     targetCommitish: sha,
-    body: renderCombinedReleaseBody({ published: releases, paths, npmState, notes }),
+    body: renderCombinedReleaseBody({
+      published: publishedReleases,
+      staged: stagedReleases,
+      paths,
+      notes,
+    }),
     prerelease: releases.every(({ version }) => version.includes("-")),
   });
 

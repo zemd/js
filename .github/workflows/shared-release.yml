@@ -50,16 +50,16 @@ on:
         type: string
         default: "lint-publish"
       staged-publishing:
-        description: Stage packages for npm approval instead of publishing immediately. Disable for direct and first-time publishes.
+        description: Stage existing packages for npm approval. First releases switch to regular publishing automatically.
         type: boolean
         default: true
       registry-url:
-        description: Registry written to .npmrc so the NODE_AUTH_TOKEN fallback works.
+        description: Registry used for package-existence checks and written to .npmrc for publishing.
         type: string
         default: "https://registry.npmjs.org"
     secrets:
       NPM_TOKEN:
-        description: Authentication fallback, including first-time direct publishes for packages that do not exist on npm yet.
+        description: Optional authentication for regular publishing; required when a package does not exist in the registry yet.
         required: false
     outputs:
       pending:
@@ -203,6 +203,14 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Checkout shared tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.shared-tooling-repository }}
+          ref: ${{ inputs.shared-tooling-ref }}
+          path: .shared-ci
+          persist-credentials: false
+
       - name: Setup pnpm
         uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
@@ -232,39 +240,69 @@ jobs:
           SCRIPT: ${{ inputs.publint-script }}
         run: pnpm run "$SCRIPT"
 
-      - name: Stage packages on npm
-        if: inputs.staged-publishing
+      # npm cannot stage a package that does not exist in the registry. Keep
+      # existing packages on stage-only OIDC while routing only first releases
+      # through regular publishing with the optional token.
+      - name: Select npm publishing mode
+        id: publishing
         env:
-          # pnpm prefers OIDC when it succeeds and can use this token as a
-          # fallback for existing packages.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm stage publish -r --access public --no-git-checks --report-summary
+          REGISTRY_URL: ${{ inputs.registry-url }}
+          STAGED_PUBLISHING: ${{ inputs.staged-publishing }}
+        run: |
+          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/workspace.json"
+          node "${SHARED_CLI}" npm-publishing-mode \
+            "${RUNNER_TEMP}/workspace.json" \
+            "$REGISTRY_URL" \
+            "$STAGED_PUBLISHING" \
+            "${RUNNER_TEMP}/first-releases.txt" \
+            "${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"
 
       - name: Publish packages to npm directly
-        if: inputs.staged-publishing == false
+        if: steps.publishing.outputs.direct == 'true'
         env:
-          # OIDC cannot authenticate the first publish because the trusted
-          # publisher can only be configured after the package exists.
+          DIRECT_ALL: ${{ steps.publishing.outputs.direct_all }}
+          FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}
+          FIRST_RELEASES_FILE: ${{ runner.temp }}/first-releases.txt
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm publish -r --access public --no-git-checks --report-summary
+        run: |
+          if [ "$FIRST_RELEASE" = "true" ] && [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is required to publish a package that does not exist in the registry."
+            exit 1
+          fi
 
-      - name: Checkout shared tooling
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ inputs.shared-tooling-repository }}
-          ref: ${{ inputs.shared-tooling-ref }}
-          path: .shared-ci
-          persist-credentials: false
+          filters=()
+          if [ "$DIRECT_ALL" != "true" ]; then
+            mapfile -t packages < "$FIRST_RELEASES_FILE"
+            for package in "${packages[@]}"; do
+              filters+=("--filter=$package")
+            done
+          fi
+
+          pnpm publish -r "${filters[@]}" --access public --no-git-checks --report-summary
+          mv pnpm-publish-summary.json "${RUNNER_TEMP}/published-summary.json"
+
+      - name: Stage packages on npm
+        if: steps.publishing.outputs.stage == 'true'
+        env:
+          STAGED_PACKAGES_FILE: ${{ runner.temp }}/staged-packages.txt
+        run: |
+          mapfile -t packages < "$STAGED_PACKAGES_FILE"
+          filters=()
+          for package in "${packages[@]}"; do
+            filters+=("--filter=$package")
+          done
+
+          pnpm stage publish -r "${filters[@]}" --access public --no-git-checks --report-summary
+          mv pnpm-publish-summary.json "${RUNNER_TEMP}/staged-summary.json"
 
       # pnpm only talks to the registry, so tags and the release are created here.
-      # In staged mode the release body records that npm approval is still due.
+      # The release body distinguishes direct first releases from versions that
+      # still require staged-publish approval.
       - name: Tag packages and create GitHub release
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          NPM_RELEASE_STATE: ${{ inputs.staged-publishing && 'staged' || 'published' }}
         run: |
-          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/versions.json"
           node "${SHARED_CLI}" github-releases \
-            pnpm-publish-summary.json \
-            "${RUNNER_TEMP}/versions.json" \
-            "$NPM_RELEASE_STATE"
+            "${RUNNER_TEMP}/published-summary.json" \
+            "${RUNNER_TEMP}/staged-summary.json" \
+            "${RUNNER_TEMP}/workspace.json"

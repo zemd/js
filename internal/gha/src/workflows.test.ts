@@ -51,6 +51,44 @@ const usesReferences = (source: string): Array<{ reference: string; comment?: st
     ...(comment === undefined ? {} : { comment }),
   }));
 
+const workflowStep = (source: string, name: string): string => {
+  const lines = source.split("\n");
+  const marker = `- name: ${name}`;
+  const start = lines.findIndex((line) => line.trimStart() === marker);
+  if (start < 0) throw new Error(`Workflow does not define the "${name}" step`);
+
+  const firstLine = lines[start];
+  if (firstLine === undefined) throw new Error(`Workflow does not define the "${name}" step`);
+
+  const indentation = firstLine.length - firstLine.trimStart().length;
+  let end = start + 1;
+
+  while (end < lines.length) {
+    const line = lines[end];
+    if (line === undefined) break;
+
+    const trimmed = line.trimStart();
+    if (trimmed.length > 0 && line.length - trimmed.length <= indentation) break;
+    end += 1;
+  }
+
+  return lines.slice(start, end).join("\n");
+};
+
+test("workflow step extraction does not cross whitespace-heavy sibling boundaries", () => {
+  const source = [
+    "      - name: Stage packages on npm",
+    "        if: inputs.staged-publishing",
+    ...Array.from({ length: 10_000 }, () => "        "),
+    "      - name: Later step",
+    "        run: pnpm stage publish -r --report-summary",
+  ].join("\n");
+
+  const step = workflowStep(source, "Stage packages on npm");
+  expect(step).not.toContain("Later step");
+  expect(step).not.toContain("run:");
+});
+
 test("every action and workflow reference is pinned to a full commit SHA", () => {
   for (const file of yamlFiles(workflowsDir)) {
     for (const { reference, comment } of usesReferences(read(workflowsDir, file))) {
@@ -125,26 +163,50 @@ test("the release tooling is checked out from the pinned shared revision", () =>
   expect(source).toContain(`SHARED_CLI: .shared-ci/.github/scripts/${BUNDLE}`);
 });
 
-test("uses staged publishing by default and keeps direct publishing configurable", () => {
+test("keeps tokens out of staging and uses direct publishing for first releases", () => {
   const source = read(workflowsDir, "shared-release.yml");
   const example = read(examplesDir, "release.yml");
+  const publishingModeStep = workflowStep(source, "Select npm publishing mode");
+  const stagedPublishingStep = workflowStep(source, "Stage packages on npm");
+  const directPublishingStep = workflowStep(source, "Publish packages to npm directly");
 
   expect(source).toMatch(/id-token: write # npm trusted publishing \(OIDC\)/);
   expect(source).toMatch(/default: "https:\/\/registry\.npmjs\.org"/);
   expect(source).toMatch(/registry-url: \$\{\{ inputs\.registry-url \}\}/);
   expect(source).toMatch(/staged-publishing:\n(?: {8}.*\n){2} {8}default: true/);
-  expect(source).toMatch(
-    /- name: Stage packages on npm\n\s+if: inputs\.staged-publishing\n(?:\s+.*\n)*?\s+run: pnpm stage publish -r .*--report-summary/,
+  expect(publishingModeStep).toMatch(/^ {8}id: publishing$/m);
+  expect(publishingModeStep).toContain('node "${SHARED_CLI}" npm-publishing-mode');
+  expect(publishingModeStep).toContain('"${RUNNER_TEMP}/first-releases.txt"');
+  expect(publishingModeStep).toContain('"${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"');
+  expect(stagedPublishingStep).toMatch(/^ {8}if: steps\.publishing\.outputs\.stage == 'true'$/m);
+  expect(stagedPublishingStep).toContain(
+    'pnpm stage publish -r "${filters[@]}" --access public --no-git-checks --report-summary',
   );
-  expect(source).toMatch(
-    /- name: Publish packages to npm directly\n\s+if: inputs\.staged-publishing == false\n(?:\s+.*\n)*?\s+run: pnpm publish -r .*--report-summary/,
+  expect(stagedPublishingStep).toContain(
+    "STAGED_PACKAGES_FILE: ${{ runner.temp }}/staged-packages.txt",
   );
-  expect(source.match(/NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/g)).toHaveLength(2);
-  expect(source).toContain(
-    "NPM_RELEASE_STATE: ${{ inputs.staged-publishing && 'staged' || 'published' }}",
+  expect(stagedPublishingStep).toContain('filters+=("--filter=$package")');
+  expect(stagedPublishingStep).not.toContain("NPM_TOKEN");
+  expect(stagedPublishingStep).not.toContain("NODE_AUTH_TOKEN");
+  expect(directPublishingStep).toMatch(/^ {8}if: steps\.publishing\.outputs\.direct == 'true'$/m);
+  expect(directPublishingStep).toContain(
+    "FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}",
   );
-  expect(source).toContain('"$NPM_RELEASE_STATE"');
+  expect(directPublishingStep).toContain(
+    "FIRST_RELEASES_FILE: ${{ runner.temp }}/first-releases.txt",
+  );
+  expect(directPublishingStep).toContain('if [ "$DIRECT_ALL" != "true" ]');
+  expect(directPublishingStep).toContain('filters+=("--filter=$package")');
+  expect(directPublishingStep).toContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}");
+  expect(directPublishingStep).toContain(
+    'pnpm publish -r "${filters[@]}" --access public --no-git-checks --report-summary',
+  );
+  expect(source.match(/NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/g)).toHaveLength(1);
+  expect(source).toMatch(/NPM_TOKEN:\n(?: {8}.*\n) {8}required: false/);
+  expect(source).toContain('"${RUNNER_TEMP}/published-summary.json"');
+  expect(source).toContain('"${RUNNER_TEMP}/staged-summary.json"');
   expect(example).toContain("# staged-publishing: true");
+  expect(example).toContain("NPM_TOKEN: ${{ secrets.NPM_TOKEN }}");
 });
 
 test("can advance a private release-contract version before pnpm consumes its intents", () => {
