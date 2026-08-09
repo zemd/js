@@ -10,6 +10,7 @@ const examplesDir = `${root}.github/workflows-examples/`;
 const scriptsDir = `${root}.github/scripts/`;
 
 const BUNDLE = "gha.mjs";
+const MAX_JOB_TIMEOUT_MINUTES = 15;
 
 const yamlFiles = (directory: string): string[] =>
   readdirSync(directory).filter((file) => file.endsWith(".yml"));
@@ -131,6 +132,38 @@ test("callers delegate to the shared workflows", () => {
     expect(read(workflowsDir, caller), `${caller} must call ${shared}`).toContain(
       `uses: ./.github/workflows/${shared}`,
     );
+  }
+});
+
+test("every runner job has a bounded timeout", () => {
+  for (const file of yamlFiles(workflowsDir)) {
+    const lines = read(workflowsDir, file).split("\n");
+
+    for (const [lineIndex, line] of lines.entries()) {
+      if (!/^ {4}runs-on:/.test(line)) continue;
+
+      const precedingLines = lines.slice(0, lineIndex).reverse();
+      const jobOffset = precedingLines.findIndex((candidate) =>
+        /^ {2}[A-Za-z_][A-Za-z0-9_-]*:$/.test(candidate),
+      );
+      expect(jobOffset, `${file}:${lineIndex + 1} must belong to a job`).toBeGreaterThanOrEqual(0);
+
+      const jobStart = lineIndex - jobOffset - 1;
+      const nextJobOffset = lines
+        .slice(jobStart + 1)
+        .findIndex((candidate) => /^ {2}[A-Za-z_][A-Za-z0-9_-]*:$/.test(candidate));
+      const jobEnd = nextJobOffset < 0 ? lines.length : jobStart + 1 + nextJobOffset;
+      const job = lines.slice(jobStart, jobEnd).join("\n");
+      const jobName = lines[jobStart]?.trim().replace(/:$/, "") ?? "unknown";
+      const timeout = job.match(/^ {4}timeout-minutes: (\d+)$/m)?.[1];
+
+      expect(timeout, `${file}:${jobName} must set timeout-minutes`).toBeDefined();
+      expect(Number(timeout), `${file}:${jobName} timeout must be positive`).toBeGreaterThan(0);
+      expect(
+        Number(timeout),
+        `${file}:${jobName} timeout must not exceed ${MAX_JOB_TIMEOUT_MINUTES} minutes`,
+      ).toBeLessThanOrEqual(MAX_JOB_TIMEOUT_MINUTES);
+    }
   }
 });
 

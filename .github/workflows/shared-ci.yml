@@ -82,6 +82,7 @@ jobs:
   quality:
     name: Lint & Format
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
 
@@ -124,6 +125,7 @@ jobs:
   test:
     name: "Build & Test: ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     permissions:
       contents: read
 
@@ -180,6 +182,7 @@ jobs:
     name: Browser Tests
     if: inputs.browser-test-script != ''
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
 
@@ -235,6 +238,7 @@ jobs:
     name: Dependency Review
     if: inputs.dependency-review && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
 

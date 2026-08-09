@@ -24,6 +24,7 @@ jobs:
   shared-version:
     name: Shared workflow contract
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
 

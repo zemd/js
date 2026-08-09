@@ -18,6 +18,7 @@ jobs:
   analyze:
     name: "Analyze: ${{ matrix.language }}"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read # checkout the caller repository for analysis
       actions: read # let CodeQL read workflow-run metadata

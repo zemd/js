@@ -36,6 +36,7 @@ jobs:
     needs: release
     if: needs.release.outputs.pending == 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write # publish the shared workflow tags and GitHub release
 

@@ -80,6 +80,7 @@ jobs:
   version:
     name: Version
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # create or update the release branch
       pull-requests: write # open and refresh the release pull request
@@ -194,6 +195,7 @@ jobs:
     needs: version
     if: needs.version.outputs.pending == 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write # create git tags and GitHub releases
       id-token: write # npm trusted publishing (OIDC)
