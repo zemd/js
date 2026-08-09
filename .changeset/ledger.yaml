@@ -12,6 +12,10 @@
     - gentle-grapes-sleep
     - shared-github-workflows
     - six-aliens-rule
+"@zemd/gha@1.0.1":
+  dir: internal/gha
+  intents:
+    - hip-memes-rhyme
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
