@@ -6,6 +6,6 @@
     // Exported Zod schemas require TypeScript to infer their declarations.
     "isolatedDeclarations": false
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "tsdown.config.ts"],
   "exclude": ["node_modules", "dist"]
 }
