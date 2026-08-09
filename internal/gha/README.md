@@ -21,7 +21,7 @@ was rejected on npm; another release must advance the package version.
 
 ## Commands
 
-```
+```text
 gha.mjs contract-version         prepare <package.json> <intents-dir> <state.json>
 gha.mjs contract-version         finalize <state.json> <releases.json>
 gha.mjs github-releases          <published-summary.json> <staged-summary.json> <workspace-list.json>
