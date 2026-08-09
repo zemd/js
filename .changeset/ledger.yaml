@@ -9,6 +9,7 @@
 "@zemd/gha@1.0.0":
   dir: internal/gha
   intents:
+    - gentle-grapes-sleep
     - shared-github-workflows
     - six-aliens-rule
 "@zemd/http-client@4.1.0":

@@ -4,6 +4,12 @@
 
 ### Patch Changes
 
+- Add zizmor integration
+
+## 1.0.0
+
+### Patch Changes
+
 - Update the action versions used by the shared workflows.
 
 ## 1.0.0
