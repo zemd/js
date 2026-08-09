@@ -15,12 +15,17 @@ which is what CI keys on to require a release intent for this package.
 Its version is the shared workflow contract version: the release workflow tags
 `vX.Y.Z` and moves `vX` to match.
 
+For package releases, each `name@version` tag is the immutable submission
+record. The publishing planner skips tagged versions even when a staged version
+was rejected on npm; another release must advance the package version.
+
 ## Commands
 
 ```
 gha.mjs contract-version         prepare <package.json> <intents-dir> <state.json>
 gha.mjs contract-version         finalize <state.json> <releases.json>
-gha.mjs github-releases          <publish-summary.json> <workspace-list.json> [published|staged]
+gha.mjs github-releases          <published-summary.json> <staged-summary.json> <workspace-list.json>
+gha.mjs npm-publishing-mode      <workspace-list.json> <registry-url> <staged-publishing> <first-releases.txt> <direct-packages.txt> <staged-packages.txt>
 gha.mjs release-pr-body          <releases.json> <workspace-list.json>
 gha.mjs shared-workflows-release <package.json> <workflows-dir>
 gha.mjs signed-commit            <branch> <message>

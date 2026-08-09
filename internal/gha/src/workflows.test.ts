@@ -175,8 +175,10 @@ test("keeps tokens out of staging and uses direct publishing for first releases"
   expect(source).toMatch(/registry-url: \$\{\{ inputs\.registry-url \}\}/);
   expect(source).toMatch(/staged-publishing:\n(?: {8}.*\n){2} {8}default: true/);
   expect(publishingModeStep).toMatch(/^ {8}id: publishing$/m);
+  expect(publishingModeStep).toContain("GITHUB_TOKEN: ${{ github.token }}");
   expect(publishingModeStep).toContain('node "${SHARED_CLI}" npm-publishing-mode');
   expect(publishingModeStep).toContain('"${RUNNER_TEMP}/first-releases.txt"');
+  expect(publishingModeStep).toContain('"${RUNNER_TEMP}/direct-packages.txt"');
   expect(publishingModeStep).toContain('"${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"');
   expect(stagedPublishingStep).toMatch(/^ {8}if: steps\.publishing\.outputs\.stage == 'true'$/m);
   expect(stagedPublishingStep).toContain(
@@ -193,10 +195,11 @@ test("keeps tokens out of staging and uses direct publishing for first releases"
     "FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}",
   );
   expect(directPublishingStep).toContain(
-    "FIRST_RELEASES_FILE: ${{ runner.temp }}/first-releases.txt",
+    "DIRECT_PACKAGES_FILE: ${{ runner.temp }}/direct-packages.txt",
   );
-  expect(directPublishingStep).toContain('if [ "$DIRECT_ALL" != "true" ]');
+  expect(directPublishingStep).toContain('mapfile -t packages < "$DIRECT_PACKAGES_FILE"');
   expect(directPublishingStep).toContain('filters+=("--filter=$package")');
+  expect(directPublishingStep).not.toContain("DIRECT_ALL");
   expect(directPublishingStep).toContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}");
   expect(directPublishingStep).toContain(
     'pnpm publish -r "${filters[@]}" --access public --no-git-checks --report-summary',

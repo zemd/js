@@ -1,6 +1,7 @@
 import { changelogEntry } from "./changelog";
 import type { GitHubApi } from "./github";
 import type { PublishedPackage, WorkspacePackage } from "./pnpm";
+import { packageReleaseTag } from "./release-tags";
 
 const RELEASE_TAG_PREFIX = "release-";
 
@@ -24,6 +25,9 @@ const appendPackageTable = (
     out.push("");
     out.push(
       "These versions require maintainer approval with 2FA before they become available from npm.",
+    );
+    out.push(
+      "Rejecting one does not roll back this release or make its version reusable; release changes under a new version instead.",
     );
   }
   out.push("");
@@ -122,8 +126,9 @@ export interface PackageReleaseInput {
   readonly now?: Date;
 }
 
-// pnpm's direct and staged publish commands only talk to the registry, so the
-// tags and the combined GitHub release for the run are created here.
+// Submission consumes a package version whether npm approval follows or not.
+// These tags are therefore created for both direct and staged submissions; the
+// publishing planner uses them to prevent a rejected version from being reused.
 export const releasePublishedPackages = async ({
   api,
   sha,
@@ -147,7 +152,7 @@ export const releasePublishedPackages = async ({
   let failed = false;
 
   for (const { name, version } of releases) {
-    if (!(await createTag(api, `${name}@${version}`, sha))) failed = true;
+    if (!(await createTag(api, packageReleaseTag(name, version), sha))) failed = true;
   }
 
   const releaseTag = await nextReleaseTag(api, now);

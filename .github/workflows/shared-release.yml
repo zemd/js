@@ -50,7 +50,7 @@ on:
         type: string
         default: "lint-publish"
       staged-publishing:
-        description: Stage existing packages for npm approval. First releases switch to regular publishing automatically.
+        description: Stage existing packages for npm approval without making rejection roll back the submitted version. First releases publish directly.
         type: boolean
         default: true
       registry-url:
@@ -246,6 +246,7 @@ jobs:
       - name: Select npm publishing mode
         id: publishing
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           REGISTRY_URL: ${{ inputs.registry-url }}
           STAGED_PUBLISHING: ${{ inputs.staged-publishing }}
         run: |
@@ -255,14 +256,14 @@ jobs:
             "$REGISTRY_URL" \
             "$STAGED_PUBLISHING" \
             "${RUNNER_TEMP}/first-releases.txt" \
+            "${RUNNER_TEMP}/direct-packages.txt" \
             "${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"
 
       - name: Publish packages to npm directly
         if: steps.publishing.outputs.direct == 'true'
         env:
-          DIRECT_ALL: ${{ steps.publishing.outputs.direct_all }}
+          DIRECT_PACKAGES_FILE: ${{ runner.temp }}/direct-packages.txt
           FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}
-          FIRST_RELEASES_FILE: ${{ runner.temp }}/first-releases.txt
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           if [ "$FIRST_RELEASE" = "true" ] && [ -z "$NODE_AUTH_TOKEN" ]; then
@@ -270,16 +271,16 @@ jobs:
             exit 1
           fi
 
+          mapfile -t packages < "$DIRECT_PACKAGES_FILE"
           filters=()
-          if [ "$DIRECT_ALL" != "true" ]; then
-            mapfile -t packages < "$FIRST_RELEASES_FILE"
-            for package in "${packages[@]}"; do
-              filters+=("--filter=$package")
-            done
-          fi
+          for package in "${packages[@]}"; do
+            filters+=("--filter=$package")
+          done
 
           pnpm publish -r "${filters[@]}" --access public --no-git-checks --report-summary
-          mv pnpm-publish-summary.json "${RUNNER_TEMP}/published-summary.json"
+          if [ -f pnpm-publish-summary.json ]; then
+            mv pnpm-publish-summary.json "${RUNNER_TEMP}/published-summary.json"
+          fi
 
       - name: Stage packages on npm
         if: steps.publishing.outputs.stage == 'true'
@@ -295,9 +296,8 @@ jobs:
           pnpm stage publish -r "${filters[@]}" --access public --no-git-checks --report-summary
           mv pnpm-publish-summary.json "${RUNNER_TEMP}/staged-summary.json"
 
-      # pnpm only talks to the registry, so tags and the release are created here.
-      # The release body distinguishes direct first releases from versions that
-      # still require staged-publish approval.
+      # Submission is the immutable release point. Tag direct and staged
+      # versions alike so rejection cannot cause a later run to reuse one.
       - name: Tag packages and create GitHub release
         env:
           GITHUB_TOKEN: ${{ github.token }}

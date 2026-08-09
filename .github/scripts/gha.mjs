@@ -233,6 +233,10 @@ const changelogEntry = (packagePath, version) => {
 };
 
 //#endregion
+//#region src/release-tags.ts
+const packageReleaseTag = (name, version) => `${name}@${version}`;
+
+//#endregion
 //#region src/github-releases.ts
 const RELEASE_TAG_PREFIX = "release-";
 const appendPackageTable = (out, heading, packages, approvalRequired) => {
@@ -241,6 +245,7 @@ const appendPackageTable = (out, heading, packages, approvalRequired) => {
 	if (approvalRequired) {
 		out.push("");
 		out.push("These versions require maintainer approval with 2FA before they become available from npm.");
+		out.push("Rejecting one does not roll back this release or make its version reusable; release changes under a new version instead.");
 	}
 	out.push("");
 	out.push("| Package | Version |");
@@ -309,7 +314,7 @@ const releasePublishedPackages = async ({ api, sha, published, staged = [], work
 	const releases = [...publishedReleases, ...stagedReleases].sort((a, b) => a.name.localeCompare(b.name));
 	const paths = new Map(workspace.map((entry) => [entry.name, entry.path]));
 	let failed = false;
-	for (const { name, version } of releases) if (!await createTag(api, `${name}@${version}`, sha)) failed = true;
+	for (const { name, version } of releases) if (!await createTag(api, packageReleaseTag(name, version), sha)) failed = true;
 	const releaseTag = await nextReleaseTag(api, now);
 	const notes = await api.generateNotes(releaseTag, sha, await previousReleaseTag(api));
 	const created = await api.createRelease({
@@ -374,7 +379,12 @@ const createGitHubApi = (options) => {
 			query,
 			variables
 		}),
-		tagExists: async (tag) => (await request(`/repos/${repository}/git/ref/tags/${encodeURIComponent(tag)}`, "GET")).ok,
+		tagExists: async (tag) => {
+			const response = await request(`/repos/${repository}/git/ref/tags/${encodeURIComponent(tag)}`, "GET");
+			if (response.status === 404) return false;
+			if (!response.ok) throw new Error(`failed to check git tag "${tag}": GitHub returned ${response.status}`);
+			return true;
+		},
 		createRef: (ref, sha) => request(`/repos/${repository}/git/refs`, "POST", {
 			ref,
 			sha
@@ -474,20 +484,33 @@ const packageExistsOnRegistry = async (packageName, registryUrl, request) => {
 	}
 	return true;
 };
-const planNpmPublishing = async (workspace, stagedPublishing, packageExists) => {
+const planNpmPublishing = async (workspace, stagedPublishing, packageExists, releaseTagExists) => {
 	const publicPackages = workspace.filter((workspacePackage) => !workspacePackage.private);
-	const existence = await Promise.all(publicPackages.map(async (workspacePackage) => ({
+	const submissionState = await Promise.all(publicPackages.map(async (workspacePackage) => ({
+		workspacePackage,
+		submitted: await releaseTagExists(packageReleaseTag(workspacePackage.name, workspacePackage.version))
+	})));
+	const previouslySubmittedPackages = submissionState.filter(({ submitted }) => submitted).map(({ workspacePackage: { name, version } }) => ({
+		name,
+		version
+	}));
+	const pendingPackages = submissionState.filter(({ submitted }) => !submitted).map(({ workspacePackage }) => workspacePackage);
+	const existence = await Promise.all(pendingPackages.map(async (workspacePackage) => ({
 		name: workspacePackage.name,
 		exists: await packageExists(workspacePackage.name)
 	})));
 	const firstReleasePackages = existence.filter(({ exists }) => !exists).map(({ name }) => name);
+	const directPackages = stagedPublishing ? firstReleasePackages : existence.map(({ name }) => name);
 	const stagedPackages = stagedPublishing ? existence.filter(({ exists }) => exists).map(({ name }) => name) : [];
 	let mode;
-	if (!stagedPublishing || firstReleasePackages.length > 0) mode = stagedPackages.length > 0 ? "mixed" : "direct";
-	else mode = "staged";
+	if (directPackages.length > 0) mode = stagedPackages.length > 0 ? "mixed" : "direct";
+	else if (stagedPackages.length > 0) mode = "staged";
+	else mode = "none";
 	return {
 		mode,
+		directPackages,
 		firstReleasePackages,
+		previouslySubmittedPackages,
 		stagedPackages
 	};
 };
@@ -500,18 +523,21 @@ const parseBoolean = (value) => {
 	throw new Error(`npm-publishing-mode: expected "true" or "false", got "${value}"`);
 };
 const npmPublishingMode = {
-	usage: "<workspace-list.json> <registry-url> <staged-publishing> <first-releases.txt> <staged-packages.txt>",
+	usage: "<workspace-list.json> <registry-url> <staged-publishing> <first-releases.txt> <direct-packages.txt> <staged-packages.txt>",
 	run: async (argv) => {
-		const [workspacePath, registryUrl, rawStagedPublishing, firstReleasesPath, stagedPackagesPath] = argv;
-		if (!workspacePath || !registryUrl || !rawStagedPublishing || !firstReleasesPath || !stagedPackagesPath) throw new Error("usage: npm-publishing-mode <workspace-list.json> <registry-url> <staged-publishing> <first-releases.txt> <staged-packages.txt>");
-		const plan = await planNpmPublishing(parseWorkspacePackages(readFileSync(workspacePath, "utf8")), parseBoolean(rawStagedPublishing), (packageName) => packageExistsOnRegistry(packageName, registryUrl, (url, init) => fetch(url, { headers: init.headers })));
+		const [workspacePath, registryUrl, rawStagedPublishing, firstReleasesPath, directPackagesPath, stagedPackagesPath] = argv;
+		if (!workspacePath || !registryUrl || !rawStagedPublishing || !firstReleasesPath || !directPackagesPath || !stagedPackagesPath) throw new Error("usage: npm-publishing-mode <workspace-list.json> <registry-url> <staged-publishing> <first-releases.txt> <direct-packages.txt> <staged-packages.txt>");
+		const stagedPublishing = parseBoolean(rawStagedPublishing);
+		const api = apiFromEnv();
+		const plan = await planNpmPublishing(parseWorkspacePackages(readFileSync(workspacePath, "utf8")), stagedPublishing, (packageName) => packageExistsOnRegistry(packageName, registryUrl, (url, init) => fetch(url, { headers: init.headers })), (tag) => api.tagExists(tag));
+		if (plan.previouslySubmittedPackages.length > 0) console.error(`Skipping versions already recorded by immutable release tags: ${plan.previouslySubmittedPackages.map(({ name, version }) => packageReleaseTag(name, version)).join(", ")}`);
 		if (plan.firstReleasePackages.length > 0) console.error(`Regular npm publishing is required for first release: ${plan.firstReleasePackages.join(", ")}`);
 		writeFileSync(firstReleasesPath, plan.firstReleasePackages.map((packageName) => `${packageName}\n`).join(""));
+		writeFileSync(directPackagesPath, plan.directPackages.map((packageName) => `${packageName}\n`).join(""));
 		writeFileSync(stagedPackagesPath, plan.stagedPackages.map((packageName) => `${packageName}\n`).join(""));
 		process.stdout.write([
 			`mode=${plan.mode}`,
-			`direct=${rawStagedPublishing === "false" || plan.firstReleasePackages.length > 0}`,
-			`direct_all=${rawStagedPublishing === "false"}`,
+			`direct=${plan.directPackages.length > 0}`,
 			`stage=${plan.stagedPackages.length > 0}`,
 			`first_release=${plan.firstReleasePackages.length > 0}`,
 			""

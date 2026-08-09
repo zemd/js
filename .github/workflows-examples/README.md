@@ -53,6 +53,12 @@ with 2FA before it becomes available from npm. If any publishable workspace
 package does not exist in the registry, the workflow publishes that package
 regularly so it can be created while still staging updates to existing packages.
 
+Submission is the immutable release boundary. The workflow tags both directly
+published and staged package versions immediately. Approval only controls npm
+availability: rejecting a staged package does not roll back its release or let a
+later run reuse that version. Record a new change intent so the next attempt uses
+the next version.
+
 [Staged publishing](https://docs.npmjs.com/staged-publishing/) is the default.
 Set `staged-publishing: false` in the caller's `with:` block when packages must
 always publish immediately. npm cannot stage a package that does not exist yet,

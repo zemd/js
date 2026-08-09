@@ -2,7 +2,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 
 import { packageExistsOnRegistry, planNpmPublishing } from "../npm-publishing";
 import { parseWorkspacePackages } from "../pnpm";
+import { packageReleaseTag } from "../release-tags";
 import type { Command } from "./command";
+import { apiFromEnv } from "./context";
 
 const parseBoolean = (value: string): boolean => {
   if (value === "true") return true;
@@ -14,31 +16,49 @@ const parseBoolean = (value: string): boolean => {
 // use regular publishing. The command writes values ready for GITHUB_OUTPUT.
 export const npmPublishingMode: Command = {
   usage:
-    "<workspace-list.json> <registry-url> <staged-publishing> <first-releases.txt> <staged-packages.txt>",
+    "<workspace-list.json> <registry-url> <staged-publishing> <first-releases.txt> <direct-packages.txt> <staged-packages.txt>",
   run: async (argv) => {
-    const [workspacePath, registryUrl, rawStagedPublishing, firstReleasesPath, stagedPackagesPath] =
-      argv;
+    const [
+      workspacePath,
+      registryUrl,
+      rawStagedPublishing,
+      firstReleasesPath,
+      directPackagesPath,
+      stagedPackagesPath,
+    ] = argv;
 
     if (
       !workspacePath ||
       !registryUrl ||
       !rawStagedPublishing ||
       !firstReleasesPath ||
+      !directPackagesPath ||
       !stagedPackagesPath
     ) {
       throw new Error(
-        "usage: npm-publishing-mode <workspace-list.json> <registry-url> <staged-publishing> <first-releases.txt> <staged-packages.txt>",
+        "usage: npm-publishing-mode <workspace-list.json> <registry-url> <staged-publishing> <first-releases.txt> <direct-packages.txt> <staged-packages.txt>",
       );
     }
 
+    const stagedPublishing = parseBoolean(rawStagedPublishing);
+    const api = apiFromEnv();
     const plan = await planNpmPublishing(
       parseWorkspacePackages(readFileSync(workspacePath, "utf8")),
-      parseBoolean(rawStagedPublishing),
+      stagedPublishing,
       (packageName) =>
         packageExistsOnRegistry(packageName, registryUrl, (url, init) =>
           fetch(url, { headers: init.headers }),
         ),
+      (tag) => api.tagExists(tag),
     );
+
+    if (plan.previouslySubmittedPackages.length > 0) {
+      console.error(
+        `Skipping versions already recorded by immutable release tags: ${plan.previouslySubmittedPackages
+          .map(({ name, version }) => packageReleaseTag(name, version))
+          .join(", ")}`,
+      );
+    }
 
     if (plan.firstReleasePackages.length > 0) {
       console.error(
@@ -53,6 +73,10 @@ export const npmPublishingMode: Command = {
       plan.firstReleasePackages.map((packageName) => `${packageName}\n`).join(""),
     );
     writeFileSync(
+      directPackagesPath,
+      plan.directPackages.map((packageName) => `${packageName}\n`).join(""),
+    );
+    writeFileSync(
       stagedPackagesPath,
       plan.stagedPackages.map((packageName) => `${packageName}\n`).join(""),
     );
@@ -60,8 +84,7 @@ export const npmPublishingMode: Command = {
     process.stdout.write(
       [
         `mode=${plan.mode}`,
-        `direct=${rawStagedPublishing === "false" || plan.firstReleasePackages.length > 0}`,
-        `direct_all=${rawStagedPublishing === "false"}`,
+        `direct=${plan.directPackages.length > 0}`,
         `stage=${plan.stagedPackages.length > 0}`,
         `first_release=${plan.firstReleasePackages.length > 0}`,
         "",

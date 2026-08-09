@@ -101,8 +101,17 @@ export const createGitHubApi = (options: GitHubApiOptions): GitHubApi => {
 
     graphql: (query, variables) => requestUrl(graphqlUrl, "POST", { query, variables }),
 
-    tagExists: async (tag) =>
-      (await request(`/repos/${repository}/git/ref/tags/${encodeURIComponent(tag)}`, "GET")).ok,
+    tagExists: async (tag) => {
+      const response = await request(
+        `/repos/${repository}/git/ref/tags/${encodeURIComponent(tag)}`,
+        "GET",
+      );
+      if (response.status === 404) return false;
+      if (!response.ok) {
+        throw new Error(`failed to check git tag "${tag}": GitHub returned ${response.status}`);
+      }
+      return true;
+    },
 
     createRef: (ref, sha) => request(`/repos/${repository}/git/refs`, "POST", { ref, sha }),
 

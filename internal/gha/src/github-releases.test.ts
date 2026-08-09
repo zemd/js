@@ -33,6 +33,7 @@ test("labels packages that still require npm staged-publish approval", () => {
 
   expect(body).toContain("## Packages staged on npm");
   expect(body).toContain("require maintainer approval with 2FA");
+  expect(body).toContain("does not roll back this release or make its version reusable");
   expect(body).not.toContain("## Published packages");
 });
 
