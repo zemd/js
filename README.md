@@ -44,6 +44,10 @@ pnpm install
 > [!NOTE]
 > The repository uses [pnpm](https://pnpm.io) workspaces. Install it with `corepack enable` or follow the [pnpm installation guide](https://pnpm.io/installation).
 
+### Dev Container
+
+The checked-in [Dev Container configuration](.devcontainer/devcontainer.json) provides the repository's pinned Node.js, pnpm, and zizmor versions. In VS Code, run **Dev Containers: Reopen in Container**. The first container creation installs the frozen workspace dependencies and the Chromium build used by Playwright tests.
+
 ## Scripts
 
 All tasks are orchestrated by [Turborepo](https://turborepo.com) and run across every workspace package.
