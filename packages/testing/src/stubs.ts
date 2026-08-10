@@ -2,7 +2,12 @@ import type { TestContext } from "node:test";
 
 type Restore = () => void;
 
-const restoresByContext = new WeakMap<TestContext, Restore[]>();
+interface RestoreRegistration {
+  readonly restoreValue: Restore;
+  restored: boolean;
+}
+
+const restoresByContext = new WeakMap<TestContext, RestoreRegistration[]>();
 
 export function stubEnvironment(
   context: TestContext,
@@ -48,20 +53,35 @@ function registerRestore(context: TestContext, restoreValue: () => void): Restor
       const pendingRestores = restoresByContext.get(context);
       restoresByContext.delete(context);
       while (pendingRestores && pendingRestores.length > 0) {
-        pendingRestores.pop()?.();
+        const pendingRestore = pendingRestores.pop();
+        if (pendingRestore && !pendingRestore.restored) {
+          pendingRestore.restored = true;
+          pendingRestore.restoreValue();
+        }
       }
     });
     restoresByContext.set(context, restores);
   }
 
-  let restored = false;
+  const registration: RestoreRegistration = { restoreValue, restored: false };
   const restore = (): void => {
-    if (restored) {
+    if (registration.restored) {
       return;
     }
-    restored = true;
-    restoreValue();
+
+    const registrationIndex = restores.lastIndexOf(registration);
+    if (registrationIndex === -1) {
+      return;
+    }
+
+    while (restores.length > registrationIndex) {
+      const pendingRestore = restores.pop();
+      if (pendingRestore && !pendingRestore.restored) {
+        pendingRestore.restored = true;
+        pendingRestore.restoreValue();
+      }
+    }
   };
-  restores.push(restore);
+  restores.push(registration);
   return restore;
 }

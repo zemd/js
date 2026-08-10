@@ -50,6 +50,32 @@ void test("stubEnvironment automatically restores stacked values in LIFO order",
   }
 });
 
+void test("stubEnvironment manually restores stacked values in LIFO order", (context) => {
+  const key = `ZEMD_TESTING_MANUAL_STACKED_ENV_${String(process.pid)}`;
+  const existed = Object.hasOwn(process.env, key);
+  const original = process.env[key];
+
+  try {
+    process.env[key] = "original";
+
+    const restoreFirst = stubEnvironment(context, { [key]: "first" });
+    const restoreSecond = stubEnvironment(context, { [key]: "second" });
+    assert.strictEqual(process.env[key], "second");
+
+    restoreFirst();
+    assert.strictEqual(process.env[key], "original");
+
+    restoreSecond();
+    assert.strictEqual(process.env[key], "original");
+  } finally {
+    if (existed) {
+      process.env[key] = original;
+    } else {
+      delete process.env[key];
+    }
+  }
+});
+
 function restoreTestEnvironment(key: string, value: string | undefined): void {
   if (value === undefined) {
     delete process.env[key];

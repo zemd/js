@@ -42,7 +42,7 @@ assert.strictEqual(await request(), "default");
 
 ## Environment variables
 
-`stubEnvironment` applies a group of environment changes and registers idempotent restoration with `context.after()`. Multiple calls restore in LIFO order, including keys that did not exist before the test.
+`stubEnvironment` applies a group of environment changes and registers idempotent restoration with `context.after()`. Multiple calls restore in LIFO order, including keys that did not exist before the test. Calling an older restore function manually first unwinds newer stubs registered on the same context, preserving that order.
 
 ```ts
 import { test } from "node:test";

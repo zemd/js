@@ -1,5 +1,5 @@
 import fc from "fast-check";
-import assert from "node:assert";
+import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 
 import { builder, buildLicense, buildPathsObject, buildServerObject } from "./builders.ts";
@@ -76,14 +76,17 @@ const collectReferences = (value: unknown, seen: Set<object>, depth = 0): Set<ob
 };
 
 afterEach(() => {
-  assert.deepEqual(leakedPrototypeKeys(), []);
+  assert.deepStrictEqual(leakedPrototypeKeys(), []);
 });
 
 void describe("builder", () => {
   void it("should reproduce the object it was given", () => {
     fc.assert(
       fc.property(params, (input) => {
-        assert.deepEqual(builder<Record<string, unknown>>(input).toJSON(), input);
+        assert.deepStrictEqual(
+          builder<Record<string, unknown>>(input).toJSON(),
+          structuredClone(input),
+        );
       }),
       { numRuns: 2000 },
     );
@@ -129,7 +132,7 @@ void describe("builder", () => {
     fc.assert(
       fc.property(params, key, jsonValue, (input, name, value) => {
         const result = builder<Record<string, unknown>>(input).set(name, value).toJSON();
-        assert.deepEqual(result[name], value);
+        assert.deepStrictEqual(result[name], structuredClone(value));
       }),
       { numRuns: 2000 },
     );
@@ -142,7 +145,7 @@ void describe("builder", () => {
           .set(name, builder<Record<string, unknown>>(nested) as never)
           .toJSON();
 
-        assert.deepEqual(result[name], nested);
+        assert.deepStrictEqual(result[name], structuredClone(nested));
       }),
       { numRuns: 2000 },
     );
@@ -175,9 +178,12 @@ void describe("buildServerObject", () => {
       fc.property(fc.webUrl(), variables, (url, vars) => {
         const built = buildServerObject(url, vars).variables ?? {};
 
-        assert.deepEqual(Object.keys(built).sort(), Object.keys(vars).sort());
+        assert.deepStrictEqual(Object.keys(built).sort(), Object.keys(vars).sort());
         for (const [name, value] of Object.entries(vars)) {
-          assert.deepEqual(built[name], typeof value === "string" ? { default: value } : value);
+          assert.deepStrictEqual(
+            built[name],
+            typeof value === "string" ? { default: value } : value,
+          );
         }
       }),
       { numRuns: 2000 },
@@ -218,8 +224,8 @@ void describe("buildPathsObject", () => {
       fc.property(path, parameters, (url, declared) => {
         const built = buildPathsObject(url, { parameters: declared });
 
-        assert.deepEqual(Object.keys(built), [url]);
-        assert.deepEqual(
+        assert.deepStrictEqual(Object.keys(built), [url]);
+        assert.deepStrictEqual(
           built[url]?.parameters,
           Object.entries(declared).map(([name, rest]) => {
             return { name, ...rest };
@@ -237,7 +243,7 @@ void describe("buildLicense", () => {
 
     fc.assert(
       fc.property(identifier, (id) => {
-        assert.deepEqual(buildLicense(id), {
+        assert.deepStrictEqual(buildLicense(id), {
           name: OpenSourceLicenses[id].short,
           identifier: id,
         });

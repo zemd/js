@@ -1,5 +1,5 @@
 import fc from "fast-check";
-import assert from "node:assert";
+import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
@@ -42,7 +42,9 @@ void describe("sRGB conversions", () => {
   void it("round trips every generated 8-bit color through linear sRGB", () => {
     fc.assert(
       fc.property(rgb, (color) => {
-        assert.deepEqual(linear_srgb_to_srgb(srgb_to_linear_srgb(color)), color);
+        const expected: RGB = { r: color.r, g: color.g, b: color.b };
+
+        assert.deepStrictEqual(linear_srgb_to_srgb(srgb_to_linear_srgb(color)), expected);
       }),
       { numRuns: 5000 },
     );
@@ -51,7 +53,9 @@ void describe("sRGB conversions", () => {
   void it("round trips every generated 8-bit color through OKLab", () => {
     fc.assert(
       fc.property(rgb, (color) => {
-        assert.deepEqual(oklab_to_srgb(srgb_to_oklab(color)), color);
+        const expected: RGB = { r: color.r, g: color.g, b: color.b };
+
+        assert.deepStrictEqual(oklab_to_srgb(srgb_to_oklab(color)), expected);
       }),
       { numRuns: 5000 },
     );
@@ -60,7 +64,9 @@ void describe("sRGB conversions", () => {
   void it("round trips every generated 8-bit color through OKLCH", () => {
     fc.assert(
       fc.property(rgb, (color) => {
-        assert.deepEqual(oklch_to_srgb(srgb_to_oklch(color)), color);
+        const expected: RGB = { r: color.r, g: color.g, b: color.b };
+
+        assert.deepStrictEqual(oklch_to_srgb(srgb_to_oklch(color)), expected);
       }),
       { numRuns: 5000 },
     );
