@@ -1,6 +1,6 @@
 {
   "name": "@zemd/flickr-rest-api",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Flickr API client simplified.",
   "homepage": "https://github.com/zemd/js/tree/main/http-clients/flickr",
   "bugs": {

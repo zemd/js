@@ -1,5 +1,11 @@
 # @zemd/std-modules
 
+## 0.1.1
+
+### Patch Changes
+
+- Prevent prototype pollution by omitting `__proto__`, `constructor`, and `prototype` keys during deep object merges.
+
 ## 0.1.0
 
 ### Minor Changes
