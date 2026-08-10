@@ -1,5 +1,15 @@
 # @zemd/gha
 
+## 2.0.0
+
+### Major Changes
+
+- Standardize shared workflow package scripts, Node.js LTS, npm registry, release pull request conventions, and mandatory dependency review.
+
+### Patch Changes
+
+- Add native Node.js coverage execution and LCOV artifact uploads to the shared CI workflow.
+
 ## 1.0.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @zemd/tsconfig
 
+## 2.1.1
+
+### Patch Changes
+
+- Enable relative TypeScript import extension rewriting for Node.js native type stripping.
+
 ## 2.1.0
 
 ### Minor Changes
