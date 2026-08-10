@@ -16,6 +16,11 @@
   dir: internal/gha
   intents:
     - hip-memes-rhyme
+"@zemd/gha@2.0.0":
+  dir: internal/gha
+  intents:
+    - smooth-taxis-beg
+    - ten-canyons-slide
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
@@ -37,10 +42,18 @@
   dir: packages/std
   intents:
     - crisp-deserts-jam
+"@zemd/testing@1.0.0":
+  dir: packages/testing
+  intents:
+    - mighty-doors-wear
 "@zemd/tsconfig@2.1.0":
   dir: packages/tsconfig
   intents:
     - add-library-tsconfig
+"@zemd/tsconfig@2.1.1":
+  dir: packages/tsconfig
+  intents:
+    - chatty-birds-spend
 logtown@3.2.1:
   dir: packages/logtown
   intents:
