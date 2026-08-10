@@ -8,6 +8,14 @@ const PRISTINE_KEYS: Set<string>[] = PROTOTYPES.map((proto) => {
   return new Set(Object.getOwnPropertyNames(proto));
 });
 
+const PROTOTYPE_POLLUTION_KEYS = ["__proto__", "constructor", "prototype"] as const;
+
+const isPrototypePollutionKey = (name: string): boolean => {
+  return PROTOTYPE_POLLUTION_KEYS.some((key) => {
+    return key === name;
+  });
+};
+
 /**
  * Reports keys the code under test leaked onto a built-in prototype, and removes them so
  * that a single finding does not cascade into every later check.
@@ -33,9 +41,7 @@ const leakedPrototypeKeys = (): string[] => {
  * far above random strings so that the interesting paths are actually reached.
  */
 const hostileKey = fc.constantFrom(
-  "__proto__",
-  "constructor",
-  "prototype",
+  ...PROTOTYPE_POLLUTION_KEYS,
   "toString",
   "valueOf",
   "hasOwnProperty",
@@ -228,10 +234,14 @@ describe("merge", () => {
     );
   });
 
-  it("should never carry a __proto__ key into the result", () => {
+  it("should never carry prototype-pollution keys into the result", () => {
     fc.assert(
       fc.property(inputs, (values) => {
-        expect(Object.getOwnPropertyNames(merge(...values))).not.toContain("__proto__");
+        const resultKeys = Object.getOwnPropertyNames(merge(...values));
+
+        for (const unsafeKey of PROTOTYPE_POLLUTION_KEYS) {
+          expect(resultKeys).not.toContain(unsafeKey);
+        }
       }),
       { numRuns: 5000 },
     );
@@ -263,7 +273,7 @@ describe("merge", () => {
 
     fc.assert(
       fc.property(conflicting, ([first, second, name, winner]) => {
-        fc.pre(name !== "__proto__");
+        fc.pre(!isPrototypePollutionKey(name));
 
         expect(merge(first, second)[name]).toBe(winner);
       }),

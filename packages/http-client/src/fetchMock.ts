@@ -1,6 +1,16 @@
 import type { TFetchFnParams } from "./type";
 
-const mockRegistry = new Map<string, (url: URL, options?: TFetchFnParams[1]) => unknown>();
+export type TMockPathname = string | RegExp;
+export type TMockMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS" | "HEAD";
+export type TMockImplementation = (url: URL, options?: TFetchFnParams[1]) => unknown;
+
+type TMockRegistration = {
+  pathname: TMockPathname;
+  method: TMockMethod;
+  implementation: TMockImplementation;
+};
+
+const mockRegistry: TMockRegistration[] = [];
 
 const getUrl = (url: TFetchFnParams[0]) => {
   if (url instanceof URL) {
@@ -12,14 +22,38 @@ const getUrl = (url: TFetchFnParams[0]) => {
   return new URL(url.url);
 };
 
-const getKey = (pathname: string, method: string): string => {
-  for (const key of mockRegistry.keys()) {
-    // eslint-disable-next-line no-useless-escape
-    if (new RegExp(`^${key}$`).test(`${method}\.${pathname}`)) {
-      return key;
+const getMatcherKey = (pathname: TMockPathname): string => {
+  return typeof pathname === "string"
+    ? `string:${pathname}`
+    : `regexp:${pathname.source}/${pathname.flags}`;
+};
+
+const compilePathname = (pathname: TMockPathname): TMockPathname => {
+  if (typeof pathname === "string") {
+    return pathname;
+  }
+
+  const flags = pathname.flags.replaceAll("g", "").replaceAll("y", "");
+  return new RegExp(`^(?:${pathname.source})$`, flags);
+};
+
+const matchesPathname = (matcher: TMockPathname, pathname: string): boolean => {
+  return typeof matcher === "string" ? matcher === pathname : matcher.test(pathname);
+};
+
+const getImplementation = (
+  pathnames: string[],
+  method: string,
+): TMockImplementation | undefined => {
+  for (const pathname of pathnames) {
+    for (const registration of mockRegistry) {
+      if (registration.method === method && matchesPathname(registration.pathname, pathname)) {
+        return registration.implementation;
+      }
     }
   }
-  return "";
+
+  return undefined;
 };
 
 /**
@@ -40,12 +74,13 @@ export const fetchMock = async (
   url: TFetchFnParams[0],
   options?: TFetchFnParams[1],
 ): Promise<Response> => {
-  const method = options?.method || "GET";
+  const method = (options?.method ?? (url instanceof Request ? url.method : "GET")).toUpperCase();
   const urlObj = getUrl(url);
 
-  const implementation =
-    mockRegistry.get(getKey(`${urlObj.origin}${urlObj.pathname}`, method)) ??
-    mockRegistry.get(getKey(urlObj.pathname, method));
+  const implementation = getImplementation(
+    [`${urlObj.origin}${urlObj.pathname}`, urlObj.pathname],
+    method,
+  );
 
   if (implementation) {
     try {
@@ -74,14 +109,38 @@ export const fetchMock = async (
   throw new Error("No mock data available for this endpoint.");
 };
 
+/**
+ * Registers a mock implementation for a method and pathname.
+ * String pathnames are matched exactly. Pass a RegExp explicitly for pattern matching; the
+ * expression must match the entire pathname (or the entire origin plus pathname).
+ */
 export const addEndpointMock = (
-  pathname: string,
-  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS" | "HEAD",
-  implementation: (url: URL, options?: TFetchFnParams[1]) => unknown,
+  pathname: TMockPathname,
+  method: TMockMethod,
+  implementation: TMockImplementation,
 ) => {
-  mockRegistry.set(`${method.toUpperCase()}.${pathname}`, implementation);
+  const compiledPathname = compilePathname(pathname);
+  const normalizedMethod = method.toUpperCase() as TMockMethod;
+  const matcherKey = getMatcherKey(compiledPathname);
+  const existingIndex = mockRegistry.findIndex((registration) => {
+    return (
+      registration.method === normalizedMethod &&
+      getMatcherKey(registration.pathname) === matcherKey
+    );
+  });
+  const registration = {
+    pathname: compiledPathname,
+    method: normalizedMethod,
+    implementation,
+  };
+
+  if (existingIndex === -1) {
+    mockRegistry.push(registration);
+  } else {
+    mockRegistry[existingIndex] = registration;
+  }
 };
 
 export const clearEndpointMocks = () => {
-  mockRegistry.clear();
+  mockRegistry.length = 0;
 };

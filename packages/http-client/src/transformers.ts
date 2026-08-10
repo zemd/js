@@ -68,10 +68,7 @@ const modifyUrlPath = (input: TFetchFnParams[0], prefix: string): TFetchFnParams
     const urlObj = new URL(input.url);
     urlObj.pathname = `${prefix}${urlObj.pathname}`;
 
-    return new Request(urlObj.toString(), {
-      // eslint-disable-next-line @typescript-eslint/no-misused-spread
-      ...input,
-    });
+    return new Request(urlObj.toString(), input);
   }
 
   if (input instanceof URL) {
@@ -94,10 +91,7 @@ const modifyUrlQuery = (input: TFetchFnParams[0], query: object): TFetchFnParams
   if (input instanceof Request) {
     const urlObj = new URL(input.url);
     urlObj.search = `${new URLSearchParams([...Array.from(urlObj.searchParams.entries()), ...Object.entries(query)])}`;
-    return new Request(urlObj.toString(), {
-      // eslint-disable-next-line @typescript-eslint/no-misused-spread
-      ...input,
-    });
+    return new Request(urlObj.toString(), input);
   }
 
   if (input instanceof URL) {
@@ -159,73 +153,192 @@ export const body = (obj: BodyInit): TFetchTransformer => {
   };
 };
 
+export type TShouldRetry = (error: unknown, attempt: number) => boolean;
+
+const shouldRetryByDefault: TShouldRetry = (error) => {
+  if (error instanceof Response) {
+    return error.status >= 500 && error.status <= 599;
+  }
+
+  if (error instanceof Error && error.name === "AbortError") {
+    return false;
+  }
+
+  return (
+    error instanceof TypeError ||
+    (typeof DOMException !== "undefined" &&
+      error instanceof DOMException &&
+      error.name === "NetworkError")
+  );
+};
+
+const wait = async (delay: number): Promise<void> => {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, delay);
+  });
+};
+
+const cancelResponseBody = async (response: Response): Promise<void> => {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Failure to release a discarded response body must not replace the request result.
+  }
+};
+
 /**
- * Creates a transformer that retries failed requests.
- * @param maxRetries The maximum number of retry attempts (default: 3)
- * @param delay The delay between retries in milliseconds (default: 1000)
- * @returns A transformer function that retries the request on failure
+ * Creates a transformer that retries network failures and 5xx responses by default.
+ * @param maxRetries The maximum number of retries after the initial attempt (default: 3)
+ * @param delay The delay between attempts in milliseconds (default: 1000)
+ * @param backoffFactor A delay multiplier or a function receiving the zero-based retry index
+ * @param shouldRetry A predicate receiving a thrown error or non-ok Response and the one-based attempt number
+ * @returns A transformer function that retries the request on eligible failures
  */
 export const retry = (
   maxRetries: number = 3,
   delay: number = 1000,
   backoffFactor: number | ((attempt: number) => number) = 1,
+  shouldRetry: TShouldRetry = shouldRetryByDefault,
 ): TFetchTransformer => {
   return async (fetchFn: TFetchFn, ...params: TFetchFnParams) => {
-    let lastError;
-    for (let i = 0; i < maxRetries; i += 1) {
+    let retries = 0;
+
+    while (true) {
+      let response: Response;
       try {
-        return await fetchFn(...params);
+        response = await fetchFn(...params);
       } catch (error) {
-        lastError = error;
-        // Calculate exponential backoff: delay * (2^attempt)
+        if (retries >= maxRetries || !shouldRetry(error, retries + 1)) {
+          throw error;
+        }
+
         const backoffDelay =
-          delay * (typeof backoffFactor === "number" ? backoffFactor : backoffFactor(i));
-        await new Promise((resolve) => {
-          setTimeout(resolve, backoffDelay);
-        });
+          delay * (typeof backoffFactor === "number" ? backoffFactor : backoffFactor(retries));
+        await wait(backoffDelay);
+        retries += 1;
+        continue;
       }
+
+      if (response.ok || retries >= maxRetries || !shouldRetry(response, retries + 1)) {
+        return response;
+      }
+
+      await cancelResponseBody(response);
+      const backoffDelay =
+        delay * (typeof backoffFactor === "number" ? backoffFactor : backoffFactor(retries));
+      await wait(backoffDelay);
+      retries += 1;
     }
-    throw lastError;
   };
 };
 
-const cacheStore = new Map<string, { data: any; timestamp: number }>();
+type TCacheEntry = {
+  response: Response;
+  timestamp: number;
+};
 
-const getCacheKey = (input: string | URL | Request): string => {
-  if (input instanceof Request) {
-    return input.url;
+const getRequestUrl = (input: string | URL | Request): string => {
+  return input instanceof Request ? input.url : input.toString();
+};
+
+const getRequestMethod = (input: string | URL | Request, init?: RequestInit): string => {
+  return (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+};
+
+const getCacheKey = (input: string | URL | Request, init?: RequestInit): string => {
+  const request = input instanceof Request ? input : undefined;
+  const headers = new Headers(init?.headers ?? request?.headers);
+
+  return JSON.stringify([
+    getRequestUrl(input),
+    Array.from(headers.entries()),
+    init?.credentials ?? request?.credentials,
+    init?.mode ?? request?.mode,
+    init?.referrer ?? request?.referrer,
+    init?.referrerPolicy ?? request?.referrerPolicy,
+  ]);
+};
+
+const isCacheableResponse = (response: Response): boolean => {
+  if (!response.ok) {
+    return false;
   }
-  if (input instanceof URL) {
-    return input.href;
+
+  const vary = response.headers.get("Vary");
+  if (
+    vary
+      ?.split(",")
+      .map((value) => {
+        return value.trim();
+      })
+      .includes("*")
+  ) {
+    return false;
   }
-  return input;
+
+  const cacheControlDirectives = response.headers
+    .get("Cache-Control")
+    ?.split(",")
+    .map((directive) => {
+      return directive.trim().split("=", 1)[0]?.toLowerCase();
+    });
+
+  return !cacheControlDirectives?.some((directive) => {
+    return directive === "no-store" || directive === "no-cache" || directive === "private";
+  });
 };
 
 /**
- * Creates a transformer that caches GET requests for a specified duration.
- * CATION: The order of transformers is important. The cache transformer MUST go after the method transformer.
- *
+ * Creates an isolated, in-memory cache for GET responses. Cache keys include the URL,
+ * caller-supplied headers, and request options that can affect the representation.
  * @param maxAge The maximum age of the cache in milliseconds (default: 60000 ms or 1 minute)
+ * @param maxEntries The maximum number of responses retained by this transformer (default: 100)
  * @returns A transformer function that caches GET requests and returns cached responses if available
  */
-export const cache = (maxAge: number = 60_000): TFetchTransformer => {
+export const cache = (maxAge: number = 60_000, maxEntries: number = 100): TFetchTransformer => {
+  const cacheStore = new Map<string, TCacheEntry>();
+
   return async (fetchFn: TFetchFn, ...params: TFetchFnParams) => {
     const [input, init] = params;
-    if (init?.method?.toUpperCase() !== "GET") {
+    if (getRequestMethod(input, init) !== "GET" || maxAge <= 0 || maxEntries <= 0) {
       return fetchFn(...params);
     }
 
-    const cacheKey = getCacheKey(input);
+    const cacheKey = getCacheKey(input, init);
     const cached = cacheStore.get(cacheKey);
 
     if (cached && Date.now() - cached.timestamp < maxAge) {
-      return Response.json(cached.data, { status: 200 });
+      cacheStore.delete(cacheKey);
+      cacheStore.set(cacheKey, cached);
+      return cached.response.clone();
+    }
+
+    if (cached) {
+      cacheStore.delete(cacheKey);
     }
 
     const response = await fetchFn(...params);
-    const data = await response.json();
-    cacheStore.set(cacheKey, { data, timestamp: Date.now() });
-    return Response.json(data, { status: 200 });
+    if (!isCacheableResponse(response)) {
+      return response;
+    }
+
+    let cachedResponse: Response;
+    try {
+      cachedResponse = response.clone();
+    } catch {
+      return response;
+    }
+
+    while (cacheStore.size >= maxEntries) {
+      const oldestKey = cacheStore.keys().next().value;
+      if (oldestKey === undefined) {
+        break;
+      }
+      cacheStore.delete(oldestKey);
+    }
+
+    cacheStore.set(cacheKey, { response: cachedResponse, timestamp: Date.now() });
+    return response;
   };
 };
 

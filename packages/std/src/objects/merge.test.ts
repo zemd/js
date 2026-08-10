@@ -201,12 +201,46 @@ describe("Compatibility suite with deepmerge", () => {
     hasUndefinedProperty(merge(target3, src));
   });
 
-  test("should not let an own __proto__ key replace the prototype of the result", () => {
-    const hostile = JSON.parse('{"__proto__": {"polluted": true}}') as Record<string, unknown>;
+  test.each(["__proto__", "constructor", "prototype"])(
+    "should omit an own %s key at every merged object depth",
+    (unsafeKey) => {
+      const hostile = Object.defineProperty({}, unsafeKey, {
+        value: { polluted: true },
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      }) as Record<string, unknown>;
+      const nestedHostile = Object.defineProperty({ deeper: hostile }, unsafeKey, {
+        value: { polluted: true },
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      }) as Record<string, unknown>;
+      const actual = merge<Record<string, unknown>>({ safe: 1 }, hostile, {
+        nested: nestedHostile,
+      });
+      const nested = actual["nested"] as Record<string, unknown>;
+      const deeper = nested["deeper"] as Record<string, unknown>;
+
+      expect(Object.getPrototypeOf(actual)).toBe(Object.prototype);
+      expect(Object.getPrototypeOf(nested)).toBe(Object.prototype);
+      expect(Object.getPrototypeOf(deeper)).toBe(Object.prototype);
+      expect(Object.hasOwn(actual, unsafeKey)).toBe(false);
+      expect(Object.hasOwn(nested, unsafeKey)).toBe(false);
+      expect(Object.hasOwn(deeper, unsafeKey)).toBe(false);
+      expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+    },
+  );
+
+  test("should reject a constructor.prototype pollution path", () => {
+    const hostile = JSON.parse('{"constructor": {"prototype": {"polluted": true}}}') as Record<
+      string,
+      unknown
+    >;
     const actual = merge<Record<string, unknown>>({ safe: 1 }, hostile);
 
-    expect(Object.getPrototypeOf(actual)).toBe(Object.prototype);
-    expect(actual["polluted"]).toBeUndefined();
+    expect(actual).toEqual({ safe: 1 });
+    expect(Object.hasOwn(actual, "constructor")).toBe(false);
     expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
   });
 
