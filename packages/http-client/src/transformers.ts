@@ -1,4 +1,4 @@
-import type { TFetchFn, TFetchFnParams, TFetchTransformer } from "./type";
+import type { TFetchFn, TFetchFnParams, TFetchTransformer } from "./type.ts";
 
 const transform = async (
   fetchFn: TFetchFn,

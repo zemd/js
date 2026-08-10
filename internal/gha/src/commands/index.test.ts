@@ -1,9 +1,10 @@
-import { expect, test } from "vitest";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 
-import { commands, usage } from "./index";
+import { commands, usage } from "./index.ts";
 
-test("exposes every release step the shared workflows need", () => {
-  expect(Object.keys(commands).sort()).toEqual([
+void test("exposes every release step the shared workflows need", () => {
+  assert.deepStrictEqual(Object.keys(commands).sort(), [
     "contract-version",
     "github-releases",
     "npm-publishing-mode",
@@ -13,20 +14,21 @@ test("exposes every release step the shared workflows need", () => {
   ]);
 });
 
-test("lists every command with its arguments in the usage text", () => {
+void test("lists every command with its arguments in the usage text", () => {
   const text = usage();
 
-  expect(text).toContain("usage: gha.mjs <command> [args]");
+  assert.ok(text.includes("usage: gha.mjs <command> [args]"));
   for (const [name, command] of Object.entries(commands)) {
-    expect(text).toContain(`  ${name} ${command.usage}`);
+    assert.ok(text.includes(`  ${name} ${command.usage}`));
   }
 });
 
-test("rejects a command invoked without its arguments", async () => {
+void test("rejects a command invoked without its arguments", async () => {
   for (const [name, command] of Object.entries(commands)) {
-    await expect(
-      async () => command.run([]),
+    await assert.rejects(
+      Promise.resolve().then(() => command.run([])),
+      new RegExp(`usage: ${name}`),
       `${name} must reject an empty argument list`,
-    ).rejects.toThrow(new RegExp(`usage: ${name}`));
+    );
   }
 });

@@ -1,6 +1,8 @@
 import fc from "fast-check";
-import { afterEach, describe, expect, it } from "vitest";
-import { get, merge } from "./objects";
+import assert from "node:assert/strict";
+import { afterEach, describe, it } from "node:test";
+
+import { get, merge } from "./objects.ts";
 
 const PROTOTYPES: object[] = [Object.prototype, Array.prototype, Function.prototype];
 
@@ -129,29 +131,29 @@ const collectReferences = (value: unknown, seen: Set<object>, depth = 0): Set<ob
 };
 
 afterEach(() => {
-  expect(leakedPrototypeKeys()).toEqual([]);
+  assert.deepStrictEqual(leakedPrototypeKeys(), []);
 });
 
-describe("get", () => {
-  it("should read own properties only", () => {
+void describe("get", () => {
+  void it("should read own properties only", () => {
     fc.assert(
       fc.property(object, path, (root, dotted) => {
-        expect(get(root, dotted)).toStrictEqual(traverseOwn(root, dotted.split(".")));
+        assert.deepStrictEqual(get(root, dotted), traverseOwn(root, dotted.split(".")));
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should answer null rather than undefined for a missing path", () => {
+  void it("should answer null rather than undefined for a missing path", () => {
     fc.assert(
       fc.property(object, path, (root, dotted) => {
-        expect(get(root, dotted)).not.toBe(undefined);
+        assert.notStrictEqual(get(root, dotted), undefined);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should find every path built out of the keys of the object it is given", () => {
+  void it("should find every path built out of the keys of the object it is given", () => {
     const objectWithPath = object.chain((root) => {
       // A dotted path cannot address a key that itself contains a dot.
       const keys = Object.keys(root).filter((name) => {
@@ -166,26 +168,27 @@ describe("get", () => {
       fc.property(objectWithPath, ([root, segment]) => {
         fc.pre(segment !== "" && root[segment] !== undefined && root[segment] !== null);
 
-        expect(get(root, segment)).toStrictEqual(root[segment]);
+        assert.deepStrictEqual(get(root, segment), root[segment]);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should never leak a built-in prototype through a hostile path", () => {
+  void it("should never leak a built-in prototype through a hostile path", () => {
     const hostilePath = fc.array(hostileKey, { minLength: 1, maxLength: 4 }).map((segments) => {
       return segments.join(".");
     });
 
     fc.assert(
       fc.property(object, hostilePath, (root, dotted) => {
-        expect(PROTOTYPES).not.toContain(get(root, dotted));
+        const value = get(root, dotted);
+        assert.ok(!PROTOTYPES.some((prototype) => Object.is(prototype, value)));
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should refuse a non object root", () => {
+  void it("should refuse a non object root", () => {
     const notAnObject = fc.oneof(
       fc.constant(null),
       fc.constant(undefined),
@@ -196,28 +199,28 @@ describe("get", () => {
 
     fc.assert(
       fc.property(notAnObject, path, (root, dotted) => {
-        expect(() => {
+        assert.throws(() => {
           return get(root as unknown as Record<string, unknown>, dotted);
-        }).toThrow(TypeError);
+        }, TypeError);
       }),
       { numRuns: 2000 },
     );
   });
 });
 
-describe("merge", () => {
+void describe("merge", () => {
   const inputs = fc.array(fc.option(object, { nil: undefined }), { maxLength: 4 });
 
-  it("should keep its own prototype whatever it is given", () => {
+  void it("should keep its own prototype whatever it is given", () => {
     fc.assert(
       fc.property(inputs, (values) => {
-        expect(Object.getPrototypeOf(merge(...values))).toBe(Object.prototype);
+        assert.strictEqual(Object.getPrototypeOf(merge(...values)), Object.prototype);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should never share a reference with its inputs", () => {
+  void it("should never share a reference with its inputs", () => {
     fc.assert(
       fc.property(inputs, (values) => {
         const inputReferences = new Set<object>();
@@ -227,27 +230,27 @@ describe("merge", () => {
 
         const result = merge(...values);
         for (const reference of collectReferences(result, new Set<object>())) {
-          expect(inputReferences.has(reference)).toBe(false);
+          assert.strictEqual(inputReferences.has(reference), false);
         }
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should never carry prototype-pollution keys into the result", () => {
+  void it("should never carry prototype-pollution keys into the result", () => {
     fc.assert(
       fc.property(inputs, (values) => {
         const resultKeys = Object.getOwnPropertyNames(merge(...values));
 
         for (const unsafeKey of PROTOTYPE_POLLUTION_KEYS) {
-          expect(resultKeys).not.toContain(unsafeKey);
+          assert.ok(!resultKeys.includes(unsafeKey));
         }
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should leave its inputs untouched", () => {
+  void it("should leave its inputs untouched", () => {
     fc.assert(
       fc.property(inputs, (values) => {
         const before = values.map((value) => {
@@ -256,17 +259,18 @@ describe("merge", () => {
 
         merge(...values);
 
-        expect(
+        assert.deepStrictEqual(
           values.map((value) => {
             return JSON.stringify(value);
           }),
-        ).toEqual(before);
+          before,
+        );
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should let the last input win on a conflicting key", () => {
+  void it("should let the last input win on a conflicting key", () => {
     const conflicting = fc.tuple(key, fc.integer(), fc.integer()).map(([name, first, second]) => {
       return [buildObject([[name, first]]), buildObject([[name, second]]), name, second] as const;
     });
@@ -275,13 +279,13 @@ describe("merge", () => {
       fc.property(conflicting, ([first, second, name, winner]) => {
         fc.pre(!isPrototypePollutionKey(name));
 
-        expect(merge(first, second)[name]).toBe(winner);
+        assert.strictEqual(merge(first, second)[name], winner);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should ignore anything that is not a plain object", () => {
+  void it("should ignore anything that is not a plain object", () => {
     const ignored = fc.oneof(
       fc.constant(null),
       fc.constant(undefined),
@@ -290,7 +294,8 @@ describe("merge", () => {
 
     fc.assert(
       fc.property(object, fc.array(ignored, { maxLength: 3 }), (root, noise) => {
-        expect(merge(root, ...(noise as (Record<string, unknown> | null | undefined)[]))).toEqual(
+        assert.deepStrictEqual(
+          merge(root, ...(noise as (Record<string, unknown> | null | undefined)[])),
           merge(root),
         );
       }),
@@ -298,11 +303,11 @@ describe("merge", () => {
     );
   });
 
-  it("should be idempotent when merged with itself", () => {
+  void it("should be idempotent when merged with itself", () => {
     fc.assert(
       fc.property(object, (root) => {
         const once = merge(root);
-        expect(merge(once, root)).toEqual(once);
+        assert.deepStrictEqual(merge(once, root), once);
       }),
       { numRuns: 5000 },
     );

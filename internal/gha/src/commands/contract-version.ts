@@ -6,9 +6,9 @@ import {
   reconcileContractRelease,
   type ChangeIntent,
   type ContractVersionPlan,
-} from "../contract-version";
-import { parseAppliedReleases } from "../pnpm";
-import type { Command } from "./command";
+} from "../contract-version.ts";
+import { parseAppliedReleases } from "../pnpm.ts";
+import type { Command } from "./command.ts";
 
 interface PackageManifest {
   readonly name: string;

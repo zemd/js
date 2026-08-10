@@ -21,6 +21,7 @@ Each package is published independently to npm, using the `@zemd` and `@logtown`
 | [`@zemd/std-modules`](packages/std)         | [![npm](https://img.shields.io/npm/v/@zemd/std-modules?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/std-modules) | `BlueOak-1.0.0` | Standalone ECMAScript modules for diverse use cases  |
 | [`@zemd/http-client`](packages/http-client) | [![npm](https://img.shields.io/npm/v/@zemd/http-client?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/http-client) | `Apache-2.0`    | A lightweight framework to build your custom `fetch` |
 | [`@zemd/openapi`](packages/openapi)         | [![npm](https://img.shields.io/npm/v/@zemd/openapi?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/openapi)         | `Apache-2.0`    | OpenAPI TypeScript definitions and tools             |
+| [`@zemd/testing`](packages/testing)         | [![npm](https://img.shields.io/npm/v/@zemd/testing?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/testing)         | `Apache-2.0`    | Focused helpers for Node.js native tests             |
 | [`@zemd/tsconfig`](packages/tsconfig)       | [![npm](https://img.shields.io/npm/v/@zemd/tsconfig?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/tsconfig)       | `MIT`           | Shared TypeScript configs with strict defaults       |
 | [`logtown`](packages/logtown)               | [![npm](https://img.shields.io/npm/v/logtown?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/logtown)                     | `Apache-2.0`    | Versatile logging wrapper for JavaScript projects    |
 | [`@logtown/hono`](packages/logtown-hono)    | [![npm](https://img.shields.io/npm/v/@logtown/hono?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@logtown/hono)         | `Apache-2.0`    | Hono middleware for logging with `logtown`           |
@@ -50,8 +51,9 @@ All tasks are orchestrated by [Turborepo](https://turborepo.com) and run across 
 | Command                   | Description                                       |
 | ------------------------- | ------------------------------------------------- |
 | `pnpm build`              | Build all packages                                |
-| `pnpm test`               | Run unit tests                                    |
-| `pnpm test-browser`       | Run browser-based tests                           |
+| `pnpm test`               | Run unit tests with Node.js's native test runner  |
+| `pnpm test-coverage`      | Run unit tests and write native LCOV reports      |
+| `pnpm test-browser`       | Run browser tests with Playwright                 |
 | `pnpm test-browser-setup` | Download the Chromium build used by browser tests |
 | `pnpm typecheck`          | Type-check all packages                           |
 | `pnpm format`             | Format the codebase with `oxfmt`                  |
@@ -77,7 +79,7 @@ To report a vulnerability, follow [`SECURITY.md`](SECURITY.md).
 
 ## Contributing
 
-Issues and pull requests are welcome. Before opening a PR, please make sure that `pnpm lint-check`, `pnpm lint-actions`, `pnpm format-check`, `pnpm typecheck`, and `pnpm test` all pass.
+Issues and pull requests are welcome. Before opening a PR, please make sure that `pnpm lint-check`, `pnpm lint-actions`, `pnpm format-check`, `pnpm typecheck`, `pnpm test`, and `pnpm test-browser` all pass.
 
 ## License
 

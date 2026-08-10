@@ -19,6 +19,8 @@ jobs:
   release:
     name: Release
     uses: zemd/js/.github/workflows/shared-release.yml@__SHA__ # v1
+    # Node.js lts/*, main, release/main, the release PR title, npmjs.org, and
+    # the `build` and `lint-publish` scripts are fixed shared conventions.
     permissions:
       contents: write # release branch, git tags and GitHub releases
       pull-requests: write # open and refresh the release pull request
@@ -27,15 +29,8 @@ jobs:
       # Keep this SHA equal to the one in `uses` above.
       shared-tooling-repository: zemd/js
       shared-tooling-ref: __SHA__
-      # node-version: "lts/*"
-      # base-branch: main
-      # release-branch: release/main
-      # release-title: "chore(release): version packages"
       # contract-version-package: "" # Private workflow/tooling contract, if any.
-      # build-script: build
-      # publint-script: lint-publish
       # staged-publishing: true # Set false when every release should publish directly.
-      # registry-url: "https://registry.npmjs.org"
     secrets:
       # Optional after every package exists. First releases automatically use
       # regular publishing and require this repository secret.

@@ -1,5 +1,5 @@
-import type { LinearRGB, RGB } from "./schema";
-import { decodeSrgbChannel } from "./utils";
+import type { LinearRGB, RGB } from "./schema/index.ts";
+import { decodeSrgbChannel } from "./utils.ts";
 
 export const srgb_to_linear_srgb = (color: RGB): LinearRGB => {
   return {

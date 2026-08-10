@@ -1,5 +1,5 @@
-export type * from "./type";
-export * from "./compose";
-export * from "./transformers";
-export * from "./endpoint";
-export * from "./fetchMock";
+export type * from "./type.ts";
+export * from "./compose.ts";
+export * from "./transformers.ts";
+export * from "./endpoint.ts";
+export * from "./fetchMock.ts";

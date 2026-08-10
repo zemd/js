@@ -267,6 +267,6 @@ function getStatus(id: string, level: LogLevel): ModuleLogLevelStatus {
   );
 }
 
-export * from "./wrappers/ConsoleWrapper.js";
-export * from "./wrappers/SimpleConsoleWrapper.js";
-export * from "./wrappers/GCPSimpleWrapper.js";
+export * from "./wrappers/ConsoleWrapper.ts";
+export * from "./wrappers/SimpleConsoleWrapper.ts";
+export * from "./wrappers/GCPSimpleWrapper.ts";

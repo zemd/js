@@ -1,10 +1,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-import { requireEnv } from "../env";
-import { releaseSharedWorkflows } from "../shared-workflows";
-import type { Command } from "./command";
-import { apiFromEnv } from "./context";
+import { requireEnv } from "../env.ts";
+import { releaseSharedWorkflows } from "../shared-workflows.ts";
+import type { Command } from "./command.ts";
+import { apiFromEnv } from "./context.ts";
 
 const manifestVersion = (packagePath: string): string => {
   const manifest: unknown = JSON.parse(readFileSync(packagePath, "utf8"));

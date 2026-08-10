@@ -1,4 +1,4 @@
-import { isBlockElement } from "../check";
+import { isBlockElement } from "../check.ts";
 
 export const getNearestBlockElement = (node: Node): HTMLElement | null => {
   let currentElement = node.parentElement;

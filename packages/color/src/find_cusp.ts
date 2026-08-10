@@ -1,6 +1,6 @@
-import type { GamutCusp, HueDirection, LinearRGB } from "./schema";
-import { compute_max_saturation } from "./compute_max_saturation";
-import { oklab_to_linear_srgb } from "./oklab_to_linear_srgb";
+import type { GamutCusp, HueDirection, LinearRGB } from "./schema/index.ts";
+import { compute_max_saturation } from "./compute_max_saturation.ts";
+import { oklab_to_linear_srgb } from "./oklab_to_linear_srgb.ts";
 
 export const find_cusp = (direction: HueDirection): GamutCusp => {
   const { a, b } = direction;

@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process";
 
-import { collectChanges, createSignedCommit, type GitRunner } from "../signed-commit";
-import type { Command } from "./command";
-import { apiFromEnv } from "./context";
+import { collectChanges, createSignedCommit, type GitRunner } from "../signed-commit.ts";
+import type { Command } from "./command.ts";
+import { apiFromEnv } from "./context.ts";
 
 // Publishes the current working-tree changes as a single signed commit on a
 // branch via the GitHub GraphQL API.

@@ -1,6 +1,6 @@
-import { changelogEntry } from "./changelog";
-import type { AppliedRelease, WorkspacePackage } from "./pnpm";
-import { bumpType } from "./semver";
+import { changelogEntry } from "./changelog.ts";
+import type { AppliedRelease, WorkspacePackage } from "./pnpm.ts";
+import { bumpType } from "./semver.ts";
 
 type ReleaseKind = "major" | "minor" | "patch" | "prerelease" | "new";
 

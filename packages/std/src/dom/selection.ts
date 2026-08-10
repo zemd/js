@@ -1,5 +1,5 @@
-import { createParentElementsIterator } from "./iterate/createParentElementsIterator";
-import { createRangeWalkerIterator } from "./iterate/createRangeWalkerIterator";
+import { createParentElementsIterator } from "./iterate/createParentElementsIterator.ts";
+import { createRangeWalkerIterator } from "./iterate/createRangeWalkerIterator.ts";
 
 export const isSelectionBold = (): boolean => {
   return isSelectedWith("STRONG");

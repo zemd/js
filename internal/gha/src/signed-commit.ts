@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import type { FileChanges, GitHubApi } from "./github";
+import type { FileChanges, GitHubApi } from "./github.ts";
 
 export type GitRunner = (args: readonly string[]) => string;
 export type FileReader = (path: string) => Buffer;

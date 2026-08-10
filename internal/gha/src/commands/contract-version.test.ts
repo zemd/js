@@ -1,9 +1,10 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, test } from "vitest";
+import assert from "node:assert/strict";
+import { afterEach, test } from "node:test";
 
-import { contractVersion } from "./contract-version";
+import { contractVersion } from "./contract-version.ts";
 
 const directories: string[] = [];
 
@@ -13,7 +14,7 @@ afterEach(() => {
   }
 });
 
-test("prepares a private contract bump and corrects pnpm's release report", async () => {
+void test("prepares a private contract bump and corrects pnpm's release report", async () => {
   const directory = mkdtempSync(join(tmpdir(), "contract-version-"));
   directories.push(directory);
   const intents = join(directory, ".changeset");
@@ -32,8 +33,8 @@ test("prepares a private contract bump and corrects pnpm's release report", asyn
 
   await contractVersion.run(["prepare", manifest, intents, state]);
 
-  expect(JSON.parse(readFileSync(manifest, "utf8"))).toMatchObject({ version: "1.0.1" });
-  expect(JSON.parse(readFileSync(state, "utf8"))).toEqual({
+  assert.partialDeepStrictEqual(JSON.parse(readFileSync(manifest, "utf8")), { version: "1.0.1" });
+  assert.deepStrictEqual(JSON.parse(readFileSync(state, "utf8")), {
     name: "@zemd/gha",
     currentVersion: "1.0.0",
     newVersion: "1.0.1",
@@ -47,12 +48,12 @@ test("prepares a private contract bump and corrects pnpm's release report", asyn
   );
   await contractVersion.run(["finalize", state, releases]);
 
-  expect(JSON.parse(readFileSync(releases, "utf8"))).toEqual([
+  assert.deepStrictEqual(JSON.parse(readFileSync(releases, "utf8")), [
     { name: "@zemd/gha", currentVersion: "1.0.0", newVersion: "1.0.1" },
   ]);
 });
 
-test("writes a no-op state when no intent targets the configured package", async () => {
+void test("writes a no-op state when no intent targets the configured package", async () => {
   const directory = mkdtempSync(join(tmpdir(), "contract-version-"));
   directories.push(directory);
   const intents = join(directory, ".changeset");
@@ -65,6 +66,6 @@ test("writes a no-op state when no intent targets the configured package", async
 
   await contractVersion.run(["prepare", manifest, intents, state]);
 
-  expect(readFileSync(manifest, "utf8")).toBe(source);
-  expect(readFileSync(state, "utf8")).toBe("null\n");
+  assert.strictEqual(readFileSync(manifest, "utf8"), source);
+  assert.strictEqual(readFileSync(state, "utf8"), "null\n");
 });

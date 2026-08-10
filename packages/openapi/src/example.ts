@@ -1,4 +1,4 @@
-import { builder, buildLicense, buildPathsObject, buildServerObject } from "./builders";
+import { builder, buildLicense, buildPathsObject, buildServerObject } from "./builders.ts";
 import type {
   PathItemObject,
   InfoObject,
@@ -7,7 +7,7 @@ import type {
   ServerObject,
   OperationObject,
   TagObject,
-} from "./types";
+} from "./types.ts";
 
 const tags: TagObject[] = [
   {

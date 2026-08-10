@@ -1,4 +1,6 @@
-import { describe, test, expect, vi, beforeEach } from "vitest";
+import assert from "node:assert/strict";
+import { beforeEach, describe, mock, test } from "node:test";
+
 import {
   createLogger,
   logger,
@@ -6,159 +8,151 @@ import {
   disableOutput,
   LOG_LEVELS,
   type LoggerWrapper,
+  type LoggerPayload,
   LOGTOWN_RULES_SYMBOL,
-} from "./index.js";
+} from "./index.ts";
 
-describe("logtown", () => {
+const lastLog = (calls: readonly { readonly arguments: readonly unknown[] }[]): LoggerPayload => {
+  const payload = calls.at(-1)?.arguments[0];
+  assert.ok(payload && typeof payload === "object");
+  return payload as LoggerPayload;
+};
+
+void describe("logtown", () => {
   beforeEach(() => {
     // Reset the global rules before each test
     (globalThis as any)[LOGTOWN_RULES_SYMBOL] = new Map();
   });
 
-  describe("createLogger", () => {
-    test("creates a new logger instance with given id", () => {
+  void describe("createLogger", () => {
+    void test("creates a new logger instance with given id", () => {
       const myLogger = createLogger("test-logger");
-      expect(myLogger).toBeDefined();
-      expect(myLogger.id).toBe("test-logger");
-      expect(typeof myLogger.debug).toBe("function");
-      expect(typeof myLogger.info).toBe("function");
-      expect(typeof myLogger.warn).toBe("function");
-      expect(typeof myLogger.error).toBe("function");
-      expect(typeof myLogger.verbose).toBe("function");
+      assert.notStrictEqual(myLogger, undefined);
+      assert.strictEqual(myLogger.id, "test-logger");
+      assert.strictEqual(typeof myLogger.debug, "function");
+      assert.strictEqual(typeof myLogger.info, "function");
+      assert.strictEqual(typeof myLogger.warn, "function");
+      assert.strictEqual(typeof myLogger.error, "function");
+      assert.strictEqual(typeof myLogger.verbose, "function");
     });
 
-    test("returns the same instance for the same id", () => {
+    void test("returns the same instance for the same id", () => {
       const logger1 = createLogger("same-id");
       const logger2 = createLogger("same-id");
-      expect(logger1).toBe(logger2);
+      assert.strictEqual(logger1, logger2);
     });
   });
 
-  describe("default logger", () => {
-    test("default logger is available", () => {
-      expect(logger).toBeDefined();
-      expect(logger.id).toBe("default");
-      expect(typeof logger.debug).toBe("function");
-      expect(typeof logger.info).toBe("function");
-      expect(typeof logger.warn).toBe("function");
-      expect(typeof logger.error).toBe("function");
-      expect(typeof logger.verbose).toBe("function");
+  void describe("default logger", () => {
+    void test("default logger is available", () => {
+      assert.notStrictEqual(logger, undefined);
+      assert.strictEqual(logger.id, "default");
+      assert.strictEqual(typeof logger.debug, "function");
+      assert.strictEqual(typeof logger.info, "function");
+      assert.strictEqual(typeof logger.warn, "function");
+      assert.strictEqual(typeof logger.error, "function");
+      assert.strictEqual(typeof logger.verbose, "function");
     });
   });
 
-  describe("registerWrapper", () => {
-    test("registers function wrapper", () => {
-      const mockWrapper = vi.fn();
+  void describe("registerWrapper", () => {
+    void test("registers function wrapper", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       logger.info("test message");
 
-      expect(mockWrapper).toHaveBeenCalledWith(
-        expect.objectContaining({
-          level: "INFO",
-          message: "test message",
-          id: "default",
-          timestamp: expect.any(Number),
-          data: expect.any(Array),
-        }),
-      );
+      const payload = lastLog(mockWrapper.mock.calls);
+      assert.partialDeepStrictEqual(payload, {
+        level: "INFO",
+        message: "test message",
+        id: "default",
+      });
+      assert.strictEqual(typeof payload.timestamp, "number");
+      assert.ok(Array.isArray(payload.data));
     });
 
-    test("registers object wrapper", () => {
+    void test("registers object wrapper", () => {
+      const info = mock.fn();
       const mockWrapper: LoggerWrapper = {
-        verbose: vi.fn(),
-        debug: vi.fn(),
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
+        verbose: mock.fn(),
+        debug: mock.fn(),
+        info,
+        warn: mock.fn(),
+        error: mock.fn(),
       };
 
       registerWrapper(mockWrapper);
       logger.info("test message");
 
-      expect(mockWrapper.info).toHaveBeenCalledWith(
-        expect.objectContaining({
-          level: "INFO",
-          message: "test message",
-          id: "default",
-          timestamp: expect.any(Number),
-          data: expect.any(Array),
-        }),
-      );
+      const payload = lastLog(info.mock.calls);
+      assert.partialDeepStrictEqual(payload, {
+        level: "INFO",
+        message: "test message",
+        id: "default",
+      });
+      assert.strictEqual(typeof payload.timestamp, "number");
+      assert.ok(Array.isArray(payload.data));
     });
   });
 
-  describe("format strings", () => {
-    test("formats string with parameters", () => {
-      const mockWrapper = vi.fn();
+  void describe("format strings", () => {
+    void test("formats string with parameters", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       logger.info("Hello, %s!", "world");
 
-      expect(mockWrapper).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "Hello, world!",
-          data: expect.arrayContaining(["world"]),
-        }),
-      );
+      const payload = lastLog(mockWrapper.mock.calls);
+      assert.strictEqual(payload.message, "Hello, world!");
+      assert.ok(payload.data.includes("world"));
     });
 
-    test("formats numbers", () => {
-      const mockWrapper = vi.fn();
+    void test("formats numbers", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       logger.info("Number: %d", 42);
 
-      expect(mockWrapper).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "Number: 42",
-          data: expect.arrayContaining([42]),
-        }),
-      );
+      const payload = lastLog(mockWrapper.mock.calls);
+      assert.strictEqual(payload.message, "Number: 42");
+      assert.ok(payload.data.includes(42));
     });
 
-    test("handles object messages", () => {
-      const mockWrapper = vi.fn();
+    void test("handles object messages", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       const objWithMessage = { message: "test object message" };
       logger.info(objWithMessage);
 
-      expect(mockWrapper).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: "test object message",
-        }),
-      );
+      assert.strictEqual(lastLog(mockWrapper.mock.calls).message, "test object message");
     });
 
-    test("handles non-string messages", () => {
-      const mockWrapper = vi.fn();
+    void test("handles non-string messages", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       logger.info(123, "extra", { foo: "bar" });
 
-      expect(mockWrapper).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: '123 "extra" {"foo":"bar"}',
-        }),
-      );
+      assert.strictEqual(lastLog(mockWrapper.mock.calls).message, '123 "extra" {"foo":"bar"}');
     });
   });
 
-  describe("disableOutput", () => {
-    test("disables all logs for a module", () => {
-      const mockWrapper = vi.fn();
+  void describe("disableOutput", () => {
+    void test("disables all logs for a module", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       disableOutput(["test-module.*"]);
       const testLogger = createLogger("test-module");
 
       testLogger.info("This should not be logged");
-      expect(mockWrapper).not.toHaveBeenCalled();
+      assert.strictEqual(mockWrapper.mock.callCount(), 0);
     });
 
-    test("disables specific level for a module", () => {
-      const mockWrapper = vi.fn();
+    void test("disables specific level for a module", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       disableOutput(["test-module.INFO"]);
@@ -167,16 +161,12 @@ describe("logtown", () => {
       testLogger.info("This should not be logged");
       testLogger.debug("This should be logged");
 
-      expect(mockWrapper).toHaveBeenCalledTimes(1);
-      expect(mockWrapper).toHaveBeenCalledWith(
-        expect.objectContaining({
-          level: "DEBUG",
-        }),
-      );
+      assert.strictEqual(mockWrapper.mock.callCount(), 1);
+      assert.strictEqual(lastLog(mockWrapper.mock.calls).level, "DEBUG");
     });
 
-    test("disables all logs for a dotted module id", () => {
-      const mockWrapper = vi.fn();
+    void test("disables all logs for a dotted module id", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       disableOutput(["app.db.*"]);
@@ -184,11 +174,11 @@ describe("logtown", () => {
 
       testLogger.info("This should not be logged");
 
-      expect(mockWrapper).not.toHaveBeenCalled();
+      assert.strictEqual(mockWrapper.mock.callCount(), 0);
     });
 
-    test("normalizes lowercase rule levels", () => {
-      const mockWrapper = vi.fn();
+    void test("normalizes lowercase rule levels", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       disableOutput(["mymodule2.verbose"]);
@@ -197,16 +187,12 @@ describe("logtown", () => {
       testLogger.verbose("This should not be logged");
       testLogger.debug("This should be logged");
 
-      expect(mockWrapper).toHaveBeenCalledTimes(1);
-      expect(mockWrapper).toHaveBeenCalledWith(
-        expect.objectContaining({
-          level: "DEBUG",
-        }),
-      );
+      assert.strictEqual(mockWrapper.mock.callCount(), 1);
+      assert.strictEqual(lastLog(mockWrapper.mock.calls).level, "DEBUG");
     });
 
-    test("preserves exclamation marks inside module ids", () => {
-      const mockWrapper = vi.fn();
+    void test("preserves exclamation marks inside module ids", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       disableOutput(["test!module.*"]);
@@ -214,16 +200,12 @@ describe("logtown", () => {
       createLogger("test!module").info("This should not be logged");
       createLogger("testmodule").info("This should be logged");
 
-      expect(mockWrapper).toHaveBeenCalledTimes(1);
-      expect(mockWrapper).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: "testmodule",
-        }),
-      );
+      assert.strictEqual(mockWrapper.mock.callCount(), 1);
+      assert.strictEqual(lastLog(mockWrapper.mock.calls).id, "testmodule");
     });
 
-    test("handles negation rules", () => {
-      const mockWrapper = vi.fn();
+    void test("handles negation rules", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       disableOutput(["test-module.*", "!test-module.INFO"]);
@@ -232,16 +214,12 @@ describe("logtown", () => {
       testLogger.debug("This should not be logged");
       testLogger.info("This should be logged");
 
-      expect(mockWrapper).toHaveBeenCalledTimes(1);
-      expect(mockWrapper).toHaveBeenCalledWith(
-        expect.objectContaining({
-          level: "INFO",
-        }),
-      );
+      assert.strictEqual(mockWrapper.mock.callCount(), 1);
+      assert.strictEqual(lastLog(mockWrapper.mock.calls).level, "INFO");
     });
 
-    test("handles global level rules", () => {
-      const mockWrapper = vi.fn();
+    void test("handles global level rules", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       disableOutput(["*.INFO"]);
@@ -250,33 +228,28 @@ describe("logtown", () => {
       testLogger.info("This should not be logged");
       testLogger.debug("This should be logged");
 
-      expect(mockWrapper).toHaveBeenCalledTimes(1);
-      expect(mockWrapper).toHaveBeenCalledWith(
-        expect.objectContaining({
-          level: "DEBUG",
-        }),
-      );
+      assert.strictEqual(mockWrapper.mock.callCount(), 1);
+      assert.strictEqual(lastLog(mockWrapper.mock.calls).level, "DEBUG");
     });
   });
 
-  describe("log levels", () => {
-    test("all log levels are working", () => {
-      const mockWrapper = vi.fn();
+  void describe("log levels", () => {
+    void test("all log levels are working", () => {
+      const mockWrapper = mock.fn();
       registerWrapper(mockWrapper);
 
       LOG_LEVELS.forEach((level) => {
         const methodName = level.toLowerCase() as Lowercase<typeof level>;
         logger[methodName](`Test ${level}`);
 
-        expect(mockWrapper).toHaveBeenCalledWith(
-          expect.objectContaining({
-            level,
-            message: `Test ${level}`,
-            id: "default",
-            timestamp: expect.any(Number),
-            data: expect.any(Array),
-          }),
-        );
+        const payload = lastLog(mockWrapper.mock.calls);
+        assert.partialDeepStrictEqual(payload, {
+          level,
+          message: `Test ${level}`,
+          id: "default",
+        });
+        assert.strictEqual(typeof payload.timestamp, "number");
+        assert.ok(Array.isArray(payload.data));
       });
     });
   });

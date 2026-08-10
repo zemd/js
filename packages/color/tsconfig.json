@@ -4,7 +4,8 @@
   "extends": "@zemd/tsconfig/tsconfig-library.json",
   "compilerOptions": {
     // Exported Zod schemas require TypeScript to infer their declarations.
-    "isolatedDeclarations": false
+    "isolatedDeclarations": false,
+    "types": ["node"]
   },
   "include": ["src/**/*.ts", "tsdown.config.ts"],
   "exclude": ["node_modules", "dist"]

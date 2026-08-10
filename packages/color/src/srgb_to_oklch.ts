@@ -1,5 +1,5 @@
-import type { Lch, RGB } from "./schema";
-import { srgb_to_oklab } from "./srgb_to_oklab";
+import type { Lch, RGB } from "./schema/index.ts";
+import { srgb_to_oklab } from "./srgb_to_oklab.ts";
 
 export const srgb_to_oklch = (color: RGB): Lch => {
   const oklab = srgb_to_oklab(color);

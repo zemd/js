@@ -18,10 +18,10 @@ export const copyAttributes = (
   }
 };
 
-export * from "./dom/caret";
-export * from "./dom/check";
-export * from "./dom/cloneTree";
-export * from "./dom/removeNestedElementsWithTagName";
-export * from "./dom/selection";
+export * from "./dom/caret.ts";
+export * from "./dom/check.ts";
+export * from "./dom/cloneTree.ts";
+export * from "./dom/removeNestedElementsWithTagName.ts";
+export * from "./dom/selection.ts";
 
-export * from "./dom/iterate";
+export * from "./dom/iterate/index.ts";

@@ -1,4 +1,6 @@
-import { describe, it, expect } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
 import {
   isErrorCauseObject,
   isErrorRoot,
@@ -6,106 +8,106 @@ import {
   error,
   typeError,
   syntaxError,
-} from "./errors";
+} from "./errors.ts";
 
-describe("error utilities", () => {
-  describe("isErrorCauseObject", () => {
-    it("should return true for plain objects", () => {
-      expect(isErrorCauseObject({})).toBe(true);
-      expect(isErrorCauseObject({ name: "test" })).toBe(true);
-      expect(isErrorCauseObject({ status: 404 })).toBe(true);
+void describe("error utilities", () => {
+  void describe("isErrorCauseObject", () => {
+    void it("should return true for plain objects", () => {
+      assert.strictEqual(isErrorCauseObject({}), true);
+      assert.strictEqual(isErrorCauseObject({ name: "test" }), true);
+      assert.strictEqual(isErrorCauseObject({ status: 404 }), true);
     });
 
-    it("should return false for non-objects", () => {
-      expect(isErrorCauseObject(null)).toBe(false);
-      expect(isErrorCauseObject(undefined)).toBe(false);
-      expect(isErrorCauseObject("string")).toBe(false);
-      expect(isErrorCauseObject(123)).toBe(false);
-      expect(isErrorCauseObject([])).toBe(false);
+    void it("should return false for non-objects", () => {
+      assert.strictEqual(isErrorCauseObject(null), false);
+      assert.strictEqual(isErrorCauseObject(undefined), false);
+      assert.strictEqual(isErrorCauseObject("string"), false);
+      assert.strictEqual(isErrorCauseObject(123), false);
+      assert.strictEqual(isErrorCauseObject([]), false);
     });
   });
 
-  describe("isErrorRoot", () => {
-    it("should return true for Error with cause object", () => {
+  void describe("isErrorRoot", () => {
+    void it("should return true for Error with cause object", () => {
       const err = new Error("test");
       (err as any).cause = { name: "cause" };
-      expect(isErrorRoot(err)).toBe(true);
+      assert.strictEqual(isErrorRoot(err), true);
     });
 
-    it("should return false for Error without cause", () => {
-      expect(isErrorRoot(new Error("test"))).toBe(false);
+    void it("should return false for Error without cause", () => {
+      assert.strictEqual(isErrorRoot(new Error("test")), false);
     });
 
-    it("should return false for non-Error values", () => {
-      expect(isErrorRoot({})).toBe(false);
-      expect(isErrorRoot(null)).toBe(false);
-      expect(isErrorRoot("error")).toBe(false);
+    void it("should return false for non-Error values", () => {
+      assert.strictEqual(isErrorRoot({}), false);
+      assert.strictEqual(isErrorRoot(null), false);
+      assert.strictEqual(isErrorRoot("error"), false);
     });
   });
 
-  describe("asErrorCause", () => {
-    it("should return Error instance as is", () => {
+  void describe("asErrorCause", () => {
+    void it("should return Error instance as is", () => {
       const err = new Error("test");
-      expect(asErrorCause(err)).toBe(err);
+      assert.strictEqual(asErrorCause(err), err);
     });
 
-    it("should return error cause object as is", () => {
+    void it("should return error cause object as is", () => {
       const cause = { name: "test" };
-      expect(asErrorCause(cause)).toBe(cause);
+      assert.strictEqual(asErrorCause(cause), cause);
     });
 
-    it("should create new Error for other values", () => {
-      expect(asErrorCause("message")).toBeInstanceOf(Error);
-      expect((asErrorCause("message") as Error).message).toBe("message");
+    void it("should create new Error for other values", () => {
+      assert.ok(asErrorCause("message") instanceof Error);
+      assert.strictEqual((asErrorCause("message") as Error).message, "message");
 
-      expect((asErrorCause(null) as Error).message).toBe("Unknown error");
-      expect((asErrorCause(undefined) as Error).message).toBe("Unknown error");
+      assert.strictEqual((asErrorCause(null) as Error).message, "Unknown error");
+      assert.strictEqual((asErrorCause(undefined) as Error).message, "Unknown error");
     });
   });
 
-  describe("error creators", () => {
-    describe("error", () => {
-      it("should create Error with message", () => {
+  void describe("error creators", () => {
+    void describe("error", () => {
+      void it("should create Error with message", () => {
         const err = error("test message");
-        expect(err).toBeInstanceOf(Error);
-        expect(err.message).toBe("test message");
+        assert.ok(err instanceof Error);
+        assert.strictEqual(err.message, "test message");
       });
 
-      it("should create Error with cause", () => {
+      void it("should create Error with cause", () => {
         const cause = { name: "cause" };
         const err = error("test message", cause);
-        expect(err).toBeInstanceOf(Error);
-        expect(err.cause).toBe(cause);
+        assert.ok(err instanceof Error);
+        assert.strictEqual(err.cause, cause);
       });
     });
 
-    describe("typeError", () => {
-      it("should create TypeError with message", () => {
+    void describe("typeError", () => {
+      void it("should create TypeError with message", () => {
         const err = typeError("test message");
-        expect(err).toBeInstanceOf(TypeError);
-        expect(err.message).toBe("test message");
+        assert.ok(err instanceof TypeError);
+        assert.strictEqual(err.message, "test message");
       });
 
-      it("should create TypeError with cause", () => {
+      void it("should create TypeError with cause", () => {
         const cause = { name: "cause" };
         const err = typeError("test message", cause);
-        expect(err).toBeInstanceOf(TypeError);
-        expect(err.cause).toBe(cause);
+        assert.ok(err instanceof TypeError);
+        assert.strictEqual(err.cause, cause);
       });
     });
 
-    describe("syntaxError", () => {
-      it("should create SyntaxError with message", () => {
+    void describe("syntaxError", () => {
+      void it("should create SyntaxError with message", () => {
         const err = syntaxError("test message");
-        expect(err).toBeInstanceOf(SyntaxError);
-        expect(err.message).toBe("test message");
+        assert.ok(err instanceof SyntaxError);
+        assert.strictEqual(err.message, "test message");
       });
 
-      it("should create SyntaxError with cause", () => {
+      void it("should create SyntaxError with cause", () => {
         const cause = { name: "cause", code: "ERR_TEST" };
         const err = syntaxError("test message", cause);
-        expect(err).toBeInstanceOf(SyntaxError);
-        expect(err.cause).toBe(cause);
+        assert.ok(err instanceof SyntaxError);
+        assert.strictEqual(err.cause, cause);
       });
     });
 
@@ -114,8 +116,8 @@ describe("error utilities", () => {
     //     return error("test", undefined, customFrom);
     //   }
     //   const err = customFrom();
-    //   expect(err.stack).not.toContain("error@");
-    //   expect(err.stack).toContain("customFrom");
+    //   assert.ok(!err.stack.includes("error@"));
+    //   assert.ok(err.stack.includes("customFrom"));
     // });
   });
 });

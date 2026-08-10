@@ -1,4 +1,4 @@
-import { isText } from "../check";
+import { isText } from "../check.ts";
 
 export const getNearestChildTextNode = (node: Node | null): Text | null => {
   if (!node) {

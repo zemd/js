@@ -1,5 +1,7 @@
 import fc from "fast-check";
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
 import {
   compute_max_saturation,
   encodeLinearSrgbChannelTo8Bit,
@@ -13,7 +15,7 @@ import {
   srgb_to_oklab,
   srgb_to_oklch,
   type RGB,
-} from "./index";
+} from "./index.ts";
 
 const channel = fc.integer({ min: 0, max: 255 });
 const rgb = fc.record<RGB>({ r: channel, g: channel, b: channel });
@@ -21,8 +23,8 @@ const unitInterval = fc.double({ min: 0, max: 1, noNaN: true });
 const hue = fc.double({ min: 0, max: 360, noNaN: true });
 const finiteChannel = fc.double({ noNaN: true, noDefaultInfinity: true });
 
-describe("sRGB conversions", () => {
-  it("formats every 8-bit color as a six-digit hexadecimal value", () => {
+void describe("sRGB conversions", () => {
+  void it("formats every 8-bit color as a six-digit hexadecimal value", () => {
     fc.assert(
       fc.property(rgb, (color) => {
         const expected = [color.r, color.g, color.b]
@@ -31,72 +33,78 @@ describe("sRGB conversions", () => {
           })
           .join("");
 
-        expect(srgb_to_hex(color)).toBe(expected);
+        assert.strictEqual(srgb_to_hex(color), expected);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("round trips every generated 8-bit color through linear sRGB", () => {
+  void it("round trips every generated 8-bit color through linear sRGB", () => {
     fc.assert(
       fc.property(rgb, (color) => {
-        expect(linear_srgb_to_srgb(srgb_to_linear_srgb(color))).toEqual(color);
+        const expected: RGB = { r: color.r, g: color.g, b: color.b };
+
+        assert.deepStrictEqual(linear_srgb_to_srgb(srgb_to_linear_srgb(color)), expected);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("round trips every generated 8-bit color through OKLab", () => {
+  void it("round trips every generated 8-bit color through OKLab", () => {
     fc.assert(
       fc.property(rgb, (color) => {
-        expect(oklab_to_srgb(srgb_to_oklab(color))).toEqual(color);
+        const expected: RGB = { r: color.r, g: color.g, b: color.b };
+
+        assert.deepStrictEqual(oklab_to_srgb(srgb_to_oklab(color)), expected);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("round trips every generated 8-bit color through OKLCH", () => {
+  void it("round trips every generated 8-bit color through OKLCH", () => {
     fc.assert(
       fc.property(rgb, (color) => {
-        expect(oklch_to_srgb(srgb_to_oklch(color))).toEqual(color);
+        const expected: RGB = { r: color.r, g: color.g, b: color.b };
+
+        assert.deepStrictEqual(oklch_to_srgb(srgb_to_oklch(color)), expected);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("always emits valid OKLCH coordinates", () => {
+  void it("always emits valid OKLCH coordinates", () => {
     fc.assert(
       fc.property(rgb, (color) => {
         const converted = srgb_to_oklch(color);
 
-        expect(Number.isFinite(converted.L)).toBe(true);
-        expect(Number.isFinite(converted.c)).toBe(true);
-        expect(Number.isFinite(converted.h)).toBe(true);
-        expect(converted.L).toBeGreaterThanOrEqual(0);
-        expect(converted.L).toBeLessThanOrEqual(1);
-        expect(converted.c).toBeGreaterThanOrEqual(0);
-        expect(converted.h).toBeGreaterThanOrEqual(0);
-        expect(converted.h).toBeLessThanOrEqual(360);
+        assert.strictEqual(Number.isFinite(converted.L), true);
+        assert.strictEqual(Number.isFinite(converted.c), true);
+        assert.strictEqual(Number.isFinite(converted.h), true);
+        assert.ok(converted.L >= 0);
+        assert.ok(converted.L <= 1);
+        assert.ok(converted.c >= 0);
+        assert.ok(converted.h >= 0);
+        assert.ok(converted.h <= 360);
       }),
       { numRuns: 5000 },
     );
   });
 });
 
-describe("out-of-gamut conversion", () => {
-  it("clamps every finite linear channel to an 8-bit channel", () => {
+void describe("out-of-gamut conversion", () => {
+  void it("clamps every finite linear channel to an 8-bit channel", () => {
     fc.assert(
       fc.property(finiteChannel, (value) => {
         const encoded = encodeLinearSrgbChannelTo8Bit(value);
 
-        expect(Number.isInteger(encoded)).toBe(true);
-        expect(encoded).toBeGreaterThanOrEqual(0);
-        expect(encoded).toBeLessThanOrEqual(255);
+        assert.strictEqual(Number.isInteger(encoded), true);
+        assert.ok(encoded >= 0);
+        assert.ok(encoded <= 255);
         if (value <= 0) {
-          expect(encoded).toBe(0);
+          assert.strictEqual(encoded, 0);
         }
         if (value >= 1) {
-          expect(encoded).toBe(255);
+          assert.strictEqual(encoded, 255);
         }
       }),
       { numRuns: 5000 },
@@ -104,8 +112,8 @@ describe("out-of-gamut conversion", () => {
   });
 });
 
-describe("sRGB gamut boundary", () => {
-  it("finds a finite positive cusp for every hue", () => {
+void describe("sRGB gamut boundary", () => {
+  void it("finds a finite positive cusp for every hue", () => {
     fc.assert(
       fc.property(hue, (h) => {
         const radians = h * (Math.PI / 180);
@@ -113,46 +121,48 @@ describe("sRGB gamut boundary", () => {
         const saturation = compute_max_saturation(direction);
         const cusp = find_cusp(direction);
 
-        expect(Number.isFinite(saturation)).toBe(true);
-        expect(saturation).toBeGreaterThan(0);
-        expect(Number.isFinite(cusp.L)).toBe(true);
-        expect(Number.isFinite(cusp.C)).toBe(true);
-        expect(cusp.L).toBeGreaterThan(0);
-        expect(cusp.L).toBeLessThanOrEqual(1);
-        expect(cusp.C).toBeGreaterThan(0);
+        assert.strictEqual(Number.isFinite(saturation), true);
+        assert.ok(saturation > 0);
+        assert.strictEqual(Number.isFinite(cusp.L), true);
+        assert.strictEqual(Number.isFinite(cusp.C), true);
+        assert.ok(cusp.L > 0);
+        assert.ok(cusp.L <= 1);
+        assert.ok(cusp.C > 0);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("finds a finite non-negative maximum chroma", () => {
+  void it("finds a finite non-negative maximum chroma", () => {
     fc.assert(
       fc.property(unitInterval, hue, (L, h) => {
         const chroma = find_max_chroma({ L, h });
 
-        expect(Number.isFinite(chroma)).toBe(true);
-        expect(chroma).toBeGreaterThanOrEqual(0);
+        assert.strictEqual(Number.isFinite(chroma), true);
+        assert.ok(chroma >= 0);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("treats 0 and 360 degrees as the same hue", () => {
+  void it("treats 0 and 360 degrees as the same hue", () => {
     fc.assert(
       fc.property(unitInterval, (L) => {
-        expect(find_max_chroma({ L, h: 360 })).toBeCloseTo(find_max_chroma({ L, h: 0 }), 12);
+        assert.ok(
+          Math.abs(find_max_chroma({ L, h: 360 }) - find_max_chroma({ L, h: 0 })) < 0.5 * 10 ** -12,
+        );
       }),
       { numRuns: 2000 },
     );
   });
 
-  it("clamps lightness before finding the boundary", () => {
+  void it("clamps lightness before finding the boundary", () => {
     fc.assert(
       fc.property(finiteChannel, hue, (L, h) => {
         const clampedLightness = Math.min(Math.max(L, 0), 1);
         const expected = find_max_chroma({ L: clampedLightness, h });
 
-        expect(find_max_chroma({ L, h })).toBeCloseTo(expected, 12);
+        assert.ok(Math.abs(find_max_chroma({ L, h }) - expected) < 0.5 * 10 ** -12);
       }),
       { numRuns: 5000 },
     );

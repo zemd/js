@@ -1,16 +1,18 @@
-import { describe, it, expect } from "vitest";
-import { get } from "./get";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 
-describe("get function", () => {
+import { get } from "./get.ts";
+
+void describe("get function", () => {
   // Test basic object property access
-  it("should get a property from an object", () => {
+  void it("should get a property from an object", () => {
     const obj = { name: "John", age: 30 };
-    expect(get(obj, "name")).toBe("John");
-    expect(get(obj, "age")).toBe(30);
+    assert.strictEqual(get(obj, "name"), "John");
+    assert.strictEqual(get(obj, "age"), 30);
   });
 
   // Test nested object property access
-  it("should get a nested property from an object", () => {
+  void it("should get a nested property from an object", () => {
     const obj = {
       user: {
         name: "John",
@@ -20,20 +22,20 @@ describe("get function", () => {
         },
       },
     };
-    expect(get(obj, "user.name")).toBe("John");
-    expect(get(obj, "user.details.age")).toBe(30);
-    expect(get(obj, "user.details.address.city")).toBe("New York");
+    assert.strictEqual(get(obj, "user.name"), "John");
+    assert.strictEqual(get(obj, "user.details.age"), 30);
+    assert.strictEqual(get(obj, "user.details.address.city"), "New York");
   });
 
   // Test with non-existent properties
-  it("should return null for non-existent properties", () => {
+  void it("should return null for non-existent properties", () => {
     const obj = { name: "John", age: 30 };
-    expect(get(obj, "address")).toBe(null);
-    expect(get(obj, "job.title")).toBe(null);
+    assert.strictEqual(get(obj, "address"), null);
+    assert.strictEqual(get(obj, "job.title"), null);
   });
 
   // Test with null/undefined values
-  it("should return null for paths that lead to null/undefined values", () => {
+  void it("should return null for paths that lead to null/undefined values", () => {
     const obj = {
       name: "John",
       details: null,
@@ -41,29 +43,29 @@ describe("get function", () => {
         notifications: undefined,
       },
     };
-    expect(get(obj, "details")).toBe(null);
-    expect(get(obj, "details.prop")).toBe(null);
-    expect(get(obj, "settings.notifications")).toBe(null);
+    assert.strictEqual(get(obj, "details"), null);
+    assert.strictEqual(get(obj, "details.prop"), null);
+    assert.strictEqual(get(obj, "settings.notifications"), null);
   });
 
   // Test with non-object argument
-  it("should throw TypeError when first argument is not an object", () => {
-    expect(() => {
+  void it("should throw TypeError when first argument is not an object", () => {
+    assert.throws(() => {
       return get("not an object" as any, "property");
-    }).toThrow(TypeError);
-    expect(() => {
+    }, TypeError);
+    assert.throws(() => {
       return get(42 as any, "property");
-    }).toThrow(TypeError);
-    expect(() => {
+    }, TypeError);
+    assert.throws(() => {
       return get(null as any, "property");
-    }).toThrow(TypeError);
-    expect(() => {
+    }, TypeError);
+    assert.throws(() => {
       return get(undefined as any, "property");
-    }).toThrow(TypeError);
+    }, TypeError);
   });
 
   // Test TypeScript type inference with a more complex example
-  it("should properly handle complex nested types", () => {
+  void it("should properly handle complex nested types", () => {
     interface User {
       id: number;
       name: string;
@@ -89,24 +91,24 @@ describe("get function", () => {
     };
 
     const theme = get(user, "settings.theme");
-    expect(theme).toBe("dark");
+    assert.strictEqual(theme, "dark");
 
     const language = get(user, "settings.preferences.language");
-    expect(language).toBe("en");
+    assert.strictEqual(language, "en");
 
     const languageTyped: string | null = get(user, "settings.preferences.language");
-    expect(languageTyped).toBe("en");
+    assert.strictEqual(languageTyped, "en");
 
     // Non-existent path should be typed as null
     const nonExistent = get(user, "nonExistent.path");
-    expect(nonExistent).toBe(null);
+    assert.strictEqual(nonExistent, null);
     // Type assertion to ensure non-existent paths are typed as null
     const nonExistentTyped: null = get(user, "nonExistent.path");
-    expect(nonExistentTyped).toBe(null);
+    assert.strictEqual(nonExistentTyped, null);
   });
 
   // Test TypeScript type inference with a more complex example and optional fields
-  it("should properly handle complex nested types with optional fields", () => {
+  void it("should properly handle complex nested types with optional fields", () => {
     interface User {
       id?: number;
       name?: string;
@@ -132,25 +134,25 @@ describe("get function", () => {
     };
 
     const theme = get(user, "settings.theme");
-    expect(theme).toBe("dark");
+    assert.strictEqual(theme, "dark");
 
     const language = get(user, "settings.preferences.language");
-    expect(language).toBe("en");
+    assert.strictEqual(language, "en");
   });
 
-  it("should not reach properties inherited from the prototype chain", () => {
+  void it("should not reach properties inherited from the prototype chain", () => {
     const obj = { name: "John" };
 
-    expect(get(obj, "__proto__")).toBe(null);
-    expect(get(obj, "constructor")).toBe(null);
-    expect(get(obj, "constructor.prototype")).toBe(null);
-    expect(get(obj, "toString")).toBe(null);
+    assert.strictEqual(get(obj, "__proto__"), null);
+    assert.strictEqual(get(obj, "constructor"), null);
+    assert.strictEqual(get(obj, "constructor.prototype"), null);
+    assert.strictEqual(get(obj, "toString"), null);
   });
 
-  it("should reach an own property that shadows a prototype key", () => {
+  void it("should reach an own property that shadows a prototype key", () => {
     const obj = JSON.parse('{"__proto__": {"polluted": true}}') as Record<string, unknown>;
 
-    expect(get(obj, "__proto__.polluted")).toBe(true);
-    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+    assert.strictEqual(get(obj, "__proto__.polluted"), true);
+    assert.strictEqual(({} as Record<string, unknown>)["polluted"], undefined);
   });
 });

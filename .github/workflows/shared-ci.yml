@@ -10,52 +10,17 @@ permissions: {}
 on:
   workflow_call:
     inputs:
-      node-version:
-        description: Node.js version passed to actions/setup-node.
-        type: string
-        default: "lts/*"
       os-matrix:
         description: JSON array of runner labels for the build & test matrix.
         type: string
-        default: '["ubuntu-latest", "macos-latest", "windows-latest"]'
-      lint-script:
-        description: package.json script that lints. Empty skips the step.
-        type: string
-        default: "lint-check"
-      format-script:
-        description: package.json script that checks formatting. Empty skips the step.
-        type: string
-        default: "format-check"
-      typecheck-script:
-        description: package.json script that typechecks. Empty skips the step.
-        type: string
-        default: "typecheck"
-      build-script:
-        description: package.json script that builds. Empty skips the step.
-        type: string
-        default: "build"
-      test-script:
-        description: package.json script that runs the test suite. Empty skips the step.
-        type: string
-        default: "test"
-      publint-script:
-        description: package.json script that validates publishable packages. Empty skips the step.
-        type: string
-        default: "lint-publish"
-      browser-test-script:
-        description: package.json script that runs Playwright tests. Empty skips the whole job.
-        type: string
-        default: ""
+        # possible acceptable values: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+        default: '["ubuntu-latest"]'
       playwright-filter:
-        description: pnpm --filter selector for the package that owns the Playwright dependency.
+        description: pnpm --filter selector for the package that owns Playwright. Empty skips browser tests.
         type: string
         default: ""
       report-change-intents:
         description: Report pending `pnpm change` release intents in the job log.
-        type: boolean
-        default: true
-      dependency-review:
-        description: Run actions/dependency-review-action on pull requests.
         type: boolean
         default: true
       dependency-review-severity:
@@ -100,23 +65,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: "lts/*"
           cache: "pnpm"
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Lint
-        if: inputs.lint-script != ''
-        env:
-          SCRIPT: ${{ inputs.lint-script }}
-        run: pnpm run "$SCRIPT"
+        run: pnpm run lint-check
 
       - name: Check formatting
-        if: inputs.format-script != ''
-        env:
-          SCRIPT: ${{ inputs.format-script }}
-        run: pnpm run "$SCRIPT"
+        run: pnpm run format-check
 
       - name: Report pending release intents
         if: inputs.report-change-intents
@@ -148,39 +107,41 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: "lts/*"
           cache: "pnpm"
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Typecheck
-        if: inputs.typecheck-script != ''
-        env:
-          SCRIPT: ${{ inputs.typecheck-script }}
-        run: pnpm run "$SCRIPT"
+        run: pnpm run typecheck
 
       - name: Build
-        if: inputs.build-script != ''
-        env:
-          SCRIPT: ${{ inputs.build-script }}
-        run: pnpm run "$SCRIPT"
+        run: pnpm run build
 
       - name: Run tests
-        if: inputs.test-script != ''
-        env:
-          SCRIPT: ${{ inputs.test-script }}
-        run: pnpm run "$SCRIPT"
+        if: runner.os != 'Linux'
+        run: pnpm run test
+
+      - name: Run tests with native coverage
+        if: runner.os == 'Linux'
+        run: pnpm run test-coverage
+
+      - name: Upload native coverage reports
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-node-coverage-${{ matrix.os }}
+          path: "**/coverage.lcov"
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Validate publishable packages
-        if: inputs.publint-script != ''
-        env:
-          SCRIPT: ${{ inputs.publint-script }}
-        run: pnpm run "$SCRIPT"
+        run: pnpm run lint-publish
 
   browser:
     name: Browser Tests
-    if: inputs.browser-test-script != ''
+    if: inputs.playwright-filter != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -203,7 +164,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: "lts/*"
           cache: "pnpm"
 
       - name: Install Dependencies
@@ -230,13 +191,11 @@ jobs:
         run: pnpm --filter "$PLAYWRIGHT_FILTER" exec playwright install-deps chromium
 
       - name: Run browser tests
-        env:
-          SCRIPT: ${{ inputs.browser-test-script }}
-        run: pnpm run "$SCRIPT"
+        run: pnpm run test-browser
 
   dependency-review:
     name: Dependency Review
-    if: inputs.dependency-review && github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

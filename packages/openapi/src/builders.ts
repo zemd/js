@@ -1,4 +1,4 @@
-import { OpenSourceLicenses, type LicenseIdentifier } from "./licenses";
+import { OpenSourceLicenses, type LicenseIdentifier } from "./licenses.ts";
 import type {
   LicenseObject,
   ParameterObject,
@@ -7,7 +7,7 @@ import type {
   ServerObject,
   ServerVariableObject,
   SpecificationExtensions,
-} from "./types";
+} from "./types.ts";
 
 type RequiredKeys<T> = { [K in keyof T]-?: {} extends Pick<T, K> ? never : K }[keyof T];
 

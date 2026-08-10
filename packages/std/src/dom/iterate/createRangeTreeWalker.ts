@@ -1,4 +1,4 @@
-import { isText } from "../check";
+import { isText } from "../check.ts";
 
 type ShowFilter = typeof NodeFilter.SHOW_TEXT | typeof NodeFilter.SHOW_ELEMENT;
 

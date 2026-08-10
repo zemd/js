@@ -1,4 +1,4 @@
-import { createElementWithTagNameTreeWalker } from "./createElementWithTagNameTreeWalker";
+import { createElementWithTagNameTreeWalker } from "./createElementWithTagNameTreeWalker.ts";
 
 export const createElementWithTagNameIterator = function* (
   node: Node,

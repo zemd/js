@@ -17,22 +17,17 @@ jobs:
     uses: zemd/js/.github/workflows/shared-ci.yml@__SHA__ # v1
     permissions:
       contents: read
-    # Every input is optional; the defaults below match the shared workflow.
+    # Every input is optional. Node.js is fixed to lts/*, dependency review
+    # always runs on pull requests, and the workflow uses the standard package
+    # scripts: lint-check, format-check, typecheck, build, test, test-coverage,
+    # lint-publish, and test-browser.
     # with:
-    #   node-version: "lts/*"
     #   os-matrix: '["ubuntu-latest", "macos-latest", "windows-latest"]'
-    #   lint-script: lint-check
-    #   format-script: format-check
-    #   typecheck-script: typecheck
-    #   build-script: build
-    #   test-script: test
-    #   publint-script: lint-publish
     #   report-change-intents: true
-    #   dependency-review: true
     #   dependency-review-severity: high
     #   dependency-review-scopes: "runtime, development, unknown"
     #
-    # Opt in to Playwright by naming the script and the package that owns the
-    # playwright dependency. Leave `browser-test-script` empty to skip the job.
-    #   browser-test-script: test-browser
+    # Linux runs the fixed `test-coverage` script instead of `test`. Opt in to
+    # Playwright's fixed `test-browser` script by naming its owning package.
+    # Leave `playwright-filter` empty to skip the browser job.
     #   playwright-filter: "@acme/browser-tests"

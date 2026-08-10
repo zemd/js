@@ -1,12 +1,13 @@
-import { expect, test } from "vitest";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 
-import { releaseSharedWorkflows, renderSharedReleaseBody } from "./shared-workflows";
-import { fakeGitHub } from "./testing/fake-github";
+import { releaseSharedWorkflows, renderSharedReleaseBody } from "./shared-workflows.ts";
+import { fakeGitHub } from "./testing/fake-github.ts";
 
 const SHA = "a".repeat(40);
 const WORKFLOWS = ["shared-ci.yml", "shared-release.yml"];
 
-test("renders copy-paste pins for every shared workflow", () => {
+void test("renders copy-paste pins for every shared workflow", () => {
   const body = renderSharedReleaseBody({
     repository: "zemd/js",
     version: "1.2.3",
@@ -14,13 +15,13 @@ test("renders copy-paste pins for every shared workflow", () => {
     workflows: WORKFLOWS,
   });
 
-  expect(body).toContain(`uses: zemd/js/.github/workflows/shared-ci.yml@${SHA} # v1.2.3`);
-  expect(body).toContain(`uses: zemd/js/.github/workflows/shared-release.yml@${SHA} # v1.2.3`);
-  expect(body).toContain("gh api repos/zemd/js/git/ref/tags/v1 --jq .object.sha");
-  expect(body).toContain(`https://github.com/zemd/js/tree/${SHA}/.github/workflows-examples`);
+  assert.ok(body.includes(`uses: zemd/js/.github/workflows/shared-ci.yml@${SHA} # v1.2.3`));
+  assert.ok(body.includes(`uses: zemd/js/.github/workflows/shared-release.yml@${SHA} # v1.2.3`));
+  assert.ok(body.includes("gh api repos/zemd/js/git/ref/tags/v1 --jq .object.sha"));
+  assert.ok(body.includes(`https://github.com/zemd/js/tree/${SHA}/.github/workflows-examples`));
 });
 
-test("includes the changelog entry and the generated notes", () => {
+void test("includes the changelog entry and the generated notes", () => {
   const body = renderSharedReleaseBody({
     repository: "zemd/js",
     version: "1.2.3",
@@ -30,12 +31,12 @@ test("includes the changelog entry and the generated notes", () => {
     notes: "## What's Changed\n\n- #1",
   });
 
-  expect(body).toContain("## Changes");
-  expect(body).toContain("- Added an input.");
-  expect(body).toContain("- #1");
+  assert.ok(body.includes("## Changes"));
+  assert.ok(body.includes("- Added an input."));
+  assert.ok(body.includes("- #1"));
 });
 
-test("creates the exact tag and moves the major tag", async () => {
+void test("creates the exact tag and moves the major tag", async () => {
   const github = fakeGitHub({ repository: "zemd/js" });
 
   await releaseSharedWorkflows({
@@ -46,16 +47,16 @@ test("creates the exact tag and moves the major tag", async () => {
     workflows: WORKFLOWS,
   });
 
-  expect(github.createdRefs).toEqual([
+  assert.deepStrictEqual(github.createdRefs, [
     { ref: "refs/tags/v2.1.0", sha: SHA },
     { ref: "refs/tags/v2", sha: SHA },
   ]);
-  expect(github.updatedRefs).toEqual([]);
-  expect(github.createdReleases[0]?.tag).toBe("v2.1.0");
-  expect(github.createdReleases[0]?.name).toBe("Shared workflows v2.1.0");
+  assert.deepStrictEqual(github.updatedRefs, []);
+  assert.strictEqual(github.createdReleases[0]?.tag, "v2.1.0");
+  assert.strictEqual(github.createdReleases[0]?.name, "Shared workflows v2.1.0");
 });
 
-test("is a no-op when the version was already released", async () => {
+void test("is a no-op when the version was already released", async () => {
   const github = fakeGitHub({
     existingTags: ["v1.0.0", "v1"],
     releases: [{ tag_name: "v1.0.0", created_at: "2026-08-01T00:00:00Z" }],
@@ -69,11 +70,11 @@ test("is a no-op when the version was already released", async () => {
     workflows: WORKFLOWS,
   });
 
-  expect(github.createdRefs).toEqual([]);
-  expect(github.createdReleases).toEqual([]);
+  assert.deepStrictEqual(github.createdRefs, []);
+  assert.deepStrictEqual(github.createdReleases, []);
 });
 
-test("resumes after moving the major tag fails", async () => {
+void test("resumes after moving the major tag fails", async () => {
   const github = fakeGitHub({
     existingTags: ["v2"],
     updateRefFailures: { "refs/tags/v2": 1 },
@@ -86,19 +87,19 @@ test("resumes after moving the major tag fails", async () => {
     workflows: WORKFLOWS,
   };
 
-  await expect(releaseSharedWorkflows(input)).rejects.toThrow(/could not move the major tag/);
+  await assert.rejects(releaseSharedWorkflows(input), /could not move the major tag/);
 
-  expect(github.tags.has("v2.1.0")).toBe(true);
-  expect(github.createdReleases).toEqual([]);
+  assert.strictEqual(github.tags.has("v2.1.0"), true);
+  assert.deepStrictEqual(github.createdReleases, []);
 
   await releaseSharedWorkflows(input);
 
-  expect(github.createdRefs).toEqual([{ ref: "refs/tags/v2.1.0", sha: SHA }]);
-  expect(github.updatedRefs).toEqual([{ ref: "refs/tags/v2", sha: SHA }]);
-  expect(github.createdReleases).toHaveLength(1);
+  assert.deepStrictEqual(github.createdRefs, [{ ref: "refs/tags/v2.1.0", sha: SHA }]);
+  assert.deepStrictEqual(github.updatedRefs, [{ ref: "refs/tags/v2", sha: SHA }]);
+  assert.strictEqual(github.createdReleases.length, 1);
 });
 
-test("resumes after creating the GitHub release fails", async () => {
+void test("resumes after creating the GitHub release fails", async () => {
   const github = fakeGitHub({ releaseCreationFailures: 1 });
   const input = {
     api: github.api,
@@ -108,23 +109,23 @@ test("resumes after creating the GitHub release fails", async () => {
     workflows: WORKFLOWS,
   };
 
-  await expect(releaseSharedWorkflows(input)).rejects.toThrow(/failed to create release/);
+  await assert.rejects(releaseSharedWorkflows(input), /failed to create release/);
 
-  expect(github.tags.has("v3.0.0")).toBe(true);
-  expect(github.tags.has("v3")).toBe(true);
-  expect(github.createdReleases).toEqual([]);
+  assert.strictEqual(github.tags.has("v3.0.0"), true);
+  assert.strictEqual(github.tags.has("v3"), true);
+  assert.deepStrictEqual(github.createdReleases, []);
 
   await releaseSharedWorkflows(input);
 
-  expect(github.createdRefs).toEqual([
+  assert.deepStrictEqual(github.createdRefs, [
     { ref: "refs/tags/v3.0.0", sha: SHA },
     { ref: "refs/tags/v3", sha: SHA },
   ]);
-  expect(github.updatedRefs).toEqual([{ ref: "refs/tags/v3", sha: SHA }]);
-  expect(github.createdReleases).toHaveLength(1);
+  assert.deepStrictEqual(github.updatedRefs, [{ ref: "refs/tags/v3", sha: SHA }]);
+  assert.strictEqual(github.createdReleases.length, 1);
 });
 
-test("moves an existing major tag instead of failing", async () => {
+void test("moves an existing major tag instead of failing", async () => {
   const github = fakeGitHub({ existingTags: ["v2"] });
 
   await releaseSharedWorkflows({
@@ -135,13 +136,13 @@ test("moves an existing major tag instead of failing", async () => {
     workflows: WORKFLOWS,
   });
 
-  expect(github.updatedRefs).toEqual([{ ref: "refs/tags/v2", sha: SHA }]);
+  assert.deepStrictEqual(github.updatedRefs, [{ ref: "refs/tags/v2", sha: SHA }]);
 });
 
-test("refuses a prerelease version", async () => {
+void test("refuses a prerelease version", async () => {
   const github = fakeGitHub();
 
-  await expect(
+  await assert.rejects(
     releaseSharedWorkflows({
       api: github.api,
       sha: SHA,
@@ -149,13 +150,14 @@ test("refuses a prerelease version", async () => {
       packagePath: "internal/gha",
       workflows: WORKFLOWS,
     }),
-  ).rejects.toThrow(/plain semver/);
+    /plain semver/,
+  );
 });
 
-test("refuses to release when no shared workflows were found", async () => {
+void test("refuses to release when no shared workflows were found", async () => {
   const github = fakeGitHub();
 
-  await expect(
+  await assert.rejects(
     releaseSharedWorkflows({
       api: github.api,
       sha: SHA,
@@ -163,5 +165,6 @@ test("refuses to release when no shared workflows were found", async () => {
       packagePath: "internal/gha",
       workflows: [],
     }),
-  ).rejects.toThrow(/no shared-\*\.yml workflows found/);
+    /no shared-\*\.yml workflows found/,
+  );
 });

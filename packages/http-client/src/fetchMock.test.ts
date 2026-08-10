@@ -1,12 +1,14 @@
-import { beforeEach, describe, it, expect } from "vitest";
-import { fetchMock, addEndpointMock, clearEndpointMocks } from "./fetchMock";
+import assert from "node:assert/strict";
+import { beforeEach, describe, it } from "node:test";
 
-describe("fetchMock", () => {
+import { fetchMock, addEndpointMock, clearEndpointMocks } from "./fetchMock.ts";
+
+void describe("fetchMock", () => {
   beforeEach(() => {
     clearEndpointMocks();
   });
 
-  it("returns mocked JSON response for registered endpoint", async () => {
+  void it("returns mocked JSON response for registered endpoint", async () => {
     const endpoint = "/test/endpoint1";
     const url = `https://example.com${endpoint}`;
 
@@ -15,13 +17,13 @@ describe("fetchMock", () => {
     });
 
     const response = await fetchMock(url, { method: "GET" });
-    expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe("application/json");
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(response.headers.get("Content-Type"), "application/json");
     const data = await response.json();
-    expect(data).toEqual({ success: true });
+    assert.deepStrictEqual(data, { success: true });
   });
 
-  it("returns mocked Response object if implementation returns Response", async () => {
+  void it("returns mocked Response object if implementation returns Response", async () => {
     const endpoint = "/test/endpoint2";
     const url = `https://example.com${endpoint}`;
 
@@ -30,21 +32,22 @@ describe("fetchMock", () => {
     });
 
     const response = await fetchMock(url, { method: "GET" });
-    expect(response.status).toBe(201);
+    assert.strictEqual(response.status, 201);
     const text = await response.text();
-    expect(text).toBe("custom");
+    assert.strictEqual(text, "custom");
   });
 
-  it("throws error if no mock is registered", async () => {
+  void it("throws error if no mock is registered", async () => {
     const endpoint = "/test/endpoint3";
     const url = `https://example.com${endpoint}`;
 
-    await expect(fetchMock(url, { method: "GET" })).rejects.toThrow(
-      "No mock data available for this endpoint.",
+    await assert.rejects(
+      fetchMock(url, { method: "GET" }),
+      /No mock data available for this endpoint\./,
     );
   });
 
-  it("handles implementation errors and returns 500", async () => {
+  void it("handles implementation errors and returns 500", async () => {
     const endpoint = "/test/endpoint4";
     const url = `https://example.com${endpoint}`;
 
@@ -53,12 +56,12 @@ describe("fetchMock", () => {
     });
 
     const response = await fetchMock(url, { method: "GET" });
-    expect(response.status).toBe(500);
+    assert.strictEqual(response.status, 500);
     const data = await response.json();
-    expect(data).toHaveProperty("error");
+    assert.ok(data && typeof data === "object" && "error" in data);
   });
 
-  it("supports string, URL, and { url } as input", async () => {
+  void it("supports string, URL, and { url } as input", async () => {
     const endpoint = "/test/endpoint5";
     const url = `https://example.com${endpoint}`;
 
@@ -68,14 +71,14 @@ describe("fetchMock", () => {
 
     // string
     let response = await fetchMock(url, { method: "GET" });
-    expect(response.status).toBe(200);
+    assert.strictEqual(response.status, 200);
 
     // URL
     response = await fetchMock(new URL(url), { method: "GET" });
-    expect(response.status).toBe(200);
+    assert.strictEqual(response.status, 200);
   });
 
-  it("defaults to GET method if not provided", async () => {
+  void it("defaults to GET method if not provided", async () => {
     const endpoint = "/test/endpoint6";
     const url = `https://example.com${endpoint}`;
 
@@ -84,62 +87,64 @@ describe("fetchMock", () => {
     });
 
     const response = await fetchMock(url);
-    expect(response.status).toBe(200);
+    assert.strictEqual(response.status, 200);
 
     const data = await response.json();
-    expect(data).toEqual({ def: true });
+    assert.deepStrictEqual(data, { def: true });
   });
 
-  it("matches endpoints using explicit RegExp patterns", async () => {
+  void it("matches endpoints using explicit RegExp patterns", async () => {
     addEndpointMock(/\/test\/regex\/\d+/, "GET", () => {
       return { regex: true };
     });
 
     const url = "https://example.com/test/regex/123";
     const response = await fetchMock(url, { method: "GET" });
-    expect(response.status).toBe(200);
+    assert.strictEqual(response.status, 200);
     const data = await response.json();
-    expect(data).toEqual({ regex: true });
+    assert.deepStrictEqual(data, { regex: true });
   });
 
-  it("treats string pathnames as exact values", async () => {
+  void it("treats string pathnames as exact values", async () => {
     addEndpointMock("/api/users+profile", "GET", () => {
       return { exact: true };
     });
 
-    await expect(
+    await assert.rejects(
       fetchMock("https://example.com/api/usersprofile", { method: "GET" }),
-    ).rejects.toThrow("No mock data available for this endpoint.");
+      /No mock data available for this endpoint\./,
+    );
 
     const response = await fetchMock("https://example.com/api/users+profile", {
       method: "GET",
     });
-    expect(await response.json()).toEqual({ exact: true });
+    assert.deepStrictEqual(await response.json(), { exact: true });
   });
 
-  it("matches endpoints that include full URL", async () => {
+  void it("matches endpoints that include full URL", async () => {
     addEndpointMock("https://example.com/test/full/url", "GET", () => {
       return { success: true };
     });
 
     const url = "https://example.com/test/full/url";
     const response = await fetchMock(url, { method: "GET" });
-    expect(response.status).toBe(200);
+    assert.strictEqual(response.status, 200);
     const data = await response.json();
-    expect(data).toEqual({ success: true });
+    assert.deepStrictEqual(data, { success: true });
   });
 
-  it("requires a RegExp to match the entire pathname", async () => {
+  void it("requires a RegExp to match the entire pathname", async () => {
     addEndpointMock(/\/test\/regex/, "GET", () => {
       return { regex: true };
     });
 
-    await expect(
+    await assert.rejects(
       fetchMock("https://example.com/test/regex/123", { method: "GET" }),
-    ).rejects.toThrow("No mock data available for this endpoint.");
+      /No mock data available for this endpoint\./,
+    );
   });
 
-  it("replaces a registration with the same method and pathname", async () => {
+  void it("replaces a registration with the same method and pathname", async () => {
     addEndpointMock("/test/replace", "GET", () => {
       return { version: 1 };
     });
@@ -150,6 +155,6 @@ describe("fetchMock", () => {
     const response = await fetchMock("https://example.com/test/replace", {
       method: "GET",
     });
-    expect(await response.json()).toEqual({ version: 2 });
+    assert.deepStrictEqual(await response.json(), { version: 2 });
   });
 });

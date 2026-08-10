@@ -1,4 +1,4 @@
-import type { GitHubApi, NewRelease, ReleaseSummary } from "../github";
+import type { GitHubApi, NewRelease, ReleaseSummary } from "../github.ts";
 
 export interface FakeGitHubOptions {
   readonly repository?: string;

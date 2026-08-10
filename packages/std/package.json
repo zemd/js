@@ -65,22 +65,18 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "test": "vitest --run --project unit",
-    "test-browser": "vitest --run --project browser",
+    "test": "node --test",
+    "test-browser": "pnpm run build && playwright test",
+    "test-coverage": "node --test --experimental-test-coverage \"--test-coverage-include=src/**/*.ts\" \"--test-coverage-exclude=src/**/*.test.ts\" \"--test-coverage-exclude=src/**/*.spec.ts\" --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage.lcov",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@swc/core": "1.15.47",
-    "@testing-library/dom": "10.4.1",
     "@types/node": "catalog:",
-    "@vitest/browser": "4.1.10",
-    "@vitest/browser-playwright": "4.1.10",
+    "@zemd/testing": "workspace:*",
     "@zemd/tsconfig": "workspace:*",
     "fast-check": "catalog:",
-    "happy-dom": "20.11.1",
     "playwright": "1.62.1",
     "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

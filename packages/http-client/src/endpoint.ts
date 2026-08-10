@@ -1,5 +1,5 @@
-import { compose } from "./compose";
-import type { TFetchFn, TFetchTransformer } from "./type";
+import { compose } from "./compose.ts";
+import type { TFetchFn, TFetchTransformer } from "./type.ts";
 
 type TEndpointOptions = {
   parseResponse: "json" | "text" | false;

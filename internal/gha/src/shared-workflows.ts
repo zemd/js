@@ -1,6 +1,6 @@
-import { changelogEntry } from "./changelog";
-import type { GitHubApi } from "./github";
-import { isReleaseVersion } from "./semver";
+import { changelogEntry } from "./changelog.ts";
+import type { GitHubApi } from "./github.ts";
+import { isReleaseVersion } from "./semver.ts";
 
 export interface SharedReleaseBody {
   readonly repository: string;

@@ -1,8 +1,10 @@
 import fc from "fast-check";
-import { afterEach, describe, expect, it } from "vitest";
-import { builder, buildLicense, buildPathsObject, buildServerObject } from "./builders";
-import { OpenSourceLicenses, type LicenseIdentifier } from "./licenses";
-import type { ServerVariableObject } from "./types";
+import assert from "node:assert/strict";
+import { afterEach, describe, it } from "node:test";
+
+import { builder, buildLicense, buildPathsObject, buildServerObject } from "./builders.ts";
+import { OpenSourceLicenses, type LicenseIdentifier } from "./licenses.ts";
+import type { ServerVariableObject } from "./types.ts";
 
 const PROTOTYPES: object[] = [Object.prototype, Array.prototype, Function.prototype];
 
@@ -74,23 +76,27 @@ const collectReferences = (value: unknown, seen: Set<object>, depth = 0): Set<ob
 };
 
 afterEach(() => {
-  expect(leakedPrototypeKeys()).toEqual([]);
+  assert.deepStrictEqual(leakedPrototypeKeys(), []);
 });
 
-describe("builder", () => {
-  it("should reproduce the object it was given", () => {
+void describe("builder", () => {
+  void it("should reproduce the object it was given", () => {
     fc.assert(
       fc.property(params, (input) => {
-        expect(builder<Record<string, unknown>>(input).toJSON()).toEqual(input);
+        assert.deepStrictEqual(
+          builder<Record<string, unknown>>(input).toJSON(),
+          structuredClone(input),
+        );
       }),
       { numRuns: 2000 },
     );
   });
 
-  it("should keep its own prototype whatever keys it is given", () => {
+  void it("should keep its own prototype whatever keys it is given", () => {
     fc.assert(
       fc.property(params, (input) => {
-        expect(Object.getPrototypeOf(builder<Record<string, unknown>>(input).toJSON())).toBe(
+        assert.strictEqual(
+          Object.getPrototypeOf(builder<Record<string, unknown>>(input).toJSON()),
           Object.prototype,
         );
       }),
@@ -98,55 +104,55 @@ describe("builder", () => {
     );
   });
 
-  it("should never share a reference with the object it was given", () => {
+  void it("should never share a reference with the object it was given", () => {
     fc.assert(
       fc.property(params, (input) => {
         const inputReferences = collectReferences(input, new Set<object>());
         const result = builder<Record<string, unknown>>(input).toJSON();
 
         for (const reference of collectReferences(result, new Set<object>())) {
-          expect(inputReferences.has(reference)).toBe(false);
+          assert.strictEqual(inputReferences.has(reference), false);
         }
       }),
       { numRuns: 2000 },
     );
   });
 
-  it("should answer the same object until something is set", () => {
+  void it("should answer the same object until something is set", () => {
     fc.assert(
       fc.property(params, (input) => {
         const instance = builder<Record<string, unknown>>(input);
-        expect(instance.toJSON()).toBe(instance.toJSON());
+        assert.strictEqual(instance.toJSON(), instance.toJSON());
       }),
       { numRuns: 2000 },
     );
   });
 
-  it("should let the last write to a key win", () => {
+  void it("should let the last write to a key win", () => {
     fc.assert(
       fc.property(params, key, jsonValue, (input, name, value) => {
         const result = builder<Record<string, unknown>>(input).set(name, value).toJSON();
-        expect(result[name]).toEqual(value);
+        assert.deepStrictEqual(result[name], structuredClone(value));
       }),
       { numRuns: 2000 },
     );
   });
 
-  it("should flatten a nested builder into plain data", () => {
+  void it("should flatten a nested builder into plain data", () => {
     fc.assert(
       fc.property(params, key, params, (input, name, nested) => {
         const result = builder<Record<string, unknown>>(input)
           .set(name, builder<Record<string, unknown>>(nested) as never)
           .toJSON();
 
-        expect(result[name]).toEqual(nested);
+        assert.deepStrictEqual(result[name], structuredClone(nested));
       }),
       { numRuns: 2000 },
     );
   });
 });
 
-describe("buildServerObject", () => {
+void describe("buildServerObject", () => {
   const variables = fc.dictionary(
     fc.string({ minLength: 1, maxLength: 8 }).filter((name) => {
       return name !== "url" && name !== "description" && name !== "variables";
@@ -158,30 +164,33 @@ describe("buildServerObject", () => {
     { maxKeys: 4 },
   );
 
-  it("should keep the url it was given", () => {
+  void it("should keep the url it was given", () => {
     fc.assert(
       fc.property(fc.webUrl(), variables, (url, vars) => {
-        expect(buildServerObject(url, vars).url).toBe(url);
+        assert.strictEqual(buildServerObject(url, vars).url, url);
       }),
       { numRuns: 2000 },
     );
   });
 
-  it("should expand every variable into a server variable object", () => {
+  void it("should expand every variable into a server variable object", () => {
     fc.assert(
       fc.property(fc.webUrl(), variables, (url, vars) => {
         const built = buildServerObject(url, vars).variables ?? {};
 
-        expect(Object.keys(built).sort()).toEqual(Object.keys(vars).sort());
+        assert.deepStrictEqual(Object.keys(built).sort(), Object.keys(vars).sort());
         for (const [name, value] of Object.entries(vars)) {
-          expect(built[name]).toEqual(typeof value === "string" ? { default: value } : value);
+          assert.deepStrictEqual(
+            built[name],
+            typeof value === "string" ? { default: value } : value,
+          );
         }
       }),
       { numRuns: 2000 },
     );
   });
 
-  it("should carry the specification extensions through", () => {
+  void it("should carry the specification extensions through", () => {
     const extensions = fc.dictionary(
       fc.string({ minLength: 1, maxLength: 8 }).map((name) => {
         return `x-${name}`;
@@ -192,21 +201,21 @@ describe("buildServerObject", () => {
 
     fc.assert(
       fc.property(fc.webUrl(), variables, extensions, (url, vars, extra) => {
-        expect(buildServerObject(url, vars, extra)).toMatchObject(extra);
+        assert.partialDeepStrictEqual(buildServerObject(url, vars, extra), extra);
       }),
       { numRuns: 2000 },
     );
   });
 });
 
-describe("buildPathsObject", () => {
+void describe("buildPathsObject", () => {
   const parameters = fc.dictionary(
     fc.string({ minLength: 1, maxLength: 8 }),
     fc.record({ in: fc.constantFrom("path" as const, "query" as const) }),
     { maxKeys: 4 },
   );
 
-  it("should name every parameter after the key it was declared under", () => {
+  void it("should name every parameter after the key it was declared under", () => {
     const path = fc.string({ minLength: 1, maxLength: 16 }).map((segment) => {
       return `/${segment}` as const;
     });
@@ -215,8 +224,9 @@ describe("buildPathsObject", () => {
       fc.property(path, parameters, (url, declared) => {
         const built = buildPathsObject(url, { parameters: declared });
 
-        expect(Object.keys(built)).toEqual([url]);
-        expect(built[url]?.parameters).toEqual(
+        assert.deepStrictEqual(Object.keys(built), [url]);
+        assert.deepStrictEqual(
+          built[url]?.parameters,
           Object.entries(declared).map(([name, rest]) => {
             return { name, ...rest };
           }),
@@ -227,13 +237,16 @@ describe("buildPathsObject", () => {
   });
 });
 
-describe("buildLicense", () => {
-  it("should answer the short name and the identifier of a known license", () => {
+void describe("buildLicense", () => {
+  void it("should answer the short name and the identifier of a known license", () => {
     const identifier = fc.constantFrom(...(Object.keys(OpenSourceLicenses) as LicenseIdentifier[]));
 
     fc.assert(
       fc.property(identifier, (id) => {
-        expect(buildLicense(id)).toEqual({ name: OpenSourceLicenses[id].short, identifier: id });
+        assert.deepStrictEqual(buildLicense(id), {
+          name: OpenSourceLicenses[id].short,
+          identifier: id,
+        });
       }),
     );
   });

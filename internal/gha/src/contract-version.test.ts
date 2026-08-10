@@ -1,27 +1,34 @@
-import { expect, test } from "vitest";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
   bumpContractVersion,
   planContractVersion,
   reconcileContractRelease,
-} from "./contract-version";
+} from "./contract-version.ts";
 
-test.each([
-  ["1.2.3", "patch", "1.2.4"],
-  ["1.2.3", "minor", "1.3.0"],
-  ["1.2.3", "major", "2.0.0"],
-] as const)("applies a %s contract bump", (version, bump, expected) => {
-  expect(bumpContractVersion(version, bump)).toBe(expected);
+void test("applies each supported contract bump", () => {
+  for (const [version, bump, expected] of [
+    ["1.2.3", "patch", "1.2.4"],
+    ["1.2.3", "minor", "1.3.0"],
+    ["1.2.3", "major", "2.0.0"],
+  ] as const) {
+    assert.strictEqual(
+      bumpContractVersion(version, bump),
+      expected,
+      `expected the ${bump} bump for ${version}`,
+    );
+  }
 });
 
-test("plans the highest bump across matching change intents", () => {
+void test("plans the highest bump across matching change intents", () => {
   const plan = planContractVersion({ name: "@zemd/gha", version: "1.0.0" }, [
     { id: "patch-one", source: '---\n"@zemd/gha": patch\n---\n\nPatch.\n' },
     { id: "unrelated", source: "---\nother: major\n---\n\nOther.\n" },
     { id: "minor-one", source: "---\n'@zemd/gha': 'minor'\n---\n\nMinor.\n" },
   ]);
 
-  expect(plan).toEqual({
+  assert.deepStrictEqual(plan, {
     name: "@zemd/gha",
     currentVersion: "1.0.0",
     newVersion: "1.1.0",
@@ -30,15 +37,16 @@ test("plans the highest bump across matching change intents", () => {
   });
 });
 
-test("does not plan a bump without a matching release intent", () => {
-  expect(
+void test("does not plan a bump without a matching release intent", () => {
+  assert.strictEqual(
     planContractVersion({ name: "@zemd/gha", version: "1.0.0" }, [
       { id: "unrelated", source: "---\nother: patch\n---\n" },
     ]),
-  ).toBeUndefined();
+    undefined,
+  );
 });
 
-test("restores the real old version in pnpm's same-version result", () => {
+void test("restores the real old version in pnpm's same-version result", () => {
   const releases = reconcileContractRelease(
     [
       { name: "public-package", currentVersion: "2.0.0", newVersion: "2.0.1" },
@@ -53,15 +61,15 @@ test("restores the real old version in pnpm's same-version result", () => {
     },
   );
 
-  expect(releases).toEqual([
+  assert.deepStrictEqual(releases, [
     { name: "public-package", currentVersion: "2.0.0", newVersion: "2.0.1" },
     { name: "@zemd/gha", currentVersion: "1.0.0", newVersion: "1.0.1" },
   ]);
 });
 
-test("accepts pnpm reporting the intended transition itself", () => {
+void test("accepts pnpm reporting the intended transition itself", () => {
   const releases = [{ name: "@zemd/gha", currentVersion: "1.0.0", newVersion: "1.0.1" }];
-  expect(
+  assert.strictEqual(
     reconcileContractRelease(releases, {
       name: "@zemd/gha",
       currentVersion: "1.0.0",
@@ -69,20 +77,23 @@ test("accepts pnpm reporting the intended transition itself", () => {
       bump: "patch",
       intentIds: ["fix"],
     }),
-  ).toBe(releases);
+    releases,
+  );
 });
 
-test("rejects an unexpected pnpm transition", () => {
-  expect(() =>
-    reconcileContractRelease(
-      [{ name: "@zemd/gha", currentVersion: "1.0.1", newVersion: "1.0.2" }],
-      {
-        name: "@zemd/gha",
-        currentVersion: "1.0.0",
-        newVersion: "1.0.1",
-        bump: "patch",
-        intentIds: ["fix"],
-      },
-    ),
-  ).toThrow(/unexpected @zemd\/gha transition/);
+void test("rejects an unexpected pnpm transition", () => {
+  assert.throws(
+    () =>
+      reconcileContractRelease(
+        [{ name: "@zemd/gha", currentVersion: "1.0.1", newVersion: "1.0.2" }],
+        {
+          name: "@zemd/gha",
+          currentVersion: "1.0.0",
+          newVersion: "1.0.1",
+          bump: "patch",
+          intentIds: ["fix"],
+        },
+      ),
+    /unexpected @zemd\/gha transition/,
+  );
 });

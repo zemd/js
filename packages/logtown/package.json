@@ -46,8 +46,8 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
-    "test": "vitest --run",
-    "coverage": "vitest run --coverage",
+    "test": "node --test",
+    "test-coverage": "node --test --experimental-test-coverage \"--test-coverage-include=src/**/*.ts\" \"--test-coverage-exclude=src/**/*.test.ts\" --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage.lcov",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -58,7 +58,6 @@
     "@zemd/tsconfig": "workspace:*",
     "fast-check": "catalog:",
     "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

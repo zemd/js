@@ -1,36 +1,39 @@
-import { expect, test, vi } from "vitest";
+import assert from "node:assert/strict";
+import { mock, test, type Mock } from "node:test";
 
-import { createGitHubApi } from "./github";
+import { createGitHubApi } from "./github.ts";
 
 const okResponse = (body: unknown): Response => new Response(JSON.stringify(body), { status: 200 });
+const fetchReturning = (response: Response): Mock<typeof globalThis.fetch> =>
+  mock.fn<typeof globalThis.fetch>(async () => response);
 
-test("authenticates and versions every REST call", async () => {
-  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(okResponse({ ok: true }));
+void test("authenticates and versions every REST call", async () => {
+  const fetch = fetchReturning(okResponse({ ok: true }));
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
 
   await api.request("/repos/acme/repo/releases", "POST", { tag_name: "v1" });
 
-  const [url, init] = fetch.mock.calls[0] ?? [];
-  expect(url).toBe("https://api.github.com/repos/acme/repo/releases");
-  expect(init?.method).toBe("POST");
-  expect(init?.body).toBe(JSON.stringify({ tag_name: "v1" }));
-  expect(init?.headers).toMatchObject({
+  const [url, init] = fetch.mock.calls[0]?.arguments ?? [];
+  assert.strictEqual(url, "https://api.github.com/repos/acme/repo/releases");
+  assert.strictEqual(init?.method, "POST");
+  assert.strictEqual(init?.body, JSON.stringify({ tag_name: "v1" }));
+  assert.partialDeepStrictEqual(init?.headers, {
     authorization: "Bearer secret",
     "x-github-api-version": "2022-11-28",
   });
 });
 
-test("uses GitHub.com's GraphQL endpoint by default", async () => {
-  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(okResponse({}));
+void test("uses GitHub.com's GraphQL endpoint by default", async () => {
+  const fetch = fetchReturning(okResponse({}));
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
 
   await api.graphql("query { viewer { login } }", {});
 
-  expect(fetch.mock.calls[0]?.[0]).toBe("https://api.github.com/graphql");
+  assert.strictEqual(fetch.mock.calls[0]?.arguments[0], "https://api.github.com/graphql");
 });
 
-test("uses the configured GraphQL endpoint independently of the REST endpoint", async () => {
-  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(okResponse({}));
+void test("uses the configured GraphQL endpoint independently of the REST endpoint", async () => {
+  const fetch = fetchReturning(okResponse({}));
   const api = createGitHubApi({
     token: "secret",
     repository: "acme/repo",
@@ -41,101 +44,91 @@ test("uses the configured GraphQL endpoint independently of the REST endpoint", 
 
   await api.graphql("query { viewer { login } }", {});
 
-  expect(fetch.mock.calls[0]?.[0]).toBe("https://github.example.com/api/graphql");
+  assert.strictEqual(fetch.mock.calls[0]?.arguments[0], "https://github.example.com/api/graphql");
 });
 
-test("omits a body for GET requests", async () => {
-  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(okResponse({}));
+void test("omits a body for GET requests", async () => {
+  const fetch = fetchReturning(okResponse({}));
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
 
   await api.tagExists("v1.0.0");
 
-  expect(fetch.mock.calls[0]?.[1]).not.toHaveProperty("body");
+  assert.ok(!Object.hasOwn(fetch.mock.calls[0]?.arguments[1] ?? {}, "body"));
 });
 
-test("escapes tags when checking whether they exist", async () => {
-  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(okResponse({}));
+void test("escapes tags when checking whether they exist", async () => {
+  const fetch = fetchReturning(okResponse({}));
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
 
   await api.tagExists("@acme/pkg@1.0.0");
 
-  expect(fetch.mock.calls[0]?.[0]).toBe(
+  assert.strictEqual(
+    fetch.mock.calls[0]?.arguments[0],
     "https://api.github.com/repos/acme/repo/git/ref/tags/%40acme%2Fpkg%401.0.0",
   );
 });
 
-test("only treats a 404 as a missing tag", async () => {
-  const missingFetch = vi
-    .fn<typeof globalThis.fetch>()
-    .mockResolvedValue(new Response("{}", { status: 404 }));
+void test("only treats a 404 as a missing tag", async () => {
+  const missingFetch = fetchReturning(new Response("{}", { status: 404 }));
   const missingApi = createGitHubApi({
     token: "secret",
     repository: "acme/repo",
     fetch: missingFetch,
   });
 
-  await expect(missingApi.tagExists("@acme/pkg@1.0.0")).resolves.toBe(false);
+  assert.strictEqual(await missingApi.tagExists("@acme/pkg@1.0.0"), false);
 
-  const failedFetch = vi
-    .fn<typeof globalThis.fetch>()
-    .mockResolvedValue(new Response("{}", { status: 503 }));
+  const failedFetch = fetchReturning(new Response("{}", { status: 503 }));
   const failedApi = createGitHubApi({
     token: "secret",
     repository: "acme/repo",
     fetch: failedFetch,
   });
 
-  await expect(failedApi.tagExists("@acme/pkg@1.0.0")).rejects.toThrow(/GitHub returned 503/);
+  await assert.rejects(failedApi.tagExists("@acme/pkg@1.0.0"), /GitHub returned 503/);
 });
 
-test("tolerates an empty response body", async () => {
-  const fetch = vi
-    .fn<typeof globalThis.fetch>()
-    .mockResolvedValue(new Response(null, { status: 204 }));
+void test("tolerates an empty response body", async () => {
+  const fetch = fetchReturning(new Response(null, { status: 204 }));
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
 
   const response = await api.request("/anything", "GET");
 
-  expect(response.ok).toBe(true);
-  expect(response.payload).toEqual({});
+  assert.strictEqual(response.ok, true);
+  assert.deepStrictEqual(response.payload, {});
 });
 
-test("returns no releases when the listing fails", async () => {
-  const fetch = vi
-    .fn<typeof globalThis.fetch>()
-    .mockResolvedValue(new Response("{}", { status: 500 }));
+void test("returns no releases when the listing fails", async () => {
+  const fetch = fetchReturning(new Response("{}", { status: 500 }));
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
 
-  expect(await api.listReleases()).toEqual([]);
+  assert.deepStrictEqual(await api.listReleases(), []);
 });
 
-test("falls back to empty notes when generation fails", async () => {
-  const fetch = vi
-    .fn<typeof globalThis.fetch>()
-    .mockResolvedValue(new Response("{}", { status: 422 }));
+void test("falls back to empty notes when generation fails", async () => {
+  const fetch = fetchReturning(new Response("{}", { status: 422 }));
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
 
-  expect(await api.generateNotes("v1", "sha", "")).toBe("");
+  assert.strictEqual(await api.generateNotes("v1", "sha", ""), "");
 });
 
-test("surfaces GraphQL errors when creating a commit", async () => {
-  const fetch = vi
-    .fn<typeof globalThis.fetch>()
-    .mockResolvedValue(okResponse({ errors: [{ message: "branch is protected" }] }));
+void test("surfaces GraphQL errors when creating a commit", async () => {
+  const fetch = fetchReturning(okResponse({ errors: [{ message: "branch is protected" }] }));
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
 
-  await expect(
+  await assert.rejects(
     api.createCommitOnBranch("release/main", "abc", "chore: release", {
       additions: [],
       deletions: [],
     }),
-  ).rejects.toThrow(/branch is protected/);
+    /branch is protected/,
+  );
 });
 
-test("splits a commit message into headline and body", async () => {
-  const fetch = vi
-    .fn<typeof globalThis.fetch>()
-    .mockResolvedValue(okResponse({ data: { createCommitOnBranch: { commit: { oid: "def" } } } }));
+void test("splits a commit message into headline and body", async () => {
+  const fetch = fetchReturning(
+    okResponse({ data: { createCommitOnBranch: { commit: { oid: "def" } } } }),
+  );
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
 
   const oid = await api.createCommitOnBranch("release/main", "abc", "headline\n\nthe body", {
@@ -143,13 +136,13 @@ test("splits a commit message into headline and body", async () => {
     deletions: [],
   });
 
-  expect(oid).toBe("def");
-  const requestBody = fetch.mock.calls[0]?.[1]?.body;
+  assert.strictEqual(oid, "def");
+  const requestBody = fetch.mock.calls[0]?.arguments[1]?.body;
   if (typeof requestBody !== "string") {
     throw new Error("expected a serialised request body");
   }
   const body = JSON.parse(requestBody) as {
     variables: { input: { message: { headline: string; body?: string } } };
   };
-  expect(body.variables.input.message).toEqual({ headline: "headline", body: "the body" });
+  assert.deepStrictEqual(body.variables.input.message, { headline: "headline", body: "the body" });
 });

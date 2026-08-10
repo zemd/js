@@ -21,42 +21,14 @@ on:
         description: Commit SHA for the shared tooling; keep it equal to the workflow's pinned SHA.
         type: string
         required: true
-      node-version:
-        description: Node.js version passed to actions/setup-node.
-        type: string
-        default: "lts/*"
-      release-branch:
-        description: Branch that carries the version bump commit.
-        type: string
-        default: "release/main"
-      release-title:
-        description: Commit message and title of the release pull request.
-        type: string
-        default: "chore(release): version packages"
       contract-version-package:
         description: Private package manifest whose version is advanced manually from matching change intents.
         type: string
         default: ""
-      base-branch:
-        description: Branch the release pull request targets.
-        type: string
-        default: "main"
-      build-script:
-        description: package.json script that builds before publishing. Empty skips the step.
-        type: string
-        default: "build"
-      publint-script:
-        description: package.json script that validates publishable packages. Empty skips the step.
-        type: string
-        default: "lint-publish"
       staged-publishing:
         description: Stage existing packages for npm approval without making rejection roll back the submitted version. First releases publish directly.
         type: boolean
         default: true
-      registry-url:
-        description: Registry used for package-existence checks and written to .npmrc for publishing.
-        type: string
-        default: "https://registry.npmjs.org"
     secrets:
       NPM_TOKEN:
         description: Optional authentication for regular publishing; required when a package does not exist in the registry yet.
@@ -116,7 +88,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: "lts/*"
           cache: "pnpm"
 
       - name: Install Dependencies
@@ -172,9 +144,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
-          RELEASE_BRANCH: ${{ inputs.release-branch }}
-          RELEASE_TITLE: ${{ inputs.release-title }}
-          BASE_BRANCH: ${{ inputs.base-branch }}
+          RELEASE_BRANCH: release/main
+          RELEASE_TITLE: "chore(release): version packages"
+          BASE_BRANCH: main
         run: |
           node "${SHARED_CLI}" signed-commit "$RELEASE_BRANCH" "$RELEASE_TITLE"
           pr="$(gh pr list --head "$RELEASE_BRANCH" --base "$BASE_BRANCH" --state open --json number --jq '.[].number')"
@@ -221,26 +193,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: "lts/*"
           cache: "pnpm"
           # OIDC cannot authenticate the first publish because an npm package
           # must exist before its trusted publisher can be configured.
-          registry-url: ${{ inputs.registry-url }}
+          registry-url: "https://registry.npmjs.org"
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build
-        if: inputs.build-script != ''
-        env:
-          SCRIPT: ${{ inputs.build-script }}
-        run: pnpm run "$SCRIPT"
+        run: pnpm run build
 
       - name: Validate publishable packages
-        if: inputs.publint-script != ''
-        env:
-          SCRIPT: ${{ inputs.publint-script }}
-        run: pnpm run "$SCRIPT"
+        run: pnpm run lint-publish
 
       # npm cannot stage a package that does not exist in the registry. Keep
       # existing packages on stage-only OIDC while routing only first releases
@@ -249,7 +215,7 @@ jobs:
         id: publishing
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          REGISTRY_URL: ${{ inputs.registry-url }}
+          REGISTRY_URL: "https://registry.npmjs.org"
           STAGED_PUBLISHING: ${{ inputs.staged-publishing }}
         run: |
           pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/workspace.json"

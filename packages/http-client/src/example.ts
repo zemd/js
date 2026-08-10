@@ -6,7 +6,7 @@ import {
   type TFetchFn,
   type TFetchFnParams,
   type TFetchTransformer,
-} from "./";
+} from "./index.ts";
 
 type Token = {
   access_token: string;
