@@ -52,6 +52,9 @@ npm install @zemd/std-modules
 | `merge` | Deeply merging objects into one new object. Influenced by `deepmerge` package. |
 | `get`   | Get a value from an object using a path string or array of keys.               |
 
+For prototype-pollution safety, `merge` omits own properties named `__proto__`, `constructor`,
+or `prototype` at every object depth it merges.
+
 #### `@zemd/std-modules/types`
 
 | Name                        | Description                                                                                                             |

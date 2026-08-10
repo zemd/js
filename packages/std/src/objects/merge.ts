@@ -18,12 +18,17 @@ const isPlainObject = (value: unknown): boolean => {
 
 type TInput = Record<string, any>;
 
+const isPrototypePollutionKey = (key: string): boolean => {
+  return key === "__proto__" || key === "constructor" || key === "prototype";
+};
+
 /**
  * Deeply merges objects.
  *
  * This function takes any number of objects and deeply merges them into a new object.
  * If two or more objects have the same property, the property value from the last object
- * in the arguments list will be used. All properties are deeply cloned.
+ * in the arguments list will be used. All properties are deeply cloned. Own `__proto__`,
+ * `constructor`, and `prototype` properties are omitted to prevent prototype pollution.
  */
 export const merge = <TReturn extends Record<string, any>>(
   ...inputs: (TInput | null | undefined)[]
@@ -37,9 +42,8 @@ export const merge = <TReturn extends Record<string, any>>(
       return acc;
     }
     for (const prop of Object.keys(input)) {
-      // Assigning `__proto__` would replace the prototype of the result instead of adding
-      // a property to it, handing an attacker control over every lookup made on it.
-      if (prop === "__proto__") {
+      // These keys can reach or replace a built-in prototype during dynamic deep assignment.
+      if (isPrototypePollutionKey(prop)) {
         continue;
       }
       if (isPlainObject(input[prop]) && !Array.isArray(input[prop])) {

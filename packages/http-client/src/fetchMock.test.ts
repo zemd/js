@@ -1,7 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { fetchMock, addEndpointMock } from "./fetchMock";
+import { beforeEach, describe, it, expect } from "vitest";
+import { fetchMock, addEndpointMock, clearEndpointMocks } from "./fetchMock";
 
 describe("fetchMock", () => {
+  beforeEach(() => {
+    clearEndpointMocks();
+  });
+
   it("returns mocked JSON response for registered endpoint", async () => {
     const endpoint = "/test/endpoint1";
     const url = `https://example.com${endpoint}`;
@@ -86,9 +90,8 @@ describe("fetchMock", () => {
     expect(data).toEqual({ def: true });
   });
 
-  it("matches endpoints using regex-like patterns", async () => {
-    // eslint-disable-next-line unicorn/prefer-string-raw
-    addEndpointMock("/test/regex/\\d+", "GET", () => {
+  it("matches endpoints using explicit RegExp patterns", async () => {
+    addEndpointMock(/\/test\/regex\/\d+/, "GET", () => {
       return { regex: true };
     });
 
@@ -97,6 +100,21 @@ describe("fetchMock", () => {
     expect(response.status).toBe(200);
     const data = await response.json();
     expect(data).toEqual({ regex: true });
+  });
+
+  it("treats string pathnames as exact values", async () => {
+    addEndpointMock("/api/users+profile", "GET", () => {
+      return { exact: true };
+    });
+
+    await expect(
+      fetchMock("https://example.com/api/usersprofile", { method: "GET" }),
+    ).rejects.toThrow("No mock data available for this endpoint.");
+
+    const response = await fetchMock("https://example.com/api/users+profile", {
+      method: "GET",
+    });
+    expect(await response.json()).toEqual({ exact: true });
   });
 
   it("matches endpoints that include full URL", async () => {
