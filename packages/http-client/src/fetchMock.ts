@@ -120,11 +120,19 @@ export const addEndpointMock = (
   implementation: TMockImplementation,
 ) => {
   const compiledPathname = compilePathname(pathname);
+  const normalizedMethod = method.toUpperCase() as TMockMethod;
   const matcherKey = getMatcherKey(compiledPathname);
   const existingIndex = mockRegistry.findIndex((registration) => {
-    return registration.method === method && getMatcherKey(registration.pathname) === matcherKey;
+    return (
+      registration.method === normalizedMethod &&
+      getMatcherKey(registration.pathname) === matcherKey
+    );
   });
-  const registration = { pathname: compiledPathname, method, implementation };
+  const registration = {
+    pathname: compiledPathname,
+    method: normalizedMethod,
+    implementation,
+  };
 
   if (existingIndex === -1) {
     mockRegistry.push(registration);
