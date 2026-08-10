@@ -20,6 +20,10 @@
   dir: packages/http-client
   intents:
     - validate-http-method
+"@zemd/http-client@5.0.0":
+  dir: packages/http-client
+  intents:
+    - modern-bags-beg
 "@zemd/openapi@0.0.2":
   dir: packages/openapi
   intents:
@@ -29,6 +33,10 @@
   intents:
     - fix-range-functions
     - harden-objects-prototype-chain
+"@zemd/std-modules@0.1.1":
+  dir: packages/std
+  intents:
+    - crisp-deserts-jam
 "@zemd/tsconfig@2.1.0":
   dir: packages/tsconfig
   intents:
