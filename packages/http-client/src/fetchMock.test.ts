@@ -128,4 +128,28 @@ describe("fetchMock", () => {
     const data = await response.json();
     expect(data).toEqual({ success: true });
   });
+
+  it("requires a RegExp to match the entire pathname", async () => {
+    addEndpointMock(/\/test\/regex/, "GET", () => {
+      return { regex: true };
+    });
+
+    await expect(
+      fetchMock("https://example.com/test/regex/123", { method: "GET" }),
+    ).rejects.toThrow("No mock data available for this endpoint.");
+  });
+
+  it("replaces a registration with the same method and pathname", async () => {
+    addEndpointMock("/test/replace", "GET", () => {
+      return { version: 1 };
+    });
+    addEndpointMock("/test/replace", "GET", () => {
+      return { version: 2 };
+    });
+
+    const response = await fetchMock("https://example.com/test/replace", {
+      method: "GET",
+    });
+    expect(await response.json()).toEqual({ version: 2 });
+  });
 });

@@ -412,17 +412,20 @@ describe("HTTP Client", () => {
       expect(mockFetch).toHaveBeenCalledTimes(3);
     });
 
-    it("should not store responses forbidden from caching", async () => {
-      mockFetch.mockImplementation(async () => {
-        return new Response("private", { headers: { "Cache-Control": "no-store" } });
-      });
-      const withCache = compose([cache(1000)]);
+    it.each(["no-store", "no-cache", "private"])(
+      "should not store responses with Cache-Control: %s",
+      async (directive) => {
+        mockFetch.mockImplementation(async () => {
+          return new Response("private", { headers: { "Cache-Control": directive } });
+        });
+        const withCache = compose([cache(1000)]);
 
-      await withCache("https://api.example.com/private");
-      await withCache("https://api.example.com/private");
+        await withCache("https://api.example.com/private");
+        await withCache("https://api.example.com/private");
 
-      expect(mockFetch).toHaveBeenCalledTimes(2);
-    });
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+      },
+    );
   });
 
   describe("debug", () => {

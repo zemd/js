@@ -210,13 +210,24 @@ describe("Compatibility suite with deepmerge", () => {
         writable: true,
         configurable: true,
       }) as Record<string, unknown>;
-      const actual = merge<Record<string, unknown>>({ safe: 1 }, hostile, { nested: hostile });
+      const nestedHostile = Object.defineProperty({ deeper: hostile }, unsafeKey, {
+        value: { polluted: true },
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      }) as Record<string, unknown>;
+      const actual = merge<Record<string, unknown>>({ safe: 1 }, hostile, {
+        nested: nestedHostile,
+      });
       const nested = actual["nested"] as Record<string, unknown>;
+      const deeper = nested["deeper"] as Record<string, unknown>;
 
       expect(Object.getPrototypeOf(actual)).toBe(Object.prototype);
       expect(Object.getPrototypeOf(nested)).toBe(Object.prototype);
+      expect(Object.getPrototypeOf(deeper)).toBe(Object.prototype);
       expect(Object.hasOwn(actual, unsafeKey)).toBe(false);
       expect(Object.hasOwn(nested, unsafeKey)).toBe(false);
+      expect(Object.hasOwn(deeper, unsafeKey)).toBe(false);
       expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
     },
   );

@@ -38,7 +38,8 @@ error (or a non-ok `Response`) and the one-based attempt number.
 `cache(maxAge, maxEntries)` creates a bounded cache owned by that transformer. It caches GET
 responses without consuming their bodies and returns response clones that retain the original
 status, headers, and body. The key includes the URL, caller-supplied headers, credentials, mode,
-and referrer settings. Failed responses, `Vary: *`, and `Cache-Control: no-store` are not stored.
+and referrer settings. Failed responses, `Vary: *`, and responses with `Cache-Control: no-store`,
+`Cache-Control: no-cache`, or `Cache-Control: private` are not stored.
 
 This is a small in-memory request cache, not a replacement for the browser HTTP cache. In
 particular, browser-managed cookies are not visible in the cache key; do not use it for

@@ -276,13 +276,16 @@ const isCacheableResponse = (response: Response): boolean => {
     return false;
   }
 
-  return !response.headers
+  const cacheControlDirectives = response.headers
     .get("Cache-Control")
     ?.split(",")
     .map((directive) => {
       return directive.trim().split("=", 1)[0]?.toLowerCase();
-    })
-    .includes("no-store");
+    });
+
+  return !cacheControlDirectives?.some((directive) => {
+    return directive === "no-store" || directive === "no-cache" || directive === "private";
+  });
 };
 
 /**
