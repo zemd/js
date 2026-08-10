@@ -1,5 +1,5 @@
-import { isDocumentFragment } from "./check";
-import { createElementWithTagNameIterator } from "./iterate/createElementWithTagNameIterator";
+import { isDocumentFragment } from "./check.ts";
+import { createElementWithTagNameIterator } from "./iterate/createElementWithTagNameIterator.ts";
 
 export const removeNestedElementsWithTagName = (
   node: DocumentFragment,

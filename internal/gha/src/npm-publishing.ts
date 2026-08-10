@@ -1,5 +1,5 @@
-import type { PublishedPackage, WorkspacePackage } from "./pnpm";
-import { packageReleaseTag } from "./release-tags";
+import type { PublishedPackage, WorkspacePackage } from "./pnpm.ts";
+import { packageReleaseTag } from "./release-tags.ts";
 
 export type NpmPublishingMode = "direct" | "mixed" | "none" | "staged";
 

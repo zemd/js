@@ -1,5 +1,7 @@
 import fc from "fast-check";
-import { beforeEach, describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { beforeEach, describe, it } from "node:test";
+
 import {
   createLogger,
   disableOutput,
@@ -10,7 +12,7 @@ import {
   type LogLevel,
   type LogRule,
   type LogRuleStorage,
-} from "./index.js";
+} from "./index.ts";
 
 type LogMethod = (message: unknown, ...optionalParams: unknown[]) => void;
 type RuleStatus = "disabled" | "enabled";
@@ -115,22 +117,22 @@ beforeEach(() => {
   resetLoggingState();
 });
 
-describe("createLogger", () => {
-  it("should preserve arbitrary ids and cache one logger per exact id", () => {
+void describe("createLogger", () => {
+  void it("should preserve arbitrary ids and cache one logger per exact id", () => {
     fc.assert(
       fc.property(loggerId, (id) => {
         const first = createLogger(id);
 
-        expect(first.id).toBe(id);
-        expect(createLogger(id)).toBe(first);
+        assert.strictEqual(first.id, id);
+        assert.strictEqual(createLogger(id), first);
       }),
       { numRuns: 2000 },
     );
   });
 });
 
-describe("payloads", () => {
-  it("should preserve the routing and data of arbitrary string logs", () => {
+void describe("payloads", () => {
+  void it("should preserve the routing and data of arbitrary string logs", () => {
     fc.assert(
       fc.property(
         loggerId,
@@ -144,16 +146,16 @@ describe("payloads", () => {
           write(id, level, message, optionalParams);
 
           const finishedAt = Date.now();
-          expect(payloads).toHaveLength(1);
+          assert.strictEqual(payloads.length, 1);
           const payload = payloads[0]!;
-          expect(payload.id).toBe(id);
-          expect(payload.level).toBe(level);
-          expect(payload.message).toBeTypeOf("string");
-          expect(payload.timestamp).toBeGreaterThanOrEqual(startedAt);
-          expect(payload.timestamp).toBeLessThanOrEqual(finishedAt);
-          expect(payload.data).toHaveLength(optionalParams.length);
+          assert.strictEqual(payload.id, id);
+          assert.strictEqual(payload.level, level);
+          assert.strictEqual(typeof payload.message, "string");
+          assert.ok(payload.timestamp >= startedAt);
+          assert.ok(payload.timestamp <= finishedAt);
+          assert.strictEqual(payload.data.length, optionalParams.length);
           optionalParams.forEach((value, index) => {
-            expect(payload.data[index]).toBe(value);
+            assert.strictEqual(payload.data[index], value);
           });
         },
       ),
@@ -161,7 +163,7 @@ describe("payloads", () => {
     );
   });
 
-  it("should interpolate arbitrary strings without losing the original argument", () => {
+  void it("should interpolate arbitrary strings without losing the original argument", () => {
     const literal = fc.string({ maxLength: 48 }).filter((value) => {
       return !value.includes("%");
     });
@@ -178,16 +180,16 @@ describe("payloads", () => {
 
           write(id, level, `${prefix}|%s|${suffix}`, [value]);
 
-          expect(payloads).toHaveLength(1);
-          expect(payloads[0]?.message).toBe(`${prefix}|${value}|${suffix}`);
-          expect(payloads[0]?.data).toEqual([value]);
+          assert.strictEqual(payloads.length, 1);
+          assert.strictEqual(payloads[0]?.message, `${prefix}|${value}|${suffix}`);
+          assert.deepStrictEqual(payloads[0]?.data, [value]);
         },
       ),
       { numRuns: 2000 },
     );
   });
 
-  it("should fall back to the source text when a format string cannot be processed", () => {
+  void it("should fall back to the source text when a format string cannot be processed", () => {
     const formatterTrap = fc.constantFrom(
       "__proto__",
       "constructor",
@@ -209,16 +211,16 @@ describe("payloads", () => {
 
           write(id, level, message, [value]);
 
-          expect(payloads).toHaveLength(1);
-          expect(payloads[0]?.message).toBe(message);
-          expect(payloads[0]?.data[0]).toBe(value);
+          assert.strictEqual(payloads.length, 1);
+          assert.strictEqual(payloads[0]?.message, message);
+          assert.strictEqual(payloads[0]?.data[0], value);
         },
       ),
       { numRuns: 1000 },
     );
   });
 
-  it("should accept arbitrary non-string messages and retain every value by identity", () => {
+  void it("should accept arbitrary non-string messages and retain every value by identity", () => {
     fc.assert(
       fc.property(
         loggerId,
@@ -230,13 +232,13 @@ describe("payloads", () => {
 
           write(id, level, message, optionalParams);
 
-          expect(payloads).toHaveLength(1);
+          assert.strictEqual(payloads.length, 1);
           const payload = payloads[0]!;
-          expect(payload.message).toBeTypeOf("string");
-          expect(payload.data).toHaveLength(optionalParams.length + 1);
-          expect(payload.data[0]).toBe(message);
+          assert.strictEqual(typeof payload.message, "string");
+          assert.strictEqual(payload.data.length, optionalParams.length + 1);
+          assert.strictEqual(payload.data[0], message);
           optionalParams.forEach((value, index) => {
-            expect(payload.data[index + 1]).toBe(value);
+            assert.strictEqual(payload.data[index + 1], value);
           });
         },
       ),
@@ -245,8 +247,8 @@ describe("payloads", () => {
   });
 });
 
-describe("disableOutput", () => {
-  it("should apply arbitrary rule sets according to scope and specificity", () => {
+void describe("disableOutput", () => {
+  void it("should apply arbitrary rule sets according to scope and specificity", () => {
     fc.assert(
       fc.property(
         ruleLoggerId,
@@ -263,7 +265,7 @@ describe("disableOutput", () => {
           write(id, level, "probe");
 
           const expected = expectedRuleStatus(targets, level);
-          expect(payloads).toHaveLength(expected === "enabled" ? 1 : 0);
+          assert.strictEqual(payloads.length, expected === "enabled" ? 1 : 0);
         },
       ),
       { numRuns: 3000 },

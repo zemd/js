@@ -1,8 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "vitest";
+import assert from "node:assert/strict";
+import { test } from "node:test";
 
-import { commands } from "./commands";
+import { commands } from "./commands/index.ts";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const workflowsDir = `${root}.github/workflows/`;
@@ -76,7 +77,7 @@ const workflowStep = (source: string, name: string): string => {
   return lines.slice(start, end).join("\n");
 };
 
-test("workflow step extraction does not cross whitespace-heavy sibling boundaries", () => {
+void test("workflow step extraction does not cross whitespace-heavy sibling boundaries", () => {
   const source = [
     "      - name: Stage packages on npm",
     "        if: inputs.staged-publishing",
@@ -86,39 +87,47 @@ test("workflow step extraction does not cross whitespace-heavy sibling boundarie
   ].join("\n");
 
   const step = workflowStep(source, "Stage packages on npm");
-  expect(step).not.toContain("Later step");
-  expect(step).not.toContain("run:");
+  assert.ok(!step.includes("Later step"));
+  assert.ok(!step.includes("run:"));
 });
 
-test("every action and workflow reference is pinned to a full commit SHA", () => {
+void test("every action and workflow reference is pinned to a full commit SHA", () => {
   for (const file of yamlFiles(workflowsDir)) {
     for (const { reference, comment } of usesReferences(read(workflowsDir, file))) {
       // Same-repository calls resolve to the caller's own commit.
       if (reference.startsWith("./")) continue;
 
-      expect(reference, `${file}: "${reference}" must be pinned to a commit SHA`).toMatch(
+      assert.match(
+        reference,
         /@[0-9a-f]{40}$/,
+        `${file}: "${reference}" must be pinned to a commit SHA`,
       );
-      expect(comment, `${file}: "${reference}" must carry a "# <version>" comment`).toBeDefined();
+      assert.notStrictEqual(
+        comment,
+        undefined,
+        `${file}: "${reference}" must carry a "# <version>" comment`,
+      );
     }
   }
 });
 
-test("shared workflows are callable and self-contained", () => {
+void test("shared workflows are callable and self-contained", () => {
   const shared = yamlFiles(workflowsDir).filter((file) => file.startsWith("shared-"));
-  expect(shared.length).toBeGreaterThan(0);
+  assert.ok(shared.length > 0);
 
   for (const file of shared) {
     const source = read(workflowsDir, file);
-    expect(source, `${file} must only trigger on workflow_call`).toMatch(
+    assert.match(
+      source,
       /^on:\n {2}workflow_call:$/m,
+      `${file} must only trigger on workflow_call`,
     );
     // `env` declared by a caller is never propagated into a reusable workflow.
-    expect(source, `${file} must not read the caller's env context`).not.toContain("${{ env.");
+    assert.ok(!source.includes("${{ env."), `${file} must not read the caller's env context`);
   }
 });
 
-test("callers delegate to the shared workflows", () => {
+void test("callers delegate to the shared workflows", () => {
   const callers: Array<[string, string]> = [
     ["ci.yml", "shared-ci.yml"],
     ["codeql.yml", "shared-codeql.yml"],
@@ -129,13 +138,172 @@ test("callers delegate to the shared workflows", () => {
   ];
 
   for (const [caller, shared] of callers) {
-    expect(read(workflowsDir, caller), `${caller} must call ${shared}`).toContain(
-      `uses: ./.github/workflows/${shared}`,
+    assert.ok(
+      read(workflowsDir, caller).includes(`uses: ./.github/workflows/${shared}`),
+      `${caller} must call ${shared}`,
     );
   }
 });
 
-test("every runner job has a bounded timeout", () => {
+void test("every native unit-test package exposes the fixed test-coverage script", () => {
+  const manifests = [`${root}packages/`, `${root}internal/`].flatMap((directory) =>
+    readdirSync(directory, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => {
+        const path = `${directory}${entry.name}/package.json`;
+        return {
+          path,
+          manifest: JSON.parse(readFileSync(path, "utf8")) as {
+            name?: string;
+            scripts?: Record<string, string>;
+          },
+        };
+      }),
+  );
+  const tested = manifests.filter(({ manifest }) => manifest.scripts?.["test"]?.includes("--test"));
+  assert.ok(tested.length > 0);
+
+  for (const { path, manifest } of tested) {
+    const coverage = manifest.scripts?.["test-coverage"];
+    const name = manifest.name ?? path;
+    assert.strictEqual(manifest.scripts?.["coverage"], undefined);
+    assert.ok(coverage, `${name} must expose a test-coverage script`);
+    assert.ok(
+      coverage.includes("--experimental-test-coverage"),
+      `${name} must use Node.js native coverage`,
+    );
+    assert.ok(coverage.includes("--test-reporter=lcov"), `${name} must emit LCOV`);
+    assert.ok(
+      coverage.includes("--test-reporter-destination=coverage.lcov"),
+      `${name} must write coverage.lcov`,
+    );
+    assert.ok(
+      coverage.includes("--test-coverage-exclude=src/**/*.test.ts"),
+      `${name} must exclude test sources from its report`,
+    );
+  }
+});
+
+void test("shared workflows use fixed package script names", () => {
+  const source = read(workflowsDir, "shared-ci.yml");
+  const release = read(workflowsDir, "shared-release.yml");
+  const caller = read(workflowsDir, "ci.yml");
+  const example = read(examplesDir, "ci.yml");
+  const releaseExample = read(examplesDir, "release.yml");
+  const lint = workflowStep(source, "Lint");
+  const format = workflowStep(source, "Check formatting");
+  const typecheck = workflowStep(source, "Typecheck");
+  const build = workflowStep(source, "Build");
+  const runTests = workflowStep(source, "Run tests");
+  const coverage = workflowStep(source, "Run tests with native coverage");
+  const upload = workflowStep(source, "Upload native coverage reports");
+  const publint = workflowStep(source, "Validate publishable packages");
+  const browser = workflowStep(source, "Run browser tests");
+  const releaseBuild = workflowStep(release, "Build");
+  const releasePublint = workflowStep(release, "Validate publishable packages");
+  const manifest = JSON.parse(readFileSync(`${root}package.json`, "utf8")) as {
+    scripts: Record<string, string>;
+  };
+
+  for (const file of yamlFiles(workflowsDir).filter((candidate) =>
+    candidate.startsWith("shared-"),
+  )) {
+    const workflow = read(workflowsDir, file);
+    assert.doesNotMatch(workflow, /^ {6}[a-z0-9-]+-script:$/m);
+    assert.doesNotMatch(workflow, /\binputs\.[a-z0-9-]+-script\b/);
+  }
+
+  for (const workflow of [caller, example, releaseExample]) {
+    assert.doesNotMatch(workflow, /^ {6}[a-z0-9-]+-script:/m);
+  }
+
+  for (const [step, script] of [
+    [lint, "lint-check"],
+    [format, "format-check"],
+    [typecheck, "typecheck"],
+    [build, "build"],
+    [runTests, "test"],
+    [coverage, "test-coverage"],
+    [publint, "lint-publish"],
+    [browser, "test-browser"],
+    [releaseBuild, "build"],
+    [releasePublint, "lint-publish"],
+  ] as const) {
+    assert.ok(step.includes(`run: pnpm run ${script}`));
+    assert.ok(manifest.scripts[script], `root package.json must expose ${script}`);
+  }
+
+  assert.ok(runTests.includes("if: runner.os != 'Linux'"));
+  assert.ok(coverage.includes("if: runner.os == 'Linux'"));
+  assert.ok(coverage.includes("run: pnpm run test-coverage"));
+  assert.ok(
+    upload.includes(
+      "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1",
+    ),
+  );
+  assert.ok(upload.includes("name: native-node-coverage-${{ matrix.os }}"));
+  assert.ok(upload.includes('path: "**/coverage.lcov"'));
+  assert.ok(upload.includes("if-no-files-found: error"));
+  assert.ok(source.includes("if: inputs.playwright-filter != ''"));
+  assert.ok(browser.includes("run: pnpm run test-browser"));
+  assert.ok(caller.includes('playwright-filter: "@zemd/std-modules"'));
+  assert.strictEqual(manifest.scripts["coverage"], undefined);
+  assert.strictEqual(manifest.scripts["test-coverage"], "turbo run test-coverage");
+});
+
+void test("shared workflow platform and release conventions are fixed", () => {
+  const sharedFiles = yamlFiles(workflowsDir).filter((file) => file.startsWith("shared-"));
+  const shared = sharedFiles.map((file) => read(workflowsDir, file));
+  const examples = [read(examplesDir, "ci.yml"), read(examplesDir, "release.yml")];
+  const removedInputs = [
+    "node-version",
+    "base-branch",
+    "release-branch",
+    "release-title",
+    "registry-url",
+  ];
+
+  for (const input of removedInputs) {
+    for (const workflow of shared) {
+      assert.doesNotMatch(workflow, new RegExp(`^ {6}${input}:$`, "m"));
+      assert.ok(!workflow.includes(`inputs.${input}`));
+    }
+    for (const example of examples) assert.ok(!example.includes(`${input}:`));
+  }
+
+  const setupNodeReferences = shared.reduce(
+    (count, workflow) => count + [...workflow.matchAll(/^ {8}uses: actions\/setup-node@/gm)].length,
+    0,
+  );
+  const fixedNodeVersions = shared.reduce(
+    (count, workflow) => count + [...workflow.matchAll(/^ {10}node-version: "lts\/\*"$/gm)].length,
+    0,
+  );
+  assert.ok(setupNodeReferences > 0);
+  assert.strictEqual(fixedNodeVersions, setupNodeReferences);
+
+  const releasePr = workflowStep(
+    read(workflowsDir, "shared-release.yml"),
+    "Open release pull request",
+  );
+  assert.match(releasePr, /^ {10}RELEASE_BRANCH: release\/main$/m);
+  assert.match(releasePr, /^ {10}RELEASE_TITLE: "chore\(release\): version packages"$/m);
+  assert.match(releasePr, /^ {10}BASE_BRANCH: main$/m);
+
+  const ci = read(workflowsDir, "shared-ci.yml");
+  const ciExample = read(examplesDir, "ci.yml");
+  assert.doesNotMatch(ci, /^ {6}dependency-review:$/m);
+  assert.doesNotMatch(ci, /\binputs\.dependency-review(?!-)/);
+  assert.match(ci, /^ {4}if: github\.event_name == 'pull_request'$/m);
+  assert.match(ci, /dependency-review-severity:\n(?: {8}.*\n){2} {8}default: "high"/);
+  assert.match(
+    ci,
+    /dependency-review-scopes:\n(?: {8}.*\n){2} {8}default: "runtime, development, unknown"/,
+  );
+  assert.ok(!ciExample.includes("dependency-review: true"));
+});
+
+void test("every runner job has a bounded timeout", () => {
   for (const file of yamlFiles(workflowsDir)) {
     const lines = read(workflowsDir, file).split("\n");
 
@@ -146,7 +314,7 @@ test("every runner job has a bounded timeout", () => {
       const jobOffset = precedingLines.findIndex((candidate) =>
         /^ {2}[A-Za-z_][A-Za-z0-9_-]*:$/.test(candidate),
       );
-      expect(jobOffset, `${file}:${lineIndex + 1} must belong to a job`).toBeGreaterThanOrEqual(0);
+      assert.ok(jobOffset >= 0, `${file}:${lineIndex + 1} must belong to a job`);
 
       const jobStart = lineIndex - jobOffset - 1;
       const nextJobOffset = lines
@@ -157,141 +325,155 @@ test("every runner job has a bounded timeout", () => {
       const jobName = lines[jobStart]?.trim().replace(/:$/, "") ?? "unknown";
       const timeout = job.match(/^ {4}timeout-minutes: (\d+)$/m)?.[1];
 
-      expect(timeout, `${file}:${jobName} must set timeout-minutes`).toBeDefined();
-      expect(Number(timeout), `${file}:${jobName} timeout must be positive`).toBeGreaterThan(0);
-      expect(
-        Number(timeout),
+      assert.notStrictEqual(timeout, undefined, `${file}:${jobName} must set timeout-minutes`);
+      assert.ok(Number(timeout) > 0, `${file}:${jobName} timeout must be positive`);
+      assert.ok(
+        Number(timeout) <= MAX_JOB_TIMEOUT_MINUTES,
         `${file}:${jobName} timeout must not exceed ${MAX_JOB_TIMEOUT_MINUTES} minutes`,
-      ).toBeLessThanOrEqual(MAX_JOB_TIMEOUT_MINUTES);
+      );
     }
   }
 });
 
-test("shared workflows set the telemetry opt-out themselves", () => {
+void test("shared workflows set the telemetry opt-out themselves", () => {
   for (const file of ["shared-ci.yml", "shared-release.yml"]) {
-    expect(read(workflowsDir, file), `${file} must set DO_NOT_TRACK`).toMatch(
+    assert.match(
+      read(workflowsDir, file),
       /^ {2}DO_NOT_TRACK: 1$/m,
+      `${file} must set DO_NOT_TRACK`,
     );
   }
 });
 
-test("the release tooling is checked out from the pinned shared revision", () => {
+void test("the release tooling is checked out from the pinned shared revision", () => {
   const source = read(workflowsDir, "shared-release.yml");
   const caller = read(workflowsDir, "release.yml");
   const example = read(examplesDir, "release.yml");
 
   // `actions/checkout` pulls the *caller* repository, so the CLI this workflow
   // runs has to come from an explicitly configured second checkout.
-  expect(source).toMatch(/shared-tooling-repository:\n(?: {8}.*\n){2} {8}required: true/);
-  expect(source).toMatch(/shared-tooling-ref:\n(?: {8}.*\n){2} {8}required: true/);
-  expect(source).toMatch(/repository: \$\{\{ inputs\.shared-tooling-repository \}\}/);
-  expect(source).toMatch(/ref: \$\{\{ inputs\.shared-tooling-ref \}\}/);
-  expect(source).not.toContain("job.workflow_");
-  expect(caller).toMatch(/shared-tooling-repository: \$\{\{ github\.repository \}\}/);
-  expect(caller).toMatch(/shared-tooling-ref: \$\{\{ github\.sha \}\}/);
-  expect(example).toMatch(/shared-tooling-repository: zemd\/js/);
-  expect(example).toMatch(/shared-tooling-ref: __SHA__/);
-  expect(source).toMatch(/path: \.shared-ci/);
-  expect(source).toMatch(/echo "\/\.shared-ci\/" >> \.git\/info\/exclude/);
-  expect(source).toContain(`SHARED_CLI: .shared-ci/.github/scripts/${BUNDLE}`);
+  assert.match(source, /shared-tooling-repository:\n(?: {8}.*\n){2} {8}required: true/);
+  assert.match(source, /shared-tooling-ref:\n(?: {8}.*\n){2} {8}required: true/);
+  assert.match(source, /repository: \$\{\{ inputs\.shared-tooling-repository \}\}/);
+  assert.match(source, /ref: \$\{\{ inputs\.shared-tooling-ref \}\}/);
+  assert.ok(!source.includes("job.workflow_"));
+  assert.match(caller, /shared-tooling-repository: \$\{\{ github\.repository \}\}/);
+  assert.match(caller, /shared-tooling-ref: \$\{\{ github\.sha \}\}/);
+  assert.match(example, /shared-tooling-repository: zemd\/js/);
+  assert.match(example, /shared-tooling-ref: __SHA__/);
+  assert.match(source, /path: \.shared-ci/);
+  assert.match(source, /echo "\/\.shared-ci\/" >> \.git\/info\/exclude/);
+  assert.ok(source.includes(`SHARED_CLI: .shared-ci/.github/scripts/${BUNDLE}`));
 });
 
-test("keeps tokens out of staging and uses direct publishing for first releases", () => {
+void test("keeps tokens out of staging and uses direct publishing for first releases", () => {
   const source = read(workflowsDir, "shared-release.yml");
   const example = read(examplesDir, "release.yml");
   const publishingModeStep = workflowStep(source, "Select npm publishing mode");
   const stagedPublishingStep = workflowStep(source, "Stage packages on npm");
   const directPublishingStep = workflowStep(source, "Publish packages to npm directly");
 
-  expect(source).toMatch(/id-token: write # npm trusted publishing \(OIDC\)/);
-  expect(source).toMatch(/default: "https:\/\/registry\.npmjs\.org"/);
-  expect(source).toMatch(/registry-url: \$\{\{ inputs\.registry-url \}\}/);
-  expect(source).toMatch(/staged-publishing:\n(?: {8}.*\n){2} {8}default: true/);
-  expect(publishingModeStep).toMatch(/^ {8}id: publishing$/m);
-  expect(publishingModeStep).toContain("GITHUB_TOKEN: ${{ github.token }}");
-  expect(publishingModeStep).toContain('node "${SHARED_CLI}" npm-publishing-mode');
-  expect(publishingModeStep).toContain('"${RUNNER_TEMP}/first-releases.txt"');
-  expect(publishingModeStep).toContain('"${RUNNER_TEMP}/direct-packages.txt"');
-  expect(publishingModeStep).toContain('"${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"');
-  expect(stagedPublishingStep).toMatch(/^ {8}if: steps\.publishing\.outputs\.stage == 'true'$/m);
-  expect(stagedPublishingStep).toContain(
-    'pnpm stage publish -r "${filters[@]}" --access public --no-git-checks --report-summary',
+  assert.match(source, /id-token: write # npm trusted publishing \(OIDC\)/);
+  assert.doesNotMatch(source, /^ {6}registry-url:$/m);
+  assert.ok(!source.includes("inputs.registry-url"));
+  assert.match(source, /^ {10}registry-url: "https:\/\/registry\.npmjs\.org"$/m);
+  assert.ok(publishingModeStep.includes('REGISTRY_URL: "https://registry.npmjs.org"'));
+  assert.ok(!example.includes("registry-url"));
+  assert.match(source, /staged-publishing:\n(?: {8}.*\n){2} {8}default: true/);
+  assert.match(publishingModeStep, /^ {8}id: publishing$/m);
+  assert.ok(publishingModeStep.includes("GITHUB_TOKEN: ${{ github.token }}"));
+  assert.ok(publishingModeStep.includes('node "${SHARED_CLI}" npm-publishing-mode'));
+  assert.ok(publishingModeStep.includes('"${RUNNER_TEMP}/first-releases.txt"'));
+  assert.ok(publishingModeStep.includes('"${RUNNER_TEMP}/direct-packages.txt"'));
+  assert.ok(
+    publishingModeStep.includes('"${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"'),
   );
-  expect(stagedPublishingStep).toContain(
-    "STAGED_PACKAGES_FILE: ${{ runner.temp }}/staged-packages.txt",
+  assert.match(stagedPublishingStep, /^ {8}if: steps\.publishing\.outputs\.stage == 'true'$/m);
+  assert.ok(
+    stagedPublishingStep.includes(
+      'pnpm stage publish -r "${filters[@]}" --access public --no-git-checks --report-summary',
+    ),
   );
-  expect(stagedPublishingStep).toContain('filters+=("--filter=$package")');
-  expect(stagedPublishingStep).not.toContain("NPM_TOKEN");
-  expect(stagedPublishingStep).not.toContain("NODE_AUTH_TOKEN");
-  expect(directPublishingStep).toMatch(/^ {8}if: steps\.publishing\.outputs\.direct == 'true'$/m);
-  expect(directPublishingStep).toContain(
-    "FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}",
+  assert.ok(
+    stagedPublishingStep.includes("STAGED_PACKAGES_FILE: ${{ runner.temp }}/staged-packages.txt"),
   );
-  expect(directPublishingStep).toContain(
-    "DIRECT_PACKAGES_FILE: ${{ runner.temp }}/direct-packages.txt",
+  assert.ok(stagedPublishingStep.includes('filters+=("--filter=$package")'));
+  assert.ok(!stagedPublishingStep.includes("NPM_TOKEN"));
+  assert.ok(!stagedPublishingStep.includes("NODE_AUTH_TOKEN"));
+  assert.match(directPublishingStep, /^ {8}if: steps\.publishing\.outputs\.direct == 'true'$/m);
+  assert.ok(
+    directPublishingStep.includes("FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}"),
   );
-  expect(directPublishingStep).toContain('mapfile -t packages < "$DIRECT_PACKAGES_FILE"');
-  expect(directPublishingStep).toContain('filters+=("--filter=$package")');
-  expect(directPublishingStep).not.toContain("DIRECT_ALL");
-  expect(directPublishingStep).toContain("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}");
-  expect(directPublishingStep).toContain(
-    'pnpm publish -r "${filters[@]}" --access public --no-git-checks --report-summary',
+  assert.ok(
+    directPublishingStep.includes("DIRECT_PACKAGES_FILE: ${{ runner.temp }}/direct-packages.txt"),
   );
-  expect(source.match(/NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/g)).toHaveLength(1);
-  expect(source).toMatch(/NPM_TOKEN:\n(?: {8}.*\n) {8}required: false/);
-  expect(source).toContain('"${RUNNER_TEMP}/published-summary.json"');
-  expect(source).toContain('"${RUNNER_TEMP}/staged-summary.json"');
-  expect(example).toContain("# staged-publishing: true");
-  expect(example).toContain("NPM_TOKEN: ${{ secrets.NPM_TOKEN }}");
+  assert.ok(directPublishingStep.includes('mapfile -t packages < "$DIRECT_PACKAGES_FILE"'));
+  assert.ok(directPublishingStep.includes('filters+=("--filter=$package")'));
+  assert.ok(!directPublishingStep.includes("DIRECT_ALL"));
+  assert.ok(directPublishingStep.includes("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}"));
+  assert.ok(
+    directPublishingStep.includes(
+      'pnpm publish -r "${filters[@]}" --access public --no-git-checks --report-summary',
+    ),
+  );
+  assert.strictEqual(source.match(/NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/g)?.length, 1);
+  assert.match(source, /NPM_TOKEN:\n(?: {8}.*\n) {8}required: false/);
+  assert.ok(source.includes('"${RUNNER_TEMP}/published-summary.json"'));
+  assert.ok(source.includes('"${RUNNER_TEMP}/staged-summary.json"'));
+  assert.ok(example.includes("# staged-publishing: true"));
+  assert.ok(example.includes("NPM_TOKEN: ${{ secrets.NPM_TOKEN }}"));
 });
 
-test("can advance a private release-contract version before pnpm consumes its intents", () => {
+void test("can advance a private release-contract version before pnpm consumes its intents", () => {
   const source = read(workflowsDir, "shared-release.yml");
   const caller = read(workflowsDir, "release.yml");
   const example = read(examplesDir, "release.yml");
 
-  expect(source).toMatch(/contract-version-package:\n(?: {8}.*\n){2} {8}default: ""/);
-  expect(caller).toContain("contract-version-package: internal/gha/package.json");
-  expect(example).toContain('# contract-version-package: ""');
-  expect(source).toContain("CONTRACT_VERSION_PACKAGE: ${{ inputs.contract-version-package }}");
-  expect(source).toContain('node "${SHARED_CLI}" contract-version prepare');
-  expect(source).toContain("pnpm version -r --json --no-git-checks");
-  expect(source).toContain('node "${SHARED_CLI}" contract-version finalize');
+  assert.match(source, /contract-version-package:\n(?: {8}.*\n){2} {8}default: ""/);
+  assert.ok(caller.includes("contract-version-package: internal/gha/package.json"));
+  assert.ok(example.includes('# contract-version-package: ""'));
+  assert.ok(source.includes("CONTRACT_VERSION_PACKAGE: ${{ inputs.contract-version-package }}"));
+  assert.ok(source.includes('node "${SHARED_CLI}" contract-version prepare'));
+  assert.ok(source.includes("pnpm version -r --json --no-git-checks"));
+  assert.ok(source.includes('node "${SHARED_CLI}" contract-version finalize'));
 
   const toolingCheckout = source.indexOf("- name: Checkout shared tooling");
   const prepare = source.indexOf("contract-version prepare");
   const version = source.indexOf("pnpm version -r --json");
   const finalize = source.indexOf("contract-version finalize");
-  expect(toolingCheckout).toBeGreaterThan(-1);
-  expect(toolingCheckout).toBeLessThan(prepare);
-  expect(prepare).toBeLessThan(version);
-  expect(version).toBeLessThan(finalize);
+  assert.ok(toolingCheckout > -1);
+  assert.ok(toolingCheckout < prepare);
+  assert.ok(prepare < version);
+  assert.ok(version < finalize);
 });
 
-test("zizmor is pinned and fails the workflow on every finding", () => {
+void test("zizmor is pinned and fails the workflow on every finding", () => {
   const source = read(workflowsDir, "shared-zizmor.yml");
   const caller = read(workflowsDir, "zizmor.yml");
   const manifest = JSON.parse(readFileSync(`${root}package.json`, "utf8")) as {
     scripts: Record<string, string>;
   };
 
-  expect(source).toContain(
-    "uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2",
+  assert.ok(
+    source.includes(
+      "uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2",
+    ),
   );
-  expect(source).toMatch(/^ {10}version: "1\.29\.0"$/m);
-  expect(source).toMatch(/^ {10}collect: default$/m);
-  expect(source).toMatch(/^ {10}online-audits: true$/m);
-  expect(source).toMatch(/^ {10}advanced-security: false$/m);
-  expect(source).toMatch(/^ {10}annotations: true$/m);
-  expect(source).toMatch(/^ {10}fail-on-no-inputs: true$/m);
-  expect(source).not.toContain("security-events:");
-  expect(caller).toMatch(/^ {6}persona: pedantic$/m);
-  expect(manifest.scripts["lint-actions"]).toBe(
+  assert.match(source, /^ {10}version: "1\.29\.0"$/m);
+  assert.match(source, /^ {10}collect: default$/m);
+  assert.match(source, /^ {10}online-audits: true$/m);
+  assert.match(source, /^ {10}advanced-security: false$/m);
+  assert.match(source, /^ {10}annotations: true$/m);
+  assert.match(source, /^ {10}fail-on-no-inputs: true$/m);
+  assert.ok(!source.includes("security-events:"));
+  assert.match(caller, /^ {6}persona: pedantic$/m);
+  assert.strictEqual(
+    manifest.scripts["lint-actions"],
     "zizmor --strict-collection --collect=default --persona=pedantic .",
   );
 });
 
-test("Dependabot npm cooldowns match pnpm's release-age policy", () => {
+void test("Dependabot npm cooldowns match pnpm's release-age policy", () => {
   const workspace = readFileSync(`${root}pnpm-workspace.yaml`, "utf8");
   const configuredMinimumReleaseAge = workspace.match(/^minimumReleaseAge: (\d+)$/m)?.[1];
   if (configuredMinimumReleaseAge === undefined) {
@@ -299,14 +481,14 @@ test("Dependabot npm cooldowns match pnpm's release-age policy", () => {
   }
 
   const minimumReleaseAgeMinutes = Number(configuredMinimumReleaseAge);
-  expect(minimumReleaseAgeMinutes % 1440).toBe(0);
-  expect(workspace).toMatch(/^minimumReleaseAgeStrict: true$/m);
+  assert.strictEqual(minimumReleaseAgeMinutes % 1440, 0);
+  assert.match(workspace, /^minimumReleaseAgeStrict: true$/m);
 
   const cooldownDays = minimumReleaseAgeMinutes / 1440;
   const exclusions = yamlStringList(workspace, "minimumReleaseAgeExclude", 0).filter((selector) =>
     selector.startsWith("@") ? selector.indexOf("@", 1) < 0 : !selector.includes("@"),
   );
-  expect(exclusions.length).toBeGreaterThan(0);
+  assert.ok(exclusions.length > 0);
 
   for (const [directory, file] of [
     [`${root}.github/`, "dependabot.yml"],
@@ -314,45 +496,51 @@ test("Dependabot npm cooldowns match pnpm's release-age policy", () => {
   ] as const) {
     const npm = dependabotUpdater(read(directory, file), "npm");
 
-    expect(npm, `${file} must match pnpm's minimumReleaseAge`).toMatch(
+    assert.match(
+      npm,
       new RegExp(`^ {6}default-days: ${cooldownDays}(?: |$)`, "m"),
+      `${file} must match pnpm's minimumReleaseAge`,
     );
-    expect(yamlStringList(npm, "exclude", 6)).toStrictEqual(exclusions);
+    assert.deepStrictEqual(yamlStringList(npm, "exclude", 6), exclusions);
   }
 });
 
-test("Dependabot keeps GitHub Actions behind a seven-day cooldown", () => {
+void test("Dependabot keeps GitHub Actions behind a seven-day cooldown", () => {
   for (const [directory, file] of [
     [`${root}.github/`, "dependabot.yml"],
     [examplesDir, "dependabot.yml"],
   ] as const) {
     const githubActions = dependabotUpdater(read(directory, file), "github-actions");
-    expect(githubActions).toMatch(/^ {6}default-days: 7$/m);
+    assert.match(githubActions, /^ {6}default-days: 7$/m);
   }
 });
 
-test("examples pin the shared workflows through a replaceable placeholder", () => {
+void test("examples pin the shared workflows through a replaceable placeholder", () => {
   const examples = yamlFiles(examplesDir);
-  expect(examples.length).toBeGreaterThan(0);
+  assert.ok(examples.length > 0);
 
   for (const file of examples) {
     for (const { reference, comment } of usesReferences(read(examplesDir, file))) {
-      expect(reference, `${file}: "${reference}" must reference a shared workflow`).toMatch(
+      assert.match(
+        reference,
         /^zemd\/js\/\.github\/workflows\/shared-[a-z]+\.yml@__SHA__$/,
+        `${file}: "${reference}" must reference a shared workflow`,
       );
-      expect(comment, `${file}: "${reference}" must carry a "# <version>" comment`).toBeDefined();
+      assert.notStrictEqual(
+        comment,
+        undefined,
+        `${file}: "${reference}" must carry a "# <version>" comment`,
+      );
     }
   }
 });
 
-test("the committed tooling is a single generated bundle", () => {
-  expect(readdirSync(scriptsDir)).toEqual([BUNDLE]);
-  expect(read(scriptsDir, BUNDLE)).toMatch(
-    /^\/\/ Generated by `pnpm --filter @zemd\/gha run build`/,
-  );
+void test("the committed tooling is a single generated bundle", () => {
+  assert.deepStrictEqual(readdirSync(scriptsDir), [BUNDLE]);
+  assert.match(read(scriptsDir, BUNDLE), /^\/\/ Generated by `pnpm --filter @zemd\/gha run build`/);
 });
 
-test("every command the workflows invoke is registered in the CLI", () => {
+void test("every command the workflows invoke is registered in the CLI", () => {
   const invoked = new Set<string>();
 
   for (const file of yamlFiles(workflowsDir)) {
@@ -361,29 +549,31 @@ test("every command the workflows invoke is registered in the CLI", () => {
     }
   }
 
-  expect(invoked.size).toBeGreaterThan(0);
+  assert.ok(invoked.size > 0);
 
   for (const command of invoked) {
-    expect(
-      Object.keys(commands),
+    assert.ok(
+      Object.keys(commands).includes(command),
       `a workflow invokes "${command}", which the CLI does not register`,
-    ).toContain(command);
+    );
   }
 });
 
-test("the release workflow reads the contract version from the package manifest", () => {
-  expect(read(workflowsDir, "release.yml")).toContain(
-    "gha.mjs shared-workflows-release internal/gha/package.json .github/workflows",
+void test("the release workflow reads the contract version from the package manifest", () => {
+  assert.ok(
+    read(workflowsDir, "release.yml").includes(
+      "gha.mjs shared-workflows-release internal/gha/package.json .github/workflows",
+    ),
   );
 });
 
-test("the contract version is plain semver", () => {
+void test("the contract version is plain semver", () => {
   const manifest = JSON.parse(readFileSync(`${root}internal/gha/package.json`, "utf8")) as {
     version: string;
     private: boolean;
   };
 
-  expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
+  assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
   // A published package would drag the workflow contract into the npm release.
-  expect(manifest.private).toBe(true);
+  assert.strictEqual(manifest.private, true);
 });

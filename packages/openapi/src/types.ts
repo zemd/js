@@ -1,4 +1,4 @@
-import type { LicenseIdentifier } from "./licenses";
+import type { LicenseIdentifier } from "./licenses.ts";
 
 export type Prettify<T> = {
   [K in keyof T]: T[K];

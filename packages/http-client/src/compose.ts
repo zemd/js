@@ -1,4 +1,4 @@
-import type { TFetchFn, TFetchFnParams, TFetchTransformer } from "./type";
+import type { TFetchFn, TFetchFnParams, TFetchTransformer } from "./type.ts";
 
 /**
   * Composes a list of transformers into a single fetch function.

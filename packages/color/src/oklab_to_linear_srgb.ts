@@ -1,4 +1,4 @@
-import type { LinearRGB, Oklab } from "./schema";
+import type { LinearRGB, Oklab } from "./schema/index.ts";
 
 export const oklab_to_linear_srgb = (color: Oklab): LinearRGB => {
   const l_: number = color.L + 0.396_337_777_4 * color.a + 0.215_803_757_3 * color.b;

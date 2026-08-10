@@ -1,6 +1,6 @@
-import { linear_srgb_to_srgb } from "./linear_srgb_to_srgb";
-import { oklab_to_linear_srgb } from "./oklab_to_linear_srgb";
-import type { Lch, RGB } from "./schema";
+import { linear_srgb_to_srgb } from "./linear_srgb_to_srgb.ts";
+import { oklab_to_linear_srgb } from "./oklab_to_linear_srgb.ts";
+import type { Lch, RGB } from "./schema/index.ts";
 
 export const oklch_to_srgb = (color: Lch): RGB => {
   const h_rad = color.h * (Math.PI / 180);

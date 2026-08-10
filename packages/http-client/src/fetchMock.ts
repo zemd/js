@@ -1,4 +1,4 @@
-import type { TFetchFnParams } from "./type";
+import type { TFetchFnParams } from "./type.ts";
 
 export type TMockPathname = string | RegExp;
 export type TMockMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS" | "HEAD";

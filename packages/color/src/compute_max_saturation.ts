@@ -1,4 +1,4 @@
-import type { HueDirection } from "./schema";
+import type { HueDirection } from "./schema/index.ts";
 
 // Finds the maximum saturation possible for a given hue that fits in sRGB
 // Saturation here is defined as S = C/L

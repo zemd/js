@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 
-import { parseAppliedReleases, parseWorkspacePackages } from "../pnpm";
-import { renderReleasePrBody } from "../release-pr-body";
-import type { Command } from "./command";
+import { parseAppliedReleases, parseWorkspacePackages } from "../pnpm.ts";
+import { renderReleasePrBody } from "../release-pr-body.ts";
+import type { Command } from "./command.ts";
 
 // Renders the body of the automated release pull request from the releases
 // applied by `pnpm version -r --json` and the current workspace package list.

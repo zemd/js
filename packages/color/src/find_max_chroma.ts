@@ -1,5 +1,5 @@
-import type { MaxChroma } from "./schema";
-import { find_gamut_intersection } from "./find_gamut_intersection";
+import type { MaxChroma } from "./schema/index.ts";
+import { find_gamut_intersection } from "./find_gamut_intersection.ts";
 import { clamp } from "@zemd/std-modules/math";
 
 const eps = 0.0001;

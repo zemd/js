@@ -1,10 +1,10 @@
-import type { Command } from "./command";
-import { contractVersion } from "./contract-version";
-import { githubReleases } from "./github-releases";
-import { npmPublishingMode } from "./npm-publishing-mode";
-import { releasePrBody } from "./release-pr-body";
-import { sharedWorkflowsRelease } from "./shared-workflows-release";
-import { signedCommit } from "./signed-commit";
+import type { Command } from "./command.ts";
+import { contractVersion } from "./contract-version.ts";
+import { githubReleases } from "./github-releases.ts";
+import { npmPublishingMode } from "./npm-publishing-mode.ts";
+import { releasePrBody } from "./release-pr-body.ts";
+import { sharedWorkflowsRelease } from "./shared-workflows-release.ts";
+import { signedCommit } from "./signed-commit.ts";
 
 export const commands: Readonly<Record<string, Command>> = {
   "contract-version": contractVersion,

@@ -1,18 +1,19 @@
-import { describe, expect, test } from "vitest";
-import { merge } from "./merge";
+import assert from "node:assert/strict";
+import { describe, test } from "node:test";
+import { merge } from "./merge.ts";
 
-describe("Compatibility suite with deepmerge", () => {
-  test("add keys in target that do not exist at the root", () => {
+void describe("Compatibility suite with deepmerge", () => {
+  void test("add keys in target that do not exist at the root", () => {
     const src = { key1: "value1", key2: "value2" };
     const target = {};
     const res = merge(target, src);
 
-    expect(res).toStrictEqual(src);
-    expect(src).toStrictEqual({ key1: "value1", key2: "value2" });
-    expect(target).toStrictEqual({});
+    assert.deepStrictEqual(res, src);
+    assert.deepStrictEqual(src, { key1: "value1", key2: "value2" });
+    assert.deepStrictEqual(target, {});
   });
 
-  test("merge existing simple keys in target at the roots", () => {
+  void test("merge existing simple keys in target at the roots", () => {
     const src = { key1: "changed", key2: "value2" };
     const target = { key1: "value1", key3: "value3" };
     const expected = {
@@ -21,11 +22,11 @@ describe("Compatibility suite with deepmerge", () => {
       key3: "value3",
     };
 
-    expect(target).toStrictEqual({ key1: "value1", key3: "value3" });
-    expect(merge(target, src)).toStrictEqual(expected);
+    assert.deepStrictEqual(target, { key1: "value1", key3: "value3" });
+    assert.deepStrictEqual(merge(target, src), expected);
   });
 
-  test("merge nested objects into target", () => {
+  void test("merge nested objects into target", () => {
     const src = {
       key1: {
         subkey1: "changed",
@@ -46,17 +47,17 @@ describe("Compatibility suite with deepmerge", () => {
       },
     };
 
-    expect(target).toStrictEqual({
+    assert.deepStrictEqual(target, {
       key1: {
         subkey1: "value1",
         subkey2: "value2",
       },
     });
 
-    expect(merge(target, src)).toStrictEqual(expected);
+    assert.deepStrictEqual(merge(target, src), expected);
   });
 
-  test("replace simple key with nested object in target", () => {
+  void test("replace simple key with nested object in target", () => {
     const src = {
       key1: {
         subkey1: "subvalue1",
@@ -75,11 +76,11 @@ describe("Compatibility suite with deepmerge", () => {
       key2: "value2",
     };
 
-    expect(target).toStrictEqual({ key1: "value1", key2: "value2" });
-    expect(merge(target, src)).toStrictEqual(expected);
+    assert.deepStrictEqual(target, { key1: "value1", key2: "value2" });
+    assert.deepStrictEqual(merge(target, src), expected);
   });
 
-  test("should add nested object in target", () => {
+  void test("should add nested object in target", () => {
     const src = {
       b: {
         c: {},
@@ -95,10 +96,10 @@ describe("Compatibility suite with deepmerge", () => {
       },
     };
 
-    expect(merge(target, src)).toStrictEqual(expected);
+    assert.deepStrictEqual(merge(target, src), expected);
   });
 
-  test("should replace object with simple key in target", () => {
+  void test("should replace object with simple key in target", () => {
     const src = { key1: "value1" };
     const target = {
       key1: {
@@ -109,41 +110,41 @@ describe("Compatibility suite with deepmerge", () => {
     };
     const expected = { key1: "value1", key2: "value2" };
 
-    expect(target).toStrictEqual({
+    assert.deepStrictEqual(target, {
       key1: {
         subkey1: "subvalue1",
         subkey2: "subvalue2",
       },
       key2: "value2",
     });
-    expect(merge(target, src)).toStrictEqual(expected);
+    assert.deepStrictEqual(merge(target, src), expected);
   });
 
-  test("should replace objects with arrays", () => {
+  void test("should replace objects with arrays", () => {
     const target = { key1: { subkey: "one" } };
     const src = { key1: ["subkey"] };
     const expected = { key1: ["subkey"] };
 
-    expect(merge(target, src)).toStrictEqual(expected);
+    assert.deepStrictEqual(merge(target, src), expected);
   });
 
-  test("should replace arrays with objects", () => {
+  void test("should replace arrays with objects", () => {
     const target = { key1: ["subkey"] };
     const src = { key1: { subkey: "one" } };
     const expected = { key1: { subkey: "one" } };
 
-    expect(merge(target, src)).toStrictEqual(expected);
+    assert.deepStrictEqual(merge(target, src), expected);
   });
 
-  test("should replace dates with arrays", () => {
+  void test("should replace dates with arrays", () => {
     const target = { key1: new Date() };
     const src = { key1: ["subkey"] };
     const expected = { key1: ["subkey"] };
 
-    expect(merge(target, src)).toStrictEqual(expected);
+    assert.deepStrictEqual(merge(target, src), expected);
   });
 
-  test("should replace null with arrays", () => {
+  void test("should replace null with arrays", () => {
     const target = {
       key1: null,
     };
@@ -154,19 +155,19 @@ describe("Compatibility suite with deepmerge", () => {
       key1: ["subkey"],
     };
 
-    expect(merge(target, src)).toStrictEqual(expected);
+    assert.deepStrictEqual(merge(target, src), expected);
   });
 
-  test("should treat regular expressions like primitive values", () => {
+  void test("should treat regular expressions like primitive values", () => {
     const target: Record<string, RegExp> = { key1: /abc/ };
     const src: Record<string, RegExp> = { key1: /efg/ };
     const expected: Record<string, RegExp> = { key1: /efg/ };
 
-    expect(merge(target, src)).toStrictEqual(expected);
-    expect(merge<Record<"key1", RegExp>>(target, src).key1.test("efg")).toBeTruthy();
+    assert.deepStrictEqual(merge(target, src), expected);
+    assert.ok(merge<Record<"key1", RegExp>>(target, src).key1.test("efg"));
   });
 
-  test("should treat dates like primitives", () => {
+  void test("should treat dates like primitives", () => {
     const monday = new Date("2016-09-27T01:08:12.761Z");
     const tuesday = new Date("2016-09-28T01:18:12.761Z");
     const target = {
@@ -180,11 +181,11 @@ describe("Compatibility suite with deepmerge", () => {
     };
     const actual = merge<Record<"key", Date>>(target, source);
 
-    expect(actual).toStrictEqual(expected);
-    expect(actual.key.valueOf()).toEqual(tuesday.valueOf());
+    assert.deepStrictEqual(actual, expected);
+    assert.deepStrictEqual(actual.key.valueOf(), tuesday.valueOf());
   });
 
-  test("should overwrite values when property is initialised but undefined", () => {
+  void test("should overwrite values when property is initialised but undefined", () => {
     const target1 = { value: [] };
     const target2 = { value: null };
     const target3 = { value: 2 };
@@ -192,8 +193,8 @@ describe("Compatibility suite with deepmerge", () => {
     const src = { value: undefined };
 
     function hasUndefinedProperty(o: { value: unknown }): void {
-      expect(Object.hasOwn(o, "value")).toBeTruthy();
-      expect(typeof o.value).toBe("undefined");
+      assert.ok(Object.hasOwn(o, "value"));
+      assert.strictEqual(typeof o.value, "undefined");
     }
 
     hasUndefinedProperty(merge(target1, src));
@@ -201,9 +202,8 @@ describe("Compatibility suite with deepmerge", () => {
     hasUndefinedProperty(merge(target3, src));
   });
 
-  test.each(["__proto__", "constructor", "prototype"])(
-    "should omit an own %s key at every merged object depth",
-    (unsafeKey) => {
+  void test("should omit unsafe own keys at every merged object depth", () => {
+    for (const unsafeKey of ["__proto__", "constructor", "prototype"] as const) {
       const hostile = Object.defineProperty({}, unsafeKey, {
         value: { polluted: true },
         enumerable: true,
@@ -222,33 +222,45 @@ describe("Compatibility suite with deepmerge", () => {
       const nested = actual["nested"] as Record<string, unknown>;
       const deeper = nested["deeper"] as Record<string, unknown>;
 
-      expect(Object.getPrototypeOf(actual)).toBe(Object.prototype);
-      expect(Object.getPrototypeOf(nested)).toBe(Object.prototype);
-      expect(Object.getPrototypeOf(deeper)).toBe(Object.prototype);
-      expect(Object.hasOwn(actual, unsafeKey)).toBe(false);
-      expect(Object.hasOwn(nested, unsafeKey)).toBe(false);
-      expect(Object.hasOwn(deeper, unsafeKey)).toBe(false);
-      expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
-    },
-  );
+      assert.strictEqual(Object.getPrototypeOf(actual), Object.prototype);
+      assert.strictEqual(Object.getPrototypeOf(nested), Object.prototype);
+      assert.strictEqual(Object.getPrototypeOf(deeper), Object.prototype);
+      assert.strictEqual(
+        Object.hasOwn(actual, unsafeKey),
+        false,
+        `root object must omit ${unsafeKey}`,
+      );
+      assert.strictEqual(
+        Object.hasOwn(nested, unsafeKey),
+        false,
+        `nested object must omit ${unsafeKey}`,
+      );
+      assert.strictEqual(
+        Object.hasOwn(deeper, unsafeKey),
+        false,
+        `deep object must omit ${unsafeKey}`,
+      );
+      assert.strictEqual(({} as Record<string, unknown>)["polluted"], undefined);
+    }
+  });
 
-  test("should reject a constructor.prototype pollution path", () => {
+  void test("should reject a constructor.prototype pollution path", () => {
     const hostile = JSON.parse('{"constructor": {"prototype": {"polluted": true}}}') as Record<
       string,
       unknown
     >;
     const actual = merge<Record<string, unknown>>({ safe: 1 }, hostile);
 
-    expect(actual).toEqual({ safe: 1 });
-    expect(Object.hasOwn(actual, "constructor")).toBe(false);
-    expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
+    assert.deepStrictEqual(actual, { safe: 1 });
+    assert.strictEqual(Object.hasOwn(actual, "constructor"), false);
+    assert.strictEqual(({} as Record<string, unknown>)["polluted"], undefined);
   });
 
-  test("should ignore properties inherited from the prototype chain", () => {
+  void test("should ignore properties inherited from the prototype chain", () => {
     const base = { inherited: 1 };
     const input = Object.create(base) as Record<string, unknown>;
     input["own"] = 2;
 
-    expect(merge(input)).toEqual({ own: 2 });
+    assert.deepStrictEqual(merge(input), { own: 2 });
   });
 });

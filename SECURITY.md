@@ -12,6 +12,7 @@ Security fixes are provided **only for the latest released version** of each pac
 | `@zemd/std-modules`     | Latest published release |
 | `@zemd/http-client`     | Latest published release |
 | `@zemd/openapi`         | Latest published release |
+| `@zemd/testing`         | Latest published release |
 | `@zemd/tsconfig`        | Latest published release |
 | `logtown`               | Latest published release |
 | `@logtown/hono`         | Latest published release |

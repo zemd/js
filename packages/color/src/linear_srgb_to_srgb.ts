@@ -1,5 +1,5 @@
-import type { LinearRGB, RGB } from "./schema";
-import { encodeLinearSrgbChannelTo8Bit } from "./utils";
+import type { LinearRGB, RGB } from "./schema/index.ts";
+import { encodeLinearSrgbChannelTo8Bit } from "./utils.ts";
 
 export const linear_srgb_to_srgb = (color: LinearRGB): RGB => {
   return {

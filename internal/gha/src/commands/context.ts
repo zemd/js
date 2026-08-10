@@ -1,5 +1,5 @@
-import { optionalEnv, requireEnv } from "../env";
-import { createGitHubApi, type GitHubApi } from "../github";
+import { optionalEnv, requireEnv } from "../env.ts";
+import { createGitHubApi, type GitHubApi } from "../github.ts";
 
 export const apiFromEnv = (): GitHubApi =>
   createGitHubApi({

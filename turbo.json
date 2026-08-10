@@ -10,12 +10,18 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "scripts/**", "tsconfig.json", "tsdown.config.js", "package.json"],
+      "inputs": ["src/**", "scripts/**", "tsconfig.json", "tsdown.config.ts", "package.json"],
       "outputs": ["dist/**"]
     },
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "tsconfig.json", "vitest.config.ts", "package.json"]
+      "inputs": ["src/**", "tsconfig.json", "package.json"]
+    },
+    "test-coverage": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "inputs": ["src/**", "tsconfig.json", "package.json"],
+      "outputs": ["coverage.lcov"]
     },
     "test-browser": {
       "dependsOn": ["^build"],

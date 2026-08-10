@@ -1,7 +1,7 @@
-import { changelogEntry } from "./changelog";
-import type { GitHubApi } from "./github";
-import type { PublishedPackage, WorkspacePackage } from "./pnpm";
-import { packageReleaseTag } from "./release-tags";
+import { changelogEntry } from "./changelog.ts";
+import type { GitHubApi } from "./github.ts";
+import type { PublishedPackage, WorkspacePackage } from "./pnpm.ts";
+import { packageReleaseTag } from "./release-tags.ts";
 
 const RELEASE_TAG_PREFIX = "release-";
 

@@ -1,4 +1,4 @@
-import type { LoggerPayload, LoggerWrapper, LogLevel } from "../index.js";
+import type { LoggerPayload, LoggerWrapper, LogLevel } from "../index.ts";
 
 /**
  * Consider using @google-cloud/logging for a more advanced GCP logging solution

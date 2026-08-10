@@ -1,5 +1,5 @@
 /* eslint-disable sonarjs/cognitive-complexity */
-import { isHTMLElement, isText } from "./check";
+import { isHTMLElement, isText } from "./check.ts";
 
 const hasNodes = (node: Node): boolean => {
   if (isText(node)) {

@@ -21,6 +21,7 @@
     "sourceMap": true,
     "noErrorTruncation": true,
     "verbatimModuleSyntax": true,
+    "rewriteRelativeImportExtensions": true,
     "moduleDetection": "force",
     "erasableSyntaxOnly": true,
     "isolatedDeclarations": true

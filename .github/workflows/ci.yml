@@ -18,7 +18,6 @@ jobs:
     permissions:
       contents: read
     with:
-      browser-test-script: test-browser
       playwright-filter: "@zemd/std-modules"
 
   shared-version:

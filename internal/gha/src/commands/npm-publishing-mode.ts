@@ -1,10 +1,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
-import { packageExistsOnRegistry, planNpmPublishing } from "../npm-publishing";
-import { parseWorkspacePackages } from "../pnpm";
-import { packageReleaseTag } from "../release-tags";
-import type { Command } from "./command";
-import { apiFromEnv } from "./context";
+import { packageExistsOnRegistry, planNpmPublishing } from "../npm-publishing.ts";
+import { parseWorkspacePackages } from "../pnpm.ts";
+import { packageReleaseTag } from "../release-tags.ts";
+import type { Command } from "./command.ts";
+import { apiFromEnv } from "./context.ts";
 
 const parseBoolean = (value: string): boolean => {
   if (value === "true") return true;

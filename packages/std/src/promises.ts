@@ -1,1 +1,1 @@
-export { sleep } from "./promises/sleep";
+export { sleep } from "./promises/sleep.ts";

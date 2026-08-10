@@ -1,0 +1,60 @@
+{
+  "name": "@zemd/testing",
+  "version": "1.0.0",
+  "description": "Focused, dependency-free helpers for the native Node.js test runner",
+  "keywords": [
+    "assertions",
+    "node test",
+    "testing",
+    "typescript",
+    "unit testing"
+  ],
+  "homepage": "https://github.com/zemd/js/tree/main/packages/testing",
+  "bugs": {
+    "url": "https://github.com/zemd/js/issues"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Dmytro Zelenetskyi",
+    "email": "oss@zemd.dev",
+    "url": "https://zemd.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zemd/js.git",
+    "directory": "packages/testing"
+  },
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "test": "node --test",
+    "test-coverage": "node --test --experimental-test-coverage \"--test-coverage-include=src/**/*.ts\" \"--test-coverage-exclude=src/**/*.test.ts\" --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage.lcov",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@zemd/tsconfig": "workspace:*",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

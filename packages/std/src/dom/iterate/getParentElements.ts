@@ -1,4 +1,4 @@
-import { isBlockElement } from "../check";
+import { isBlockElement } from "../check.ts";
 
 export const getParentElements = (node: Node): Element[] => {
   const result: Element[] = [];

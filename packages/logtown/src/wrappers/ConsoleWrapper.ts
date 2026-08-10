@@ -1,4 +1,4 @@
-import type { LoggerWrapper } from "../index.js";
+import type { LoggerWrapper } from "../index.ts";
 
 export const ConsoleWrapper: LoggerWrapper = {
   debug: (payload) => {

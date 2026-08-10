@@ -1,10 +1,11 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, test } from "vitest";
+import assert from "node:assert/strict";
+import { afterEach, test } from "node:test";
 
-import type { WorkspacePackage } from "./pnpm";
-import { renderReleasePrBody } from "./release-pr-body";
+import type { WorkspacePackage } from "./pnpm.ts";
+import { renderReleasePrBody } from "./release-pr-body.ts";
 
 const directories: string[] = [];
 
@@ -28,7 +29,7 @@ const workspaceEntry = (
   isPrivate = false,
 ): WorkspacePackage => ({ name, version, path, private: isPrivate });
 
-test("renders a same-version unpublished package as a first release", () => {
+void test("renders a same-version unpublished package as a first release", () => {
   const path = packageFixture(`# @zemd/new-package
 
 ## 0.0.0
@@ -43,13 +44,13 @@ test("renders a same-version unpublished package as a first release", () => {
     [workspaceEntry("@zemd/new-package", "0.0.0", path)],
   );
 
-  expect(body).toMatch(/prepared \*\*1\*\* package for release/);
-  expect(body).toContain("| `@zemd/new-package` | first release | — | `0.0.0` |");
-  expect(body).toContain("**Major Changes**");
-  expect(body).toContain("Publish the initial package.");
+  assert.match(body, /prepared \*\*1\*\* package for release/);
+  assert.ok(body.includes("| `@zemd/new-package` | first release | — | `0.0.0` |"));
+  assert.ok(body.includes("**Major Changes**"));
+  assert.ok(body.includes("Publish the initial package."));
 });
 
-test("renders an ordinary version bump from a dated Keep a Changelog entry", () => {
+void test("renders an ordinary version bump from a dated Keep a Changelog entry", () => {
   const path = packageFixture(`# example
 
 ## [2.0.0] - 2026-01-01
@@ -68,13 +69,13 @@ test("renders an ordinary version bump from a dated Keep a Changelog entry", () 
     [workspaceEntry("example", "2.0.0", path)],
   );
 
-  expect(body).toContain("| `example` | **major** | `1.2.3` | `2.0.0` |");
-  expect(body).toContain("1.2.3 &rarr; <b>2.0.0</b>");
-  expect(body).toContain("Break the old API.");
-  expect(body).not.toContain("Previous release.");
+  assert.ok(body.includes("| `example` | **major** | `1.2.3` | `2.0.0` |"));
+  assert.ok(body.includes("1.2.3 &rarr; <b>2.0.0</b>"));
+  assert.ok(body.includes("Break the old API."));
+  assert.ok(!body.includes("Previous release."));
 });
 
-test("lists private packages separately from the published ones", () => {
+void test("lists private packages separately from the published ones", () => {
   const publicPath = packageFixture("# example\n\n## 1.1.0\n\n- Public change.\n");
   const internalPath = packageFixture("# @zemd/gha\n\n## 1.1.0\n\n- Workflow change.\n");
 
@@ -89,15 +90,15 @@ test("lists private packages separately from the published ones", () => {
     ],
   );
 
-  expect(body).toMatch(/prepared \*\*1\*\* package for release/);
-  expect(body).toContain("### Internal packages");
-  expect(body).toContain("Not published to npm.");
-  expect(body).toContain("| `@zemd/gha` | **minor** | `1.0.0` | `1.1.0` |");
-  expect(body).toContain("Workflow change.");
-  expect(body.indexOf("### Changelogs")).toBeLessThan(body.indexOf("### Internal packages"));
+  assert.match(body, /prepared \*\*1\*\* package for release/);
+  assert.ok(body.includes("### Internal packages"));
+  assert.ok(body.includes("Not published to npm."));
+  assert.ok(body.includes("| `@zemd/gha` | **minor** | `1.0.0` | `1.1.0` |"));
+  assert.ok(body.includes("Workflow change."));
+  assert.ok(body.indexOf("### Changelogs") < body.indexOf("### Internal packages"));
 });
 
-test("reports when only private packages were prepared", () => {
+void test("reports when only private packages were prepared", () => {
   const path = packageFixture("# @zemd/gha\n\n## 1.1.0\n\n- Workflow change.\n");
 
   const body = renderReleasePrBody(
@@ -105,12 +106,14 @@ test("reports when only private packages were prepared", () => {
     [workspaceEntry("@zemd/gha", "1.1.0", path, true)],
   );
 
-  expect(body).toContain("No publishable packages were prepared for release.");
-  expect(body).toContain("### Internal packages");
+  assert.ok(body.includes("No publishable packages were prepared for release."));
+  assert.ok(body.includes("### Internal packages"));
 });
 
-test("refuses to render a release for a package outside the workspace snapshot", () => {
-  expect(() =>
-    renderReleasePrBody([{ name: "ghost", currentVersion: "1.0.0", newVersion: "1.0.1" }], []),
-  ).toThrow(/ghost is missing from the workspace snapshot/);
+void test("refuses to render a release for a package outside the workspace snapshot", () => {
+  assert.throws(
+    () =>
+      renderReleasePrBody([{ name: "ghost", currentVersion: "1.0.0", newVersion: "1.0.1" }], []),
+    /ghost is missing from the workspace snapshot/,
+  );
 });

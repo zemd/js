@@ -1,5 +1,7 @@
 import fc from "fast-check";
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
 import {
   angleDeltaDegrees,
   clamp,
@@ -12,7 +14,7 @@ import {
   radiansToDegrees,
   sign,
   wrap,
-} from "./math";
+} from "./math.ts";
 
 /**
  * Outside of this domain `nextPowerOfTwo` throws instead of returning a result.
@@ -81,38 +83,38 @@ const isPowerOfTwo = (value: number): boolean => {
   return value > 0 && (value & (value - 1)) === 0;
 };
 
-describe("sign", () => {
-  it("should only ever answer -1, 0 or 1", () => {
+void describe("sign", () => {
+  void it("should only ever answer -1, 0 or 1", () => {
     fc.assert(
       fc.property(anyNumber, (x) => {
-        expect([-1, 0, 1]).toContain(sign(x));
+        assert.ok([-1, 0, 1].includes(sign(x)));
       }),
       { numRuns: 2000 },
     );
   });
 
-  it("should agree with the comparison it stands for", () => {
+  void it("should agree with the comparison it stands for", () => {
     fc.assert(
       fc.property(anyNumber, (x) => {
         const expected = x < 0 ? -1 : x > 0 ? 1 : 0;
-        expect(sign(x)).toBe(expected);
+        assert.strictEqual(sign(x), expected);
       }),
       { numRuns: 2000 },
     );
   });
 
-  it("should be odd around zero", () => {
+  void it("should be odd around zero", () => {
     fc.assert(
       fc.property(anyNumber, (x) => {
-        expect(sign(-x)).toBe(-sign(x) || 0);
+        assert.strictEqual(sign(-x), -sign(x) || 0);
       }),
       { numRuns: 2000 },
     );
   });
 });
 
-describe("clamp", () => {
-  it("should never let the result escape a well ordered range", () => {
+void describe("clamp", () => {
+  void it("should never let the result escape a well ordered range", () => {
     fc.assert(
       fc.property(anyNumber, anyNumber, anyNumber, (x, a, b) => {
         fc.pre(Number.isFinite(x) && Number.isFinite(a) && Number.isFinite(b));
@@ -120,27 +122,27 @@ describe("clamp", () => {
         const max = Math.max(a, b);
 
         const clamped = clamp(x, min, max);
-        expect(clamped).toBeGreaterThanOrEqual(min);
-        expect(clamped).toBeLessThanOrEqual(max);
+        assert.ok(clamped >= min);
+        assert.ok(clamped <= max);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should be idempotent", () => {
+  void it("should be idempotent", () => {
     fc.assert(
       fc.property(anyNumber, anyNumber, anyNumber, (x, a, b) => {
         const min = Math.min(a, b);
         const max = Math.max(a, b);
 
         const once = clamp(x, min, max);
-        expect(clamp(once, min, max)).toBe(once);
+        assert.strictEqual(clamp(once, min, max), once);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should leave a value that is already inside the range untouched", () => {
+  void it("should leave a value that is already inside the range untouched", () => {
     fc.assert(
       fc.property(anyNumber, anyNumber, anyNumber, (x, a, b) => {
         const min = Math.min(a, b);
@@ -149,24 +151,24 @@ describe("clamp", () => {
 
         // Numeric equality: `Math.min`/`Math.max` normalize the sign of zero, which is
         // IEEE-754 rather than a defect.
-        expect(clamp(x, min, max) === x).toBe(true);
+        assert.strictEqual(clamp(x, min, max) === x, true);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should be what clamp01 restricts itself to", () => {
+  void it("should be what clamp01 restricts itself to", () => {
     fc.assert(
       fc.property(anyNumber, (x) => {
-        expect(clamp01(x)).toBe(clamp(x, 0, 1));
+        assert.strictEqual(clamp01(x), clamp(x, 0, 1));
       }),
       { numRuns: 2000 },
     );
   });
 });
 
-describe("wrap", () => {
-  it("should keep the result inside the range whichever way the bounds are given", () => {
+void describe("wrap", () => {
+  void it("should keep the result inside the range whichever way the bounds are given", () => {
     fc.assert(
       fc.property(anyNumber, anyNumber, anyNumber, (x, from, to) => {
         const low = Math.min(from, to);
@@ -175,15 +177,15 @@ describe("wrap", () => {
 
         const epsilon = tolerance(x, low, high);
         for (const wrapped of [wrap(x, from, to), wrap(x, to, from)]) {
-          expect(wrapped).toBeGreaterThanOrEqual(low - epsilon);
-          expect(wrapped).toBeLessThanOrEqual(high + epsilon);
+          assert.ok(wrapped >= low - epsilon);
+          assert.ok(wrapped <= high + epsilon);
         }
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should be unchanged by shifting the input a whole number of cycles", () => {
+  void it("should be unchanged by shifting the input a whole number of cycles", () => {
     const cycles = fc.integer({ min: -8, max: 8 });
 
     fc.assert(
@@ -191,117 +193,117 @@ describe("wrap", () => {
         const cycle = Math.abs(to - from);
         fc.pre(cycle > 0);
 
-        expect(wrap(x + times * cycle, from, to)).toBe(wrap(x, from, to));
+        assert.strictEqual(wrap(x + times * cycle, from, to), wrap(x, from, to));
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should be idempotent", () => {
+  void it("should be idempotent", () => {
     fc.assert(
       fc.property(smallInteger, smallInteger, smallInteger, (x, from, to) => {
         const once = wrap(x, from, to);
-        expect(wrap(once, from, to)).toBe(once);
+        assert.strictEqual(wrap(once, from, to), once);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should keep an angle delta within half a turn", () => {
+  void it("should keep an angle delta within half a turn", () => {
     fc.assert(
       fc.property(finiteNumber, finiteNumber, (current, target) => {
         fc.pre(Number.isFinite(target - current));
 
         const delta = angleDeltaDegrees(current, target);
-        expect(delta).toBeGreaterThanOrEqual(-180);
-        expect(delta).toBeLessThanOrEqual(180);
+        assert.ok(delta >= -180);
+        assert.ok(delta <= 180);
       }),
       { numRuns: 5000 },
     );
   });
 });
 
-describe("pingPong", () => {
-  it("should stay between zero and the length", () => {
+void describe("pingPong", () => {
+  void it("should stay between zero and the length", () => {
     fc.assert(
       fc.property(anyNumber, anyNumber, (x, length) => {
         fc.pre(length > 0 && isReducible(x, 0, length * 2));
 
         const epsilon = tolerance(x, length);
         const pinged = pingPong(x, length);
-        expect(pinged).toBeGreaterThanOrEqual(-epsilon);
-        expect(pinged).toBeLessThanOrEqual(length + epsilon);
+        assert.ok(pinged >= -epsilon);
+        assert.ok(pinged <= length + epsilon);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should be symmetric around zero", () => {
+  void it("should be symmetric around zero", () => {
     const length = fc.integer({ min: 1, max: 2 ** 26 });
 
     fc.assert(
       fc.property(safeInteger, length, (x, size) => {
         fc.pre(Number.isSafeInteger(x + size * 2));
 
-        expect(pingPong(-x, size)).toBe(pingPong(x, size));
+        assert.strictEqual(pingPong(-x, size), pingPong(x, size));
       }),
       { numRuns: 5000 },
     );
   });
 });
 
-describe("normalize", () => {
-  it("should never leave the unit interval", () => {
+void describe("normalize", () => {
+  void it("should never leave the unit interval", () => {
     fc.assert(
       fc.property(anyNumber, anyNumber, anyNumber, (value, from, to) => {
         const normalized = normalize(value, from, to);
         fc.pre(!Number.isNaN(normalized));
 
-        expect(normalized).toBeGreaterThanOrEqual(0);
-        expect(normalized).toBeLessThanOrEqual(1);
+        assert.ok(normalized >= 0);
+        assert.ok(normalized <= 1);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should pin the ends of the range to the ends of the interval", () => {
+  void it("should pin the ends of the range to the ends of the interval", () => {
     fc.assert(
       fc.property(finiteNumber, finiteNumber, (from, to) => {
         fc.pre(from < to && Number.isFinite(to - from));
 
-        expect(normalize(from, from, to)).toBe(0);
-        expect(normalize(to, from, to)).toBe(1);
+        assert.strictEqual(normalize(from, from, to), 0);
+        assert.strictEqual(normalize(to, from, to), 1);
       }),
       { numRuns: 5000 },
     );
   });
 });
 
-describe("nextPowerOfTwo", () => {
-  it("should answer the smallest power of two not below its input", () => {
+void describe("nextPowerOfTwo", () => {
+  void it("should answer the smallest power of two not below its input", () => {
     fc.assert(
       fc.property(fc.integer(POWER_OF_TWO_DOMAIN), (value) => {
         const result = nextPowerOfTwo(value);
 
-        expect(isPowerOfTwo(result)).toBe(true);
-        expect(result).toBeGreaterThanOrEqual(value);
-        expect(result / 2).toBeLessThan(value);
+        assert.strictEqual(isPowerOfTwo(result), true);
+        assert.ok(result >= value);
+        assert.ok(result / 2 < value);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should be idempotent", () => {
+  void it("should be idempotent", () => {
     fc.assert(
       fc.property(fc.integer(POWER_OF_TWO_DOMAIN), (value) => {
         const once = nextPowerOfTwo(value);
-        expect(nextPowerOfTwo(once)).toBe(once);
+        assert.strictEqual(nextPowerOfTwo(once), once);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should reject anything outside its domain instead of answering nonsense", () => {
+  void it("should reject anything outside its domain instead of answering nonsense", () => {
     const outside = fc.oneof(
       fc.integer({ min: -(2 ** 31), max: 0 }),
       fc.integer({ min: POWER_OF_TWO_DOMAIN.max + 1, max: Number.MAX_SAFE_INTEGER }),
@@ -312,99 +314,97 @@ describe("nextPowerOfTwo", () => {
 
     fc.assert(
       fc.property(outside, (value) => {
-        expect(() => {
+        assert.throws(() => {
           return nextPowerOfTwo(value);
-        }).toThrow(Error);
+        }, Error);
       }),
       { numRuns: 2000 },
     );
   });
 });
 
-describe("gcd", () => {
-  it("should answer a non negative common divisor", () => {
+void describe("gcd", () => {
+  void it("should answer a non negative common divisor", () => {
     fc.assert(
       fc.property(safeInteger, safeInteger, (a, b) => {
         const divisor = gcd(a, b);
-        expect(divisor).toBeGreaterThanOrEqual(0);
+        assert.ok(divisor >= 0);
 
         if (divisor === 0) {
-          expect([a, b]).toEqual([0, 0]);
+          assert.deepStrictEqual([a, b], [0, 0]);
           return;
         }
-        expect(a % divisor === 0).toBe(true);
-        expect(b % divisor === 0).toBe(true);
+        assert.strictEqual(a % divisor === 0, true);
+        assert.strictEqual(b % divisor === 0, true);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should be commutative and blind to the sign of its arguments", () => {
+  void it("should be commutative and blind to the sign of its arguments", () => {
     fc.assert(
       fc.property(safeInteger, safeInteger, (a, b) => {
         const divisor = gcd(a, b);
 
-        expect(gcd(b, a)).toBe(divisor);
-        expect(gcd(-a, b)).toBe(divisor);
-        expect(gcd(a, -b)).toBe(divisor);
+        assert.strictEqual(gcd(b, a), divisor);
+        assert.strictEqual(gcd(-a, b), divisor);
+        assert.strictEqual(gcd(a, -b), divisor);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should be the greatest of the common divisors", () => {
+  void it("should be the greatest of the common divisors", () => {
     const factor = fc.integer({ min: 1, max: 2 ** 20 });
 
     fc.assert(
       fc.property(factor, factor, factor, (common, a, b) => {
         fc.pre(Number.isSafeInteger(common * a) && Number.isSafeInteger(common * b));
 
-        expect(gcd(common * a, common * b)).toBeGreaterThanOrEqual(common);
+        assert.ok(gcd(common * a, common * b) >= common);
       }),
       { numRuns: 5000 },
     );
   });
 
-  it("should absorb a zero argument", () => {
+  void it("should absorb a zero argument", () => {
     fc.assert(
       fc.property(safeInteger, (a) => {
-        expect(gcd(a, 0)).toBe(Math.abs(a));
-        expect(gcd(0, a)).toBe(Math.abs(a));
+        assert.strictEqual(gcd(a, 0), Math.abs(a));
+        assert.strictEqual(gcd(0, a), Math.abs(a));
       }),
       { numRuns: 2000 },
     );
   });
 
-  it("should reject arguments that are not safe integers", () => {
+  void it("should reject arguments that are not safe integers", () => {
     const unsafe = fc.double().filter((value) => {
       return !Number.isSafeInteger(value);
     });
 
     fc.assert(
       fc.property(unsafe, safeInteger, (a, b) => {
-        expect(() => {
+        assert.throws(() => {
           return gcd(a, b);
-        }).toThrow(TypeError);
-        expect(() => {
+        }, TypeError);
+        assert.throws(() => {
           return gcd(b, a);
-        }).toThrow(TypeError);
+        }, TypeError);
       }),
       { numRuns: 2000 },
     );
   });
 });
 
-describe("angle conversion", () => {
-  it("should round trip through radians", () => {
+void describe("angle conversion", () => {
+  void it("should round trip through radians", () => {
     fc.assert(
       fc.property(finiteNumber, (degrees) => {
         const radians = degreesToRadians(degrees);
         fc.pre(Number.isFinite(radians));
 
         const back = radiansToDegrees(radians);
-        expect(Math.abs(back - degrees)).toBeLessThanOrEqual(
-          Math.abs(degrees) * 1e-12 + Number.EPSILON,
-        );
+        assert.ok(Math.abs(back - degrees) <= Math.abs(degrees) * 1e-12 + Number.EPSILON);
       }),
       { numRuns: 5000 },
     );

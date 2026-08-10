@@ -18,14 +18,15 @@
   "scripts": {
     "build": "tsdown && node ./scripts/sync.ts",
     "dev": "tsdown --watch",
-    "test": "vitest --run",
+    "test": "node --test",
+    "test-coverage": "node --test --experimental-test-coverage \"--test-coverage-include=src/**/*.ts\" \"--test-coverage-exclude=src/**/*.test.ts\" \"--test-coverage-exclude=src/testing/**\" --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage.lcov",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@zemd/testing": "workspace:*",
     "@zemd/tsconfig": "workspace:*",
     "tsdown": "catalog:",
-    "typescript": "catalog:",
-    "vitest": "catalog:"
+    "typescript": "catalog:"
   }
 }

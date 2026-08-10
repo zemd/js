@@ -1,5 +1,5 @@
-import type { AppliedRelease } from "./pnpm";
-import { isReleaseVersion, parseVersion } from "./semver";
+import type { AppliedRelease } from "./pnpm.ts";
+import { isReleaseVersion, parseVersion } from "./semver.ts";
 
 export type ContractBump = "major" | "minor" | "patch";
 

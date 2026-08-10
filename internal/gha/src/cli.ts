@@ -1,4 +1,4 @@
-import { commands, usage } from "./commands";
+import { commands, usage } from "./commands/index.ts";
 
 const [name, ...argv] = process.argv.slice(2);
 const command = name === undefined ? undefined : commands[name];

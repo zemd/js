@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 
-import { requireEnv } from "../env";
-import { releasePublishedPackages } from "../github-releases";
-import { parsePublishSummary, parseWorkspacePackages } from "../pnpm";
-import type { Command } from "./command";
-import { apiFromEnv } from "./context";
+import { requireEnv } from "../env.ts";
+import { releasePublishedPackages } from "../github-releases.ts";
+import { parsePublishSummary, parseWorkspacePackages } from "../pnpm.ts";
+import type { Command } from "./command.ts";
+import { apiFromEnv } from "./context.ts";
 
 const readSummary = (path: string) =>
   existsSync(path) ? parsePublishSummary(readFileSync(path, "utf8")) : [];

@@ -1,5 +1,5 @@
-import type { GamutCusp, GamutLine, HueDirection } from "./schema";
-import { find_cusp } from "./find_cusp";
+import type { GamutCusp, GamutLine, HueDirection } from "./schema/index.ts";
+import { find_cusp } from "./find_cusp.ts";
 
 export type GamutIntersectionInput = {
   direction: HueDirection;

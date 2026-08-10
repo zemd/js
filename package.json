@@ -13,6 +13,7 @@
     "test": "turbo run test",
     "test-browser": "turbo run test-browser",
     "test-browser-setup": "pnpm --filter @zemd/std-modules exec playwright install --with-deps chromium",
+    "test-coverage": "turbo run test-coverage",
     "typecheck": "turbo run typecheck",
     "format": "oxfmt",
     "format-check": "oxfmt --check",
