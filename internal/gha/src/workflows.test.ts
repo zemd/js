@@ -111,6 +111,23 @@ void test("every action and workflow reference is pinned to a full commit SHA", 
   }
 });
 
+void test("every runner job starts Harden Runner in audit mode", () => {
+  const hardenRunner =
+    /^ {4}steps:\n {6}- name: Harden Runner\n {8}uses: step-security\/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2\.20\.0\n {8}with:\n {10}egress-policy: audit$/gm;
+
+  for (const file of yamlFiles(workflowsDir)) {
+    const source = read(workflowsDir, file);
+    const runnerJobs = [...source.matchAll(/^ {4}runs-on:/gm)].length;
+    const hardenedJobs = [...source.matchAll(hardenRunner)].length;
+
+    assert.strictEqual(
+      hardenedJobs,
+      runnerJobs,
+      `${file}: Harden Runner must be the first step of every runner job`,
+    );
+  }
+});
+
 void test("shared workflows are callable and self-contained", () => {
   const shared = yamlFiles(workflowsDir).filter((file) => file.startsWith("shared-"));
   assert.ok(shared.length > 0);
