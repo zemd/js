@@ -21,6 +21,10 @@
   intents:
     - smooth-taxis-beg
     - ten-canyons-slide
+"@zemd/gha@2.0.1":
+  dir: internal/gha
+  intents:
+    - wide-areas-love
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:

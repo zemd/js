@@ -1,5 +1,11 @@
 # @zemd/gha
 
+## 2.0.1
+
+### Patch Changes
+
+- Harden GitHub Actions runners with StepSecurity.
+
 ## 2.0.0
 
 ### Major Changes
