@@ -18,6 +18,16 @@ const yamlFiles = (directory: string): string[] =>
 
 const read = (directory: string, file: string): string => readFileSync(directory + file, "utf8");
 
+void test("workflow filenames distinguish repository callers from shared workflows", () => {
+  for (const file of yamlFiles(workflowsDir)) {
+    assert.match(
+      file,
+      /^(?:repo|shared)-[a-z0-9-]+\.yml$/,
+      `${file}: workflow filenames must start with repo- or shared-`,
+    );
+  }
+});
+
 const dependabotUpdater = (source: string, ecosystem: string): string => {
   const marker = `  - package-ecosystem: "${ecosystem}"`;
   const start = source.indexOf(marker);
@@ -149,12 +159,12 @@ void test("shared workflows are callable and self-contained", () => {
 
 void test("callers delegate to the shared workflows", () => {
   const callers: Array<[string, string]> = [
-    ["ci.yml", "shared-ci.yml"],
-    ["codeql.yml", "shared-codeql.yml"],
-    ["scorecard.yml", "shared-scorecard.yml"],
-    ["zizmor.yml", "shared-zizmor.yml"],
+    ["repo-ci.yml", "shared-ci.yml"],
+    ["repo-codeql.yml", "shared-codeql.yml"],
+    ["repo-scorecard.yml", "shared-scorecard.yml"],
+    ["repo-zizmor.yml", "shared-zizmor.yml"],
     // npm trusted publishing validates the caller filename, so it is part of the contract.
-    ["release.yml", "shared-release.yml"],
+    ["repo-release.yml", "shared-release.yml"],
   ];
 
   for (const [caller, shared] of callers) {
@@ -207,7 +217,7 @@ void test("every native unit-test package exposes the fixed test-coverage script
 void test("shared workflows use fixed package script names", () => {
   const source = read(workflowsDir, "shared-ci.yml");
   const release = read(workflowsDir, "shared-release.yml");
-  const caller = read(workflowsDir, "ci.yml");
+  const caller = read(workflowsDir, "repo-ci.yml");
   const example = read(examplesDir, "ci.yml");
   const releaseExample = read(examplesDir, "release.yml");
   const lint = workflowStep(source, "Lint");
@@ -363,7 +373,7 @@ void test("shared workflows set the telemetry opt-out themselves", () => {
 
 void test("the release tooling is checked out from the pinned shared revision", () => {
   const source = read(workflowsDir, "shared-release.yml");
-  const caller = read(workflowsDir, "release.yml");
+  const caller = read(workflowsDir, "repo-release.yml");
   const example = read(examplesDir, "release.yml");
 
   // `actions/checkout` pulls the *caller* repository, so the CLI this workflow
@@ -442,7 +452,7 @@ void test("keeps tokens out of staging and uses direct publishing for first rele
 
 void test("can advance a private release-contract version before pnpm consumes its intents", () => {
   const source = read(workflowsDir, "shared-release.yml");
-  const caller = read(workflowsDir, "release.yml");
+  const caller = read(workflowsDir, "repo-release.yml");
   const example = read(examplesDir, "release.yml");
 
   assert.match(source, /contract-version-package:\n(?: {8}.*\n){2} {8}default: ""/);
@@ -465,7 +475,7 @@ void test("can advance a private release-contract version before pnpm consumes i
 
 void test("zizmor is configured to fail the workflow on every finding", () => {
   const source = read(workflowsDir, "shared-zizmor.yml");
-  const caller = read(workflowsDir, "zizmor.yml");
+  const caller = read(workflowsDir, "repo-zizmor.yml");
   const manifest = JSON.parse(readFileSync(`${root}package.json`, "utf8")) as {
     scripts: Record<string, string>;
   };
@@ -573,7 +583,7 @@ void test("every command the workflows invoke is registered in the CLI", () => {
 
 void test("the release workflow reads the contract version from the package manifest", () => {
   assert.ok(
-    read(workflowsDir, "release.yml").includes(
+    read(workflowsDir, "repo-release.yml").includes(
       "gha.mjs shared-workflows-release internal/gha/package.json .github/workflows",
     ),
   );
