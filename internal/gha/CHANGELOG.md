@@ -1,5 +1,11 @@
 # @zemd/gha
 
+## 2.0.2
+
+### Patch Changes
+
+- Update StepSecurity Harden Runner to v2.20.1.
+
 ## 2.0.1
 
 ### Patch Changes
