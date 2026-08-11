@@ -1,5 +1,11 @@
 # @zemd/gha
 
+## 2.0.4
+
+### Patch Changes
+
+- Separate GHA builds from committed bundle synchronization.
+
 ## 2.0.3
 
 ### Patch Changes
