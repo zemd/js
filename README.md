@@ -63,6 +63,7 @@ All tasks are orchestrated by [Turborepo](https://turborepo.com) and run across 
 | `pnpm test-coverage`         | Run unit tests and write native LCOV reports      |
 | `pnpm test-browser`          | Run browser tests with Playwright                 |
 | `pnpm test-browser-setup`    | Download the Chromium build used by browser tests |
+| `pnpm test-git-hooks`        | Test the native Git hook behavior                 |
 | `pnpm typecheck`             | Type-check all packages                           |
 | `pnpm format`                | Format the codebase with `oxfmt`                  |
 | `pnpm format-check`          | Verify formatting without writing changes         |
@@ -70,7 +71,7 @@ All tasks are orchestrated by [Turborepo](https://turborepo.com) and run across 
 | `pnpm lint-check`            | Run type-aware linting and fail on warnings       |
 | `pnpm lint-actions`          | Audit GitHub Actions with `zizmor`                |
 | `pnpm lint-publish`          | Validate publishable package metadata (`publint`) |
-| `pnpm pre-commit`            | Format, lint, and validate staged files           |
+| `pnpm pre-commit`            | Format, lint-fix, validate, and stage all files   |
 | `pnpm pre-push`              | Run the complete local pre-push validation graph  |
 | `pnpm run git-hooks-install` | Install this checkout's native Git hooks          |
 
@@ -91,10 +92,9 @@ To report a vulnerability, follow [`SECURITY.md`](SECURITY.md).
 ## Contributing
 
 Issues and pull requests are welcome. Native hooks install automatically during
-`pnpm install`. The pre-commit hook formats and lints only captured staged paths,
-re-adds only those paths, then runs optional workspace `pre-commit` scripts.
-Files with both staged and unstaged changes are intentionally rejected so hook
-fixes cannot absorb unstaged hunks.
+`pnpm install`. The pre-commit hook runs repository-wide lint fixes and
+formatting, runs optional workspace `pre-commit` scripts, then stages all
+resulting changes.
 
 The pre-commit and pre-push coordinators are executable extensionless Bash hooks
 under `.githooks`; the installer is `.githooks/install.sh`.
