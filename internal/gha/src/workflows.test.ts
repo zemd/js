@@ -53,6 +53,9 @@ const usesReferences = (source: string): Array<{ reference: string; comment?: st
     ...(comment === undefined ? {} : { comment }),
   }));
 
+const usesAction = (source: string, action: string): boolean =>
+  usesReferences(source).some(({ reference }) => reference.startsWith(`${action}@`));
+
 const workflowStep = (source: string, name: string): string => {
   const lines = source.split("\n");
   const marker = `- name: ${name}`;
@@ -113,7 +116,7 @@ void test("every action and workflow reference is pinned to a full commit SHA", 
 
 void test("every runner job starts Harden Runner in audit mode", () => {
   const hardenRunner =
-    /^ {4}steps:\n {6}- name: Harden Runner\n {8}uses: step-security\/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2\.20\.0\n {8}with:\n {10}egress-policy: audit$/gm;
+    /^ {4}steps:\n {6}- name: Harden Runner\n {8}uses: step-security\/harden-runner@[^\s#]+(?: # .+)?\n {8}with:\n {10}egress-policy: audit$/gm;
 
   for (const file of yamlFiles(workflowsDir)) {
     const source = read(workflowsDir, file);
@@ -253,11 +256,7 @@ void test("shared workflows use fixed package script names", () => {
   assert.ok(runTests.includes("if: runner.os != 'Linux'"));
   assert.ok(coverage.includes("if: runner.os == 'Linux'"));
   assert.ok(coverage.includes("run: pnpm run test-coverage"));
-  assert.ok(
-    upload.includes(
-      "uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1",
-    ),
-  );
+  assert.ok(usesAction(upload, "actions/upload-artifact"));
   assert.ok(upload.includes("name: native-node-coverage-${{ matrix.os }}"));
   assert.ok(upload.includes('path: "**/coverage.lcov"'));
   assert.ok(upload.includes("if-no-files-found: error"));
@@ -464,18 +463,14 @@ void test("can advance a private release-contract version before pnpm consumes i
   assert.ok(version < finalize);
 });
 
-void test("zizmor is pinned and fails the workflow on every finding", () => {
+void test("zizmor is configured to fail the workflow on every finding", () => {
   const source = read(workflowsDir, "shared-zizmor.yml");
   const caller = read(workflowsDir, "zizmor.yml");
   const manifest = JSON.parse(readFileSync(`${root}package.json`, "utf8")) as {
     scripts: Record<string, string>;
   };
 
-  assert.ok(
-    source.includes(
-      "uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2",
-    ),
-  );
+  assert.ok(usesAction(source, "zizmorcore/zizmor-action"));
   assert.match(source, /^ {10}version: "1\.29\.0"$/m);
   assert.match(source, /^ {10}collect: default$/m);
   assert.match(source, /^ {10}online-audits: true$/m);
