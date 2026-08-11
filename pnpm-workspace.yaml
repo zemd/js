@@ -1,4 +1,5 @@
 saveExact: true
+storeDir: .pnpm-store
 
 packages:
   - packages/*
