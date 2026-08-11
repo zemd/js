@@ -6,7 +6,7 @@ name: Shared Release
 #   uses: zemd/js/.github/workflows/shared-release.yml@<sha> # v1
 #
 # npm trusted publishing validates the *caller* workflow filename, so name the
-# caller `release.yml` and register that filename as the trusted publisher.
+# caller `repo-release.yml` and register that filename as the trusted publisher.
 
 permissions: {}
 

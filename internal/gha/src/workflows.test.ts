@@ -16,16 +16,27 @@ const MAX_JOB_TIMEOUT_MINUTES = 15;
 const yamlFiles = (directory: string): string[] =>
   readdirSync(directory).filter((file) => file.endsWith(".yml") || file.endsWith(".yaml"));
 
+const workflowExampleFiles = (): string[] =>
+  yamlFiles(examplesDir).filter((file) => file !== "dependabot.yml");
+
 const read = (directory: string, file: string): string => readFileSync(directory + file, "utf8");
 
 void test("workflow filenames distinguish repository callers from shared workflows", () => {
-  for (const file of yamlFiles(workflowsDir)) {
+  for (const file of [...yamlFiles(workflowsDir), ...workflowExampleFiles()]) {
     assert.match(
       file,
       /^(?:repo|shared)-[a-z0-9-]+\.ya?ml$/,
       `${file}: workflow filenames must start with repo- or shared-`,
     );
   }
+});
+
+void test("workflow examples mirror the repository caller filenames", () => {
+  const callers = yamlFiles(workflowsDir)
+    .filter((file) => file.startsWith("repo-"))
+    .sort();
+
+  assert.deepStrictEqual(workflowExampleFiles().sort(), callers);
 });
 
 const dependabotUpdater = (source: string, ecosystem: string): string => {
@@ -175,6 +186,18 @@ void test("callers delegate to the shared workflows", () => {
   }
 });
 
+void test("the shared contract guard only inspects pull-request change intents", () => {
+  const step = workflowStep(
+    read(workflowsDir, "repo-ci.yml"),
+    "Require a release intent when the shared contract changes",
+  );
+
+  assert.match(step, /git diff --name-only --diff-filter=AM -z "\$BASE_SHA\.\.\.\$HEAD_SHA" --/);
+  assert.ok(step.includes("'.changeset/*.md'"));
+  assert.ok(step.includes(`grep -lF '"@zemd/gha"' "\${changesets[@]}"`));
+  assert.doesNotMatch(step, /grep[^\n]*\.changeset/);
+});
+
 void test("every native unit-test package exposes the fixed test-coverage script", () => {
   const manifests = [`${root}packages/`, `${root}internal/`].flatMap((directory) =>
     readdirSync(directory, { withFileTypes: true })
@@ -218,8 +241,8 @@ void test("shared workflows use fixed package script names", () => {
   const source = read(workflowsDir, "shared-ci.yml");
   const release = read(workflowsDir, "shared-release.yml");
   const caller = read(workflowsDir, "repo-ci.yml");
-  const example = read(examplesDir, "ci.yml");
-  const releaseExample = read(examplesDir, "release.yml");
+  const example = read(examplesDir, "repo-ci.yml");
+  const releaseExample = read(examplesDir, "repo-release.yml");
   const lint = workflowStep(source, "Lint");
   const format = workflowStep(source, "Check formatting");
   const typecheck = workflowStep(source, "Typecheck");
@@ -280,7 +303,7 @@ void test("shared workflows use fixed package script names", () => {
 void test("shared workflow platform and release conventions are fixed", () => {
   const sharedFiles = yamlFiles(workflowsDir).filter((file) => file.startsWith("shared-"));
   const shared = sharedFiles.map((file) => read(workflowsDir, file));
-  const examples = [read(examplesDir, "ci.yml"), read(examplesDir, "release.yml")];
+  const examples = [read(examplesDir, "repo-ci.yml"), read(examplesDir, "repo-release.yml")];
   const removedInputs = [
     "node-version",
     "base-branch",
@@ -317,7 +340,7 @@ void test("shared workflow platform and release conventions are fixed", () => {
   assert.match(releasePr, /^ {10}BASE_BRANCH: main$/m);
 
   const ci = read(workflowsDir, "shared-ci.yml");
-  const ciExample = read(examplesDir, "ci.yml");
+  const ciExample = read(examplesDir, "repo-ci.yml");
   assert.doesNotMatch(ci, /^ {6}dependency-review:$/m);
   assert.doesNotMatch(ci, /\binputs\.dependency-review(?!-)/);
   assert.match(ci, /^ {4}if: github\.event_name == 'pull_request'$/m);
@@ -374,7 +397,7 @@ void test("shared workflows set the telemetry opt-out themselves", () => {
 void test("the release tooling is checked out from the pinned shared revision", () => {
   const source = read(workflowsDir, "shared-release.yml");
   const caller = read(workflowsDir, "repo-release.yml");
-  const example = read(examplesDir, "release.yml");
+  const example = read(examplesDir, "repo-release.yml");
 
   // `actions/checkout` pulls the *caller* repository, so the CLI this workflow
   // runs has to come from an explicitly configured second checkout.
@@ -394,7 +417,7 @@ void test("the release tooling is checked out from the pinned shared revision", 
 
 void test("keeps tokens out of staging and uses direct publishing for first releases", () => {
   const source = read(workflowsDir, "shared-release.yml");
-  const example = read(examplesDir, "release.yml");
+  const example = read(examplesDir, "repo-release.yml");
   const publishingModeStep = workflowStep(source, "Select npm publishing mode");
   const stagedPublishingStep = workflowStep(source, "Stage packages on npm");
   const directPublishingStep = workflowStep(source, "Publish packages to npm directly");
@@ -453,7 +476,7 @@ void test("keeps tokens out of staging and uses direct publishing for first rele
 void test("can advance a private release-contract version before pnpm consumes its intents", () => {
   const source = read(workflowsDir, "shared-release.yml");
   const caller = read(workflowsDir, "repo-release.yml");
-  const example = read(examplesDir, "release.yml");
+  const example = read(examplesDir, "repo-release.yml");
 
   assert.match(source, /contract-version-package:\n(?: {8}.*\n){2} {8}default: ""/);
   assert.ok(caller.includes("contract-version-package: internal/gha/package.json"));
