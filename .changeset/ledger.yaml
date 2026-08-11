@@ -29,6 +29,10 @@
   dir: internal/gha
   intents:
     - many-lines-tease
+"@zemd/gha@2.0.3":
+  dir: internal/gha
+  intents:
+    - eleven-tables-wave
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:

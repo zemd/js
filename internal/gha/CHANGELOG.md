@@ -1,5 +1,11 @@
 # @zemd/gha
 
+## 2.0.3
+
+### Patch Changes
+
+- Standardize reusable workflow caller example filenames.
+
 ## 2.0.2
 
 ### Patch Changes
