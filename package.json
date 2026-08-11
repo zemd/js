@@ -17,16 +17,18 @@
     "typecheck": "turbo run typecheck",
     "format": "oxfmt",
     "format-check": "oxfmt --check",
-    "lint": "oxlint --type-aware --fix --ignore-pattern=.github/scripts",
+    "lint-fix": "oxlint --type-aware --fix --ignore-pattern=.github/scripts",
     "lint-check": "oxlint --type-aware --deny-warnings --ignore-pattern=.github/scripts",
     "lint-actions": "zizmor --strict-collection --collect=default --persona=pedantic .",
-    "lint-publish": "pnpm -r --filter='!./internal/**' exec publint",
+    "lint-publish": "turbo run lint-publish",
+    "pre-commit": "./.githooks/pre-commit",
+    "pre-push": "./.githooks/pre-push",
+    "git-hooks-install": "./.githooks/install.sh",
     "release-change": "pnpm change",
     "release-status": "pnpm change status",
-    "prepare": "husky"
+    "prepare": "pnpm run git-hooks-install"
   },
   "devDependencies": {
-    "husky": "9.1.7",
     "oxfmt": "0.62.0",
     "oxlint": "1.77.0",
     "oxlint-tsgolint": "7.0.2001",

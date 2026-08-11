@@ -48,6 +48,7 @@
     "build": "tsdown",
     "dev": "tsdown --watch",
     "generate-api": "node ./scripts/generate-api.ts",
+    "lint-publish": "publint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

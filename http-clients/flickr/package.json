@@ -37,6 +37,7 @@
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
+    "lint-publish": "publint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repository_root="$(git rev-parse --show-toplevel)"
+cd "$repository_root"
+
+pnpm run lint-fix
+pnpm exec turbo run pre-commit
+pnpm run format
+
+git add --all

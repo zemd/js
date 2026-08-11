@@ -16,8 +16,11 @@
   },
   "type": "module",
   "scripts": {
-    "build": "tsdown && node ./scripts/sync.ts",
+    "build": "tsdown",
     "dev": "tsdown --watch",
+    "pre-push": "pnpm run sync-check",
+    "sync": "pnpm run build && node ./scripts/sync.ts",
+    "sync-check": "node ./scripts/sync.ts --check",
     "test": "node --test",
     "test-coverage": "node --test --experimental-test-coverage \"--test-coverage-include=src/**/*.ts\" \"--test-coverage-exclude=src/**/*.test.ts\" \"--test-coverage-exclude=src/testing/**\" --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage.lcov",
     "typecheck": "tsc --noEmit"

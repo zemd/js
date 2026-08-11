@@ -41,6 +41,10 @@ cd js
 pnpm install
 ```
 
+A normal install also configures this checkout's local `core.hooksPath` to
+`.githooks`. CI sets `CI=true`, so dependency installation there skips local Git
+hook configuration.
+
 > [!NOTE]
 > The repository uses [pnpm](https://pnpm.io) workspaces. Install it with `corepack enable` or follow the [pnpm installation guide](https://pnpm.io/installation).
 
@@ -52,20 +56,23 @@ The checked-in [Dev Container configuration](.devcontainer/devcontainer.json) pr
 
 All tasks are orchestrated by [Turborepo](https://turborepo.com) and run across every workspace package.
 
-| Command                   | Description                                       |
-| ------------------------- | ------------------------------------------------- |
-| `pnpm build`              | Build all packages                                |
-| `pnpm test`               | Run unit tests with Node.js's native test runner  |
-| `pnpm test-coverage`      | Run unit tests and write native LCOV reports      |
-| `pnpm test-browser`       | Run browser tests with Playwright                 |
-| `pnpm test-browser-setup` | Download the Chromium build used by browser tests |
-| `pnpm typecheck`          | Type-check all packages                           |
-| `pnpm format`             | Format the codebase with `oxfmt`                  |
-| `pnpm format-check`       | Verify formatting without writing changes         |
-| `pnpm lint`               | Run type-aware linting and auto-fix with `oxlint` |
-| `pnpm lint-check`         | Run type-aware linting and fail on warnings       |
-| `pnpm lint-actions`       | Audit GitHub Actions with `zizmor`                |
-| `pnpm lint-publish`       | Validate publishable package metadata (`publint`) |
+| Command                      | Description                                       |
+| ---------------------------- | ------------------------------------------------- |
+| `pnpm build`                 | Build all packages                                |
+| `pnpm test`                  | Run unit tests with Node.js's native test runner  |
+| `pnpm test-coverage`         | Run unit tests and write native LCOV reports      |
+| `pnpm test-browser`          | Run browser tests with Playwright                 |
+| `pnpm test-browser-setup`    | Download the Chromium build used by browser tests |
+| `pnpm typecheck`             | Type-check all packages                           |
+| `pnpm format`                | Format the codebase with `oxfmt`                  |
+| `pnpm format-check`          | Verify formatting without writing changes         |
+| `pnpm lint-fix`              | Run type-aware linting and auto-fix with `oxlint` |
+| `pnpm lint-check`            | Run type-aware linting and fail on warnings       |
+| `pnpm lint-actions`          | Audit GitHub Actions with `zizmor`                |
+| `pnpm lint-publish`          | Validate publishable package metadata (`publint`) |
+| `pnpm pre-commit`            | Format, lint, and validate staged files           |
+| `pnpm pre-push`              | Run the complete local pre-push validation graph  |
+| `pnpm run git-hooks-install` | Install this checkout's native Git hooks          |
 
 `pnpm lint-actions` requires [`zizmor`](https://docs.zizmor.sh/installation/)
 1.29.0, matching the exact version pinned by CI. Set `GH_TOKEN` (for example,
@@ -83,7 +90,26 @@ To report a vulnerability, follow [`SECURITY.md`](SECURITY.md).
 
 ## Contributing
 
-Issues and pull requests are welcome. Before opening a PR, please make sure that `pnpm lint-check`, `pnpm lint-actions`, `pnpm format-check`, `pnpm typecheck`, `pnpm test`, and `pnpm test-browser` all pass.
+Issues and pull requests are welcome. Native hooks install automatically during
+`pnpm install`. The pre-commit hook formats and lints only captured staged paths,
+re-adds only those paths, then runs optional workspace `pre-commit` scripts.
+Files with both staged and unstaged changes are intentionally rejected so hook
+fixes cannot absorb unstaged hunks.
+
+The pre-commit and pre-push coordinators are executable extensionless Bash hooks
+under `.githooks`; the installer is `.githooks/install.sh`.
+
+Packages opt into additional hook validation by defining a `pre-commit` or
+`pre-push` script in their `package.json`. Turbo discovers each matching package
+task once. These package tasks must be deterministic and read-only; central
+`format` and `lint-fix` are the only mutating pre-commit tasks. Any future task
+with side effects must also disable Turbo caching explicitly.
+
+The pre-push hook runs builds, type checks, publication metadata checks, tests,
+and package `pre-push` tasks. Hooks can be bypassed, so CI remains authoritative.
+Before opening a PR, please make sure that
+`pnpm lint-check`, `pnpm lint-actions`, `pnpm format-check`, `pnpm typecheck`,
+`pnpm build`, `pnpm test`, `pnpm lint-publish`, and `pnpm test-browser` all pass.
 
 ## License
 

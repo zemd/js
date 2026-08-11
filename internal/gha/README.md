@@ -2,9 +2,10 @@
 
 The `gha` CLI executed by the shared GitHub Actions workflows.
 
-Private: it is never published to npm. Instead `pnpm --filter @zemd/gha run build`
-bundles `src/cli.ts` into a single `dist/gha.mjs` and syncs it to
-`.github/scripts/gha.mjs`, which **is** committed.
+Private: it is never published to npm. `pnpm --filter @zemd/gha run build`
+bundles `src/cli.ts` into a single `dist/gha.mjs`. The separate
+`pnpm --filter @zemd/gha run sync` command builds and synchronizes that output
+to `.github/scripts/gha.mjs`, which **is** committed.
 
 That indirection exists because `shared-release.yml` runs the CLI from a bare
 checkout of this repository at the revision a consumer pinned — no package
@@ -39,9 +40,12 @@ registered.
 
 ```sh
 pnpm --filter @zemd/gha run test
-pnpm --filter @zemd/gha run build   # regenerate .github/scripts, then commit it
+pnpm --filter @zemd/gha run build        # produce dist/gha.mjs only
+pnpm --filter @zemd/gha run sync-check   # compare without writing
+pnpm --filter @zemd/gha run sync         # regenerate .github/scripts, then commit it
 ```
 
-Never edit `.github/scripts` by hand. CI rebuilds and fails on any difference.
+Never edit `.github/scripts` by hand. CI builds the package, then runs the
+read-only `sync-check` command and fails when the committed bundle differs.
 
 `scripts/sync.ts` runs under Node's type stripping, so keep its syntax erasable.
