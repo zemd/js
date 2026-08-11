@@ -14,7 +14,7 @@ const BUNDLE = "gha.mjs";
 const MAX_JOB_TIMEOUT_MINUTES = 15;
 
 const yamlFiles = (directory: string): string[] =>
-  readdirSync(directory).filter((file) => file.endsWith(".yml"));
+  readdirSync(directory).filter((file) => file.endsWith(".yml") || file.endsWith(".yaml"));
 
 const read = (directory: string, file: string): string => readFileSync(directory + file, "utf8");
 
@@ -22,7 +22,7 @@ void test("workflow filenames distinguish repository callers from shared workflo
   for (const file of yamlFiles(workflowsDir)) {
     assert.match(
       file,
-      /^(?:repo|shared)-[a-z0-9-]+\.yml$/,
+      /^(?:repo|shared)-[a-z0-9-]+\.ya?ml$/,
       `${file}: workflow filenames must start with repo- or shared-`,
     );
   }
