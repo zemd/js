@@ -27,6 +27,17 @@
       "dependsOn": ["^build"],
       "cache": false
     },
+    "lint-publish": {
+      "dependsOn": ["build"]
+    },
+    "pre-commit": {},
+    "pre-push": {
+      "dependsOn": ["build"]
+    },
+    "@zemd/gha#pre-push": {
+      "dependsOn": ["build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.github/scripts/gha.mjs"]
+    },
     "typecheck": {
       "dependsOn": ["^build"],
       "inputs": ["src/**", "scripts/**", "tsconfig.json", "package.json"]

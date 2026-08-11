@@ -37,5 +37,8 @@
   },
   "publishConfig": {
     "provenance": true
+  },
+  "scripts": {
+    "lint-publish": "publint"
   }
 }

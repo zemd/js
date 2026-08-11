@@ -58,11 +58,7 @@ jobs:
       - name: Check the committed tooling matches its source
         run: |
           pnpm --filter @zemd/gha run build
-          if [ -n "$(git status --porcelain -- .github/scripts)" ]; then
-            echo "::error::.github/scripts is stale, rebuild @zemd/gha and commit the result"
-            git --no-pager diff -- .github/scripts
-            exit 1
-          fi
+          pnpm --filter @zemd/gha run sync-check
 
       # Consumers pin `shared-*.yml` by SHA, so a behaviour change that skips the
       # version bump would never reach them through the moving `vX` tag.
