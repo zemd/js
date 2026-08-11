@@ -81,7 +81,16 @@ jobs:
             echo "shared contract untouched"
             exit 0
           fi
-          if ! grep -rlF '"@zemd/gha"' .changeset >/dev/null 2>&1; then
+          changesets=()
+          while IFS= read -r -d '' changeset; do
+            changesets+=("$changeset")
+          done < <(
+            git diff --name-only --diff-filter=AM -z "$BASE_SHA...$HEAD_SHA" -- \
+              '.changeset/*.md'
+          )
+          if [ "${#changesets[@]}" -eq 0 ] ||
+            ! grep -lF '"@zemd/gha"' "${changesets[@]}" >/dev/null 2>&1
+          then
             echo "::error::Add a change intent for @zemd/gha, these shared files changed:"
             printf '%s\n' "$changed"
             exit 1

@@ -2,14 +2,14 @@
 
 Copy-paste callers for the reusable workflows published from this repository.
 
-| File                                 | Calls                  | Purpose                                                                    |
-| :----------------------------------- | :--------------------- | :------------------------------------------------------------------------- |
-| [`ci.yml`](./ci.yml)                 | `shared-ci.yml`        | Lint, format, typecheck, build, test matrix, Playwright, dependency review |
-| [`release.yml`](./release.yml)       | `shared-release.yml`   | Release pull request, npm submission, git tags, GitHub release             |
-| [`codeql.yml`](./codeql.yml)         | `shared-codeql.yml`    | CodeQL analysis                                                            |
-| [`scorecard.yml`](./scorecard.yml)   | `shared-scorecard.yml` | OpenSSF Scorecard                                                          |
-| [`zizmor.yml`](./zizmor.yml)         | `shared-zizmor.yml`    | Blocking security lint for GitHub Actions and Dependabot                   |
-| [`dependabot.yml`](./dependabot.yml) | —                      | Keeps the pinned SHAs current                                              |
+| File                                         | Calls                  | Purpose                                                                    |
+| :------------------------------------------- | :--------------------- | :------------------------------------------------------------------------- |
+| [`repo-ci.yml`](./repo-ci.yml)               | `shared-ci.yml`        | Lint, format, typecheck, build, test matrix, Playwright, dependency review |
+| [`repo-release.yml`](./repo-release.yml)     | `shared-release.yml`   | Release pull request, npm submission, git tags, GitHub release             |
+| [`repo-codeql.yml`](./repo-codeql.yml)       | `shared-codeql.yml`    | CodeQL analysis                                                            |
+| [`repo-scorecard.yml`](./repo-scorecard.yml) | `shared-scorecard.yml` | OpenSSF Scorecard                                                          |
+| [`repo-zizmor.yml`](./repo-zizmor.yml)       | `shared-zizmor.yml`    | Blocking security lint for GitHub Actions and Dependabot                   |
+| [`dependabot.yml`](./dependabot.yml)         | —                      | Keeps the pinned SHAs current                                              |
 
 They assume a pnpm workspace with `lint-check`, `format-check`, `typecheck`,
 `build`, `test` and `lint-publish` scripts in the root `package.json`. Any of
@@ -18,8 +18,9 @@ those can be renamed or disabled through workflow inputs — see the commented
 
 ## Install
 
-1. Copy the five workflow files into `.github/workflows/` of the target
-   repository and `dependabot.yml` into `.github/`.
+1. Copy the five `repo-*.yml` workflow files into `.github/workflows/` of the
+   target repository without renaming them, and copy `dependabot.yml` into
+   `.github/`.
 
 2. Replace the `__SHA__` placeholder with the commit of the release you want:
 
@@ -35,8 +36,8 @@ those can be renamed or disabled through workflow inputs — see the commented
    defaults, and delete the workflows you do not need.
 
 Dependabot rewrites both the SHA and the trailing `# v1` comment from then on.
-When it updates `release.yml`, keep `shared-tooling-ref` equal to the SHA in the
-`uses:` line so the release scripts and reusable workflow stay on one revision.
+When it updates `repo-release.yml`, keep `shared-tooling-ref` equal to the SHA in
+the `uses:` line so the release scripts and reusable workflow stay on one revision.
 
 `contract-version-package` is empty by default. Set it to a private package's
 manifest only when that package versions a release contract but is never
@@ -66,10 +67,10 @@ so first-release detection overrides the staged default for that package.
 
 For npm [**trusted publishing**](https://docs.npmjs.com/trusted-publishers/):
 
-- Keep the caller named `release.yml`. npm validates the calling workflow's
+- Keep the caller named `repo-release.yml`. npm validates the calling workflow's
   filename, not the reusable workflow that runs the publish.
 - Register the trusted publisher per package with the _consumer_ repository and
-  `release.yml`.
+  `repo-release.yml`.
 - Configure each existing package's trusted publisher to allow only
   `npm stage publish` for the default behavior. Consumers that disable staged
   publishing must allow `npm publish` instead (or allow both actions).
