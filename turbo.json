@@ -8,6 +8,12 @@
     ".github/scripts/*.mjs"
   ],
   "tasks": {
+    "test-bench": {
+      "dependsOn": ["build"],
+      "cache": false,
+      "env": ["BENCHER_OUTPUT_DIR"],
+      "inputs": ["benchmarks/**", "package.json", "tsconfig.json"]
+    },
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["src/**", "scripts/**", "tsconfig.json", "tsdown.config.ts", "package.json"],
@@ -40,7 +46,7 @@
     },
     "typecheck": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "scripts/**", "tsconfig.json", "package.json"]
+      "inputs": ["benchmarks/**", "src/**", "scripts/**", "tsconfig.json", "package.json"]
     },
     "dev": {
       "cache": false,

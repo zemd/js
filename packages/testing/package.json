@@ -1,10 +1,12 @@
 {
   "name": "@zemd/testing",
   "version": "1.0.0",
-  "description": "Focused, dependency-free helpers for the native Node.js test runner",
+  "description": "Focused, dependency-free helpers for native Node.js testing and benchmarking",
   "keywords": [
     "assertions",
+    "benchmark",
     "node test",
+    "performance",
     "testing",
     "typescript",
     "unit testing"

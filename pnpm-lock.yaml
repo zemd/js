@@ -132,6 +132,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.1.2
+      '@zemd/testing':
+        specifier: workspace:*
+        version: link:../testing
       '@zemd/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig

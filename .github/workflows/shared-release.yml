@@ -3,7 +3,7 @@ name: Shared Release
 # Shared release pipeline: opens/refreshes a release pull request while intents
 # are pending, and submits packages to npm once main holds the released versions.
 # Call it from a repository with:
-#   uses: zemd/js/.github/workflows/shared-release.yml@<sha> # v1
+#   uses: zemd/js/.github/workflows/shared-release.yml@<sha> # v2
 #
 # npm trusted publishing validates the *caller* workflow filename, so name the
 # caller `repo-release.yml` and register that filename as the trusted publisher.

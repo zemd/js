@@ -2,40 +2,42 @@
 
 Copy-paste callers for the reusable workflows published from this repository.
 
-| File                                         | Calls                  | Purpose                                                                    |
-| :------------------------------------------- | :--------------------- | :------------------------------------------------------------------------- |
-| [`repo-ci.yml`](./repo-ci.yml)               | `shared-ci.yml`        | Lint, format, typecheck, build, test matrix, Playwright, dependency review |
-| [`repo-release.yml`](./repo-release.yml)     | `shared-release.yml`   | Release pull request, npm submission, git tags, GitHub release             |
-| [`repo-codeql.yml`](./repo-codeql.yml)       | `shared-codeql.yml`    | CodeQL analysis                                                            |
-| [`repo-scorecard.yml`](./repo-scorecard.yml) | `shared-scorecard.yml` | OpenSSF Scorecard                                                          |
-| [`repo-zizmor.yml`](./repo-zizmor.yml)       | `shared-zizmor.yml`    | Blocking security lint for GitHub Actions and Dependabot                   |
-| [`dependabot.yml`](./dependabot.yml)         | —                      | Keeps the pinned SHAs current                                              |
+| File                                           | Calls                   | Purpose                                                                    |
+| :--------------------------------------------- | :---------------------- | :------------------------------------------------------------------------- |
+| [`repo-benchmarks.yml`](./repo-benchmarks.yml) | `shared-benchmarks.yml` | Continuous benchmark history and pull-request comparisons with Bencher     |
+| [`repo-ci.yml`](./repo-ci.yml)                 | `shared-ci.yml`         | Lint, format, typecheck, build, test matrix, Playwright, dependency review |
+| [`repo-release.yml`](./repo-release.yml)       | `shared-release.yml`    | Release pull request, npm submission, git tags, GitHub release             |
+| [`repo-codeql.yml`](./repo-codeql.yml)         | `shared-codeql.yml`     | CodeQL analysis                                                            |
+| [`repo-scorecard.yml`](./repo-scorecard.yml)   | `shared-scorecard.yml`  | OpenSSF Scorecard                                                          |
+| [`repo-zizmor.yml`](./repo-zizmor.yml)         | `shared-zizmor.yml`     | Blocking security lint for GitHub Actions and Dependabot                   |
+| [`dependabot.yml`](./dependabot.yml)           | —                       | Keeps the pinned SHAs current                                              |
 
 They assume a pnpm workspace with `lint-check`, `format-check`, `typecheck`,
-`build`, `test` and `lint-publish` scripts in the root `package.json`. Any of
-those can be renamed or disabled through workflow inputs — see the commented
-`with:` block in each file.
+`build`, `test`, `test-bench` and `lint-publish` scripts in the root
+`package.json`. These standard script names, Node.js LTS, and the npm registry
+are fixed provider conventions. The commented `with:` blocks expose only
+workflow-specific policy choices.
 
 ## Install
 
-1. Copy the five `repo-*.yml` workflow files into `.github/workflows/` of the
+1. Copy the six `repo-*.yml` workflow files into `.github/workflows/` of the
    target repository without renaming them, and copy `dependabot.yml` into
    `.github/`.
 
 2. Replace the `__SHA__` placeholder with the commit of the release you want:
 
    ```sh
-   SHA="$(gh api repos/zemd/js/git/ref/tags/v1 --jq .object.sha)"
+   SHA="$(gh api repos/zemd/js/git/ref/tags/v2 --jq .object.sha)"
    sed -i.bak "s|__SHA__|${SHA}|g" .github/workflows/*.yml && rm .github/workflows/*.bak
    ```
 
    Every [`v*` release](https://github.com/zemd/js/releases) also lists the
    `uses:` lines already pinned, ready to copy.
 
-3. Adjust the `with:` inputs if the repository's scripts differ from the
-   defaults, and delete the workflows you do not need.
+3. Adjust genuine policy inputs where needed, and delete the workflows you do
+   not need.
 
-Dependabot rewrites both the SHA and the trailing `# v1` comment from then on.
+Dependabot rewrites both the SHA and the trailing `# v2` comment from then on.
 When it updates `repo-release.yml`, keep `shared-tooling-ref` equal to the SHA in
 the `uses:` line so the release scripts and reusable workflow stay on one revision.
 
@@ -43,6 +45,25 @@ the `uses:` line so the release scripts and reusable workflow stay on one revisi
 manifest only when that package versions a release contract but is never
 published to npm. The release workflow advances it from its matching change
 intents before pnpm prepares the release pull request.
+
+## Benchmark setup
+
+`shared-benchmarks.yml` runs the fixed root `test-bench` script on Node.js LTS
+and reports the results to an existing Bencher project:
+
+1. Create the Bencher project and a project-scoped API key.
+2. Add the project slug or UUID as the `BENCHER_PROJECT` repository variable.
+3. Add the project key as the `BENCHER_API_KEY` repository secret.
+4. Make `pnpm test-bench` write one or more Bencher Metric Format `.json` files
+   directly inside `BENCHER_OUTPUT_DIR` when that variable is present. The
+   `toBencherMetricFormat` helper from `@zemd/testing` provides the conversion
+   without owning file or network I/O.
+
+The example remains dormant until `BENCHER_PROJECT` is set. It records `main`
+history and compares same-repository pull requests with their base revision;
+fork pull requests are skipped because GitHub does not expose repository secrets
+to them. Reports are informational by default. After the Bencher project has
+stable thresholds, set `error-on-alert: true` to make alerts fail the job.
 
 ## Release setup
 

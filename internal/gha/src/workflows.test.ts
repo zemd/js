@@ -170,6 +170,7 @@ void test("shared workflows are callable and self-contained", () => {
 
 void test("callers delegate to the shared workflows", () => {
   const callers: Array<[string, string]> = [
+    ["repo-benchmarks.yml", "shared-benchmarks.yml"],
     ["repo-ci.yml", "shared-ci.yml"],
     ["repo-codeql.yml", "shared-codeql.yml"],
     ["repo-scorecard.yml", "shared-scorecard.yml"],
@@ -238,9 +239,12 @@ void test("every native unit-test package exposes the fixed test-coverage script
 });
 
 void test("shared workflows use fixed package script names", () => {
+  const benchmarks = read(workflowsDir, "shared-benchmarks.yml");
   const source = read(workflowsDir, "shared-ci.yml");
   const release = read(workflowsDir, "shared-release.yml");
+  const benchmarkCaller = read(workflowsDir, "repo-benchmarks.yml");
   const caller = read(workflowsDir, "repo-ci.yml");
+  const benchmarkExample = read(examplesDir, "repo-benchmarks.yml");
   const example = read(examplesDir, "repo-ci.yml");
   const releaseExample = read(examplesDir, "repo-release.yml");
   const lint = workflowStep(source, "Lint");
@@ -252,6 +256,7 @@ void test("shared workflows use fixed package script names", () => {
   const upload = workflowStep(source, "Upload native coverage reports");
   const publint = workflowStep(source, "Validate publishable packages");
   const browser = workflowStep(source, "Run browser tests");
+  const runBenchmarks = workflowStep(benchmarks, "Run benchmarks");
   const releaseBuild = workflowStep(release, "Build");
   const releasePublint = workflowStep(release, "Validate publishable packages");
   const manifest = JSON.parse(readFileSync(`${root}package.json`, "utf8")) as {
@@ -266,7 +271,7 @@ void test("shared workflows use fixed package script names", () => {
     assert.doesNotMatch(workflow, /\binputs\.[a-z0-9-]+-script\b/);
   }
 
-  for (const workflow of [caller, example, releaseExample]) {
+  for (const workflow of [benchmarkCaller, caller, benchmarkExample, example, releaseExample]) {
     assert.doesNotMatch(workflow, /^ {6}[a-z0-9-]+-script:/m);
   }
 
@@ -279,6 +284,7 @@ void test("shared workflows use fixed package script names", () => {
     [coverage, "test-coverage"],
     [publint, "lint-publish"],
     [browser, "test-browser"],
+    [runBenchmarks, "test-bench"],
     [releaseBuild, "build"],
     [releasePublint, "lint-publish"],
   ] as const) {
@@ -298,6 +304,60 @@ void test("shared workflows use fixed package script names", () => {
   assert.ok(caller.includes('playwright-filter: "@zemd/std-modules"'));
   assert.strictEqual(manifest.scripts["coverage"], undefined);
   assert.strictEqual(manifest.scripts["test-coverage"], "turbo run test-coverage");
+});
+
+void test("shared benchmarks report namespaced BMF results to Bencher", () => {
+  const source = read(workflowsDir, "shared-benchmarks.yml");
+  const caller = read(workflowsDir, "repo-benchmarks.yml");
+  const example = read(examplesDir, "repo-benchmarks.yml");
+  const setup = workflowStep(source, "Setup Bencher");
+  const runBenchmarks = workflowStep(source, "Run benchmarks");
+  const combine = workflowStep(source, "Combine benchmark results");
+  const track = workflowStep(source, "Track benchmarks with Bencher");
+
+  assert.match(source, /project:\n(?: {8}.*\n){2} {8}required: true/);
+  assert.match(source, /BENCHER_API_KEY:\n(?: {8}.*\n) {8}required: true/);
+  assert.match(source, /error-on-alert:\n(?: {8}.*\n){2} {8}default: false/);
+  assert.ok(usesAction(setup, "bencherdev/bencher"));
+  assert.match(setup, /^ {10}version: "\d+\.\d+\.\d+"$/m);
+
+  assert.ok(runBenchmarks.includes("BENCHER_OUTPUT_DIR: ${{ runner.temp }}/bencher-results"));
+  assert.ok(runBenchmarks.includes("run: pnpm run test-bench"));
+  assert.ok(combine.includes("test-bench did not write any Bencher JSON files"));
+  assert.ok(combine.includes("duplicate Bencher benchmark"));
+  assert.ok(combine.includes("Object.fromEntries(entries)"));
+
+  for (const option of [
+    '--project "$BENCHER_PROJECT"',
+    '--branch "$BENCHER_BRANCH"',
+    "--testbed ubuntu-latest",
+    "--adapter json",
+    '--file "$BENCHER_RESULTS_FILE"',
+    '--github-actions "$GITHUB_TOKEN"',
+    "--ci-id benchmarks",
+    '--start-point "$BENCHER_START_POINT"',
+    '--start-point-hash "$BENCHER_START_POINT_HASH"',
+    "--start-point-clone-thresholds",
+    "--start-point-reset",
+    "--error-on-alert",
+  ]) {
+    assert.ok(track.includes(option), `Bencher invocation must include ${option}`);
+  }
+
+  assert.match(
+    source,
+    /^ {4}if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository$/m,
+  );
+  for (const workflow of [caller, example]) {
+    assert.ok(workflow.includes("vars.BENCHER_PROJECT != ''"));
+    assert.ok(
+      workflow.includes("github.event.pull_request.head.repo.full_name == github.repository"),
+    );
+    assert.ok(workflow.includes("project: ${{ vars.BENCHER_PROJECT }}"));
+    assert.ok(workflow.includes("BENCHER_API_KEY: ${{ secrets.BENCHER_API_KEY }}"));
+    assert.match(workflow, /^ {6}checks: write # .+$/m);
+    assert.match(workflow, /^ {6}pull-requests: write # .+$/m);
+  }
 });
 
 void test("shared workflow platform and release conventions are fixed", () => {
@@ -385,7 +445,7 @@ void test("every runner job has a bounded timeout", () => {
 });
 
 void test("shared workflows set the telemetry opt-out themselves", () => {
-  for (const file of ["shared-ci.yml", "shared-release.yml"]) {
+  for (const file of ["shared-benchmarks.yml", "shared-ci.yml", "shared-release.yml"]) {
     assert.match(
       read(workflowsDir, file),
       /^ {2}DO_NOT_TRACK: 1$/m,
@@ -562,6 +622,10 @@ void test("Dependabot keeps GitHub Actions behind a seven-day cooldown", () => {
 
 void test("examples pin the shared workflows through a replaceable placeholder", () => {
   const examples = yamlFiles(examplesDir);
+  const contract = JSON.parse(readFileSync(`${root}internal/gha/package.json`, "utf8")) as {
+    version: string;
+  };
+  const expectedComment = `v${contract.version.split(".")[0]}`;
   assert.ok(examples.length > 0);
 
   for (const file of examples) {
@@ -571,10 +635,10 @@ void test("examples pin the shared workflows through a replaceable placeholder",
         /^zemd\/js\/\.github\/workflows\/shared-[a-z]+\.yml@__SHA__$/,
         `${file}: "${reference}" must reference a shared workflow`,
       );
-      assert.notStrictEqual(
+      assert.strictEqual(
         comment,
-        undefined,
-        `${file}: "${reference}" must carry a "# <version>" comment`,
+        expectedComment,
+        `${file}: "${reference}" must carry the current contract major comment`,
       );
     }
   }

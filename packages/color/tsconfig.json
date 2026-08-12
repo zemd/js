@@ -7,6 +7,6 @@
     "isolatedDeclarations": false,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tsdown.config.ts"],
+  "include": ["benchmarks/**/*.ts", "src/**/*.ts", "tsdown.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

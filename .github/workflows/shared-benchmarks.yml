@@ -1,0 +1,154 @@
+name: Shared Benchmarks
+
+# Continuous benchmark history with Bencher. Call it from a repository whose
+# fixed `test-bench` script writes Bencher Metric Format JSON files directly to
+# the directory provided in BENCHER_OUTPUT_DIR.
+#   uses: zemd/js/.github/workflows/shared-benchmarks.yml@<sha> # v2
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      project:
+        description: Existing Bencher project slug or UUID.
+        type: string
+        required: true
+      error-on-alert:
+        description: Fail the job when a configured Bencher threshold raises an alert.
+        type: boolean
+        default: false
+    secrets:
+      BENCHER_API_KEY:
+        description: Project-scoped Bencher API key used to submit benchmark reports.
+        required: true
+
+# Not inherited from the caller: `env` defined at the caller's workflow level is
+# never propagated into a reusable workflow.
+env:
+  # https://consoledonottrack.com - opts out of Turborepo and other CLI telemetry
+  DO_NOT_TRACK: 1
+
+jobs:
+  benchmarks:
+    name: Continuous benchmarks
+    # Repository secrets are unavailable to pull requests from forks. Skipping
+    # those runs also prevents untrusted code from reaching the Bencher key.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read # checkout the caller repository
+      checks: write # publish the Bencher report as a GitHub Check
+      pull-requests: write # publish the report on same-repository pull requests
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout Repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Setup Bencher
+        uses: bencherdev/bencher@4c83b25441d145ee273adaf74be30f2382e6ba85 # v0.6.11
+        with:
+          version: "0.6.11"
+
+      - name: Run benchmarks
+        env:
+          BENCHER_OUTPUT_DIR: ${{ runner.temp }}/bencher-results
+        run: pnpm run test-bench
+
+      - name: Combine benchmark results
+        env:
+          BENCHER_OUTPUT_DIR: ${{ runner.temp }}/bencher-results
+          BENCHER_RESULTS_FILE: ${{ runner.temp }}/bencher-results.json
+        run: |
+          node --input-type=module - "$BENCHER_OUTPUT_DIR" "$BENCHER_RESULTS_FILE" <<'NODE'
+          import { readdir, readFile, writeFile } from "node:fs/promises";
+          import { join } from "node:path";
+
+          const [directory, output] = process.argv.slice(2);
+          if (!directory || !output) throw new Error("benchmark result paths are required");
+
+          const files = (await readdir(directory)).filter((file) => file.endsWith(".json")).sort();
+          if (files.length === 0) throw new Error("test-bench did not write any Bencher JSON files");
+
+          const entries = [];
+          const benchmarkNames = new Set();
+          for (const file of files) {
+            const metrics = JSON.parse(await readFile(join(directory, file), "utf8"));
+            if (metrics === null || typeof metrics !== "object" || Array.isArray(metrics)) {
+              throw new TypeError(`${file} must contain a Bencher Metric Format object`);
+            }
+            for (const [name, measures] of Object.entries(metrics)) {
+              if (benchmarkNames.has(name)) throw new Error(`duplicate Bencher benchmark: ${name}`);
+              benchmarkNames.add(name);
+              entries.push([name, measures]);
+            }
+          }
+
+          await writeFile(output, `${JSON.stringify(Object.fromEntries(entries))}\n`);
+          NODE
+
+      - name: Track benchmarks with Bencher
+        env:
+          BENCHER_API_KEY: ${{ secrets.BENCHER_API_KEY }}
+          BENCHER_BRANCH: ${{ github.head_ref || github.ref_name }}
+          BENCHER_PROJECT: ${{ inputs.project }}
+          BENCHER_RESULTS_FILE: ${{ runner.temp }}/bencher-results.json
+          BENCHER_START_POINT: ${{ github.base_ref }}
+          BENCHER_START_POINT_HASH: ${{ github.event.pull_request.base.sha }}
+          ERROR_ON_ALERT: ${{ inputs.error-on-alert }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$BENCHER_PROJECT" ]; then
+            echo "::error::The Bencher project input must not be empty."
+            exit 1
+          fi
+          if [ -z "$BENCHER_API_KEY" ]; then
+            echo "::error::The BENCHER_API_KEY secret is required."
+            exit 1
+          fi
+
+          arguments=(
+            --project "$BENCHER_PROJECT"
+            --branch "$BENCHER_BRANCH"
+            --testbed ubuntu-latest
+            --adapter json
+            --file "$BENCHER_RESULTS_FILE"
+            --github-actions "$GITHUB_TOKEN"
+            --ci-id benchmarks
+          )
+
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            arguments+=(
+              --start-point "$BENCHER_START_POINT"
+              --start-point-hash "$BENCHER_START_POINT_HASH"
+              --start-point-clone-thresholds
+              --start-point-reset
+            )
+          fi
+          if [ "$ERROR_ON_ALERT" = "true" ]; then
+            arguments+=(--error-on-alert)
+          fi
+
+          bencher run "${arguments[@]}"

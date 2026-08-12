@@ -21,7 +21,7 @@ Each package is published independently to npm, using the `@zemd` and `@logtown`
 | [`@zemd/std-modules`](packages/std)         | [![npm](https://img.shields.io/npm/v/@zemd/std-modules?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/std-modules) | `BlueOak-1.0.0` | Standalone ECMAScript modules for diverse use cases  |
 | [`@zemd/http-client`](packages/http-client) | [![npm](https://img.shields.io/npm/v/@zemd/http-client?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/http-client) | `Apache-2.0`    | A lightweight framework to build your custom `fetch` |
 | [`@zemd/openapi`](packages/openapi)         | [![npm](https://img.shields.io/npm/v/@zemd/openapi?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/openapi)         | `Apache-2.0`    | OpenAPI TypeScript definitions and tools             |
-| [`@zemd/testing`](packages/testing)         | [![npm](https://img.shields.io/npm/v/@zemd/testing?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/testing)         | `Apache-2.0`    | Focused helpers for Node.js native tests             |
+| [`@zemd/testing`](packages/testing)         | [![npm](https://img.shields.io/npm/v/@zemd/testing?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/testing)         | `Apache-2.0`    | Focused helpers for Node.js tests and benchmarks     |
 | [`@zemd/tsconfig`](packages/tsconfig)       | [![npm](https://img.shields.io/npm/v/@zemd/tsconfig?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/tsconfig)       | `MIT`           | Shared TypeScript configs with strict defaults       |
 | [`logtown`](packages/logtown)               | [![npm](https://img.shields.io/npm/v/logtown?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/logtown)                     | `Apache-2.0`    | Versatile logging wrapper for JavaScript projects    |
 | [`@logtown/hono`](packages/logtown-hono)    | [![npm](https://img.shields.io/npm/v/@logtown/hono?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@logtown/hono)         | `Apache-2.0`    | Hono middleware for logging with `logtown`           |
@@ -56,24 +56,27 @@ The checked-in [Dev Container configuration](.devcontainer/devcontainer.json) pr
 
 All tasks are orchestrated by [Turborepo](https://turborepo.com) and run across every workspace package.
 
-| Command                      | Description                                       |
-| ---------------------------- | ------------------------------------------------- |
-| `pnpm build`                 | Build all packages                                |
-| `pnpm test`                  | Run unit tests with Node.js's native test runner  |
-| `pnpm test-coverage`         | Run unit tests and write native LCOV reports      |
-| `pnpm test-browser`          | Run browser tests with Playwright                 |
-| `pnpm test-browser-setup`    | Download the Chromium build used by browser tests |
-| `pnpm test-git-hooks`        | Test the native Git hook behavior                 |
-| `pnpm typecheck`             | Type-check all packages                           |
-| `pnpm format`                | Format the codebase with `oxfmt`                  |
-| `pnpm format-check`          | Verify formatting without writing changes         |
-| `pnpm lint-fix`              | Run type-aware linting and auto-fix with `oxlint` |
-| `pnpm lint-check`            | Run type-aware linting and fail on warnings       |
-| `pnpm lint-actions`          | Audit GitHub Actions with `zizmor`                |
-| `pnpm lint-publish`          | Validate publishable package metadata (`publint`) |
-| `pnpm pre-commit`            | Format, lint-fix, validate, and stage all files   |
-| `pnpm pre-push`              | Run the complete local pre-push validation graph  |
-| `pnpm run git-hooks-install` | Install this checkout's native Git hooks          |
+| Command                      | Description                                          |
+| ---------------------------- | ---------------------------------------------------- |
+| `pnpm test-bench`            | Run package benchmarks with Node.js performance APIs |
+| `pnpm build`                 | Build all packages                                   |
+| `pnpm test`                  | Run unit tests with Node.js's native test runner     |
+| `pnpm test-coverage`         | Run unit tests and write native LCOV reports         |
+| `pnpm test-browser`          | Run browser tests with Playwright                    |
+| `pnpm test-browser-setup`    | Download the Chromium build used by browser tests    |
+| `pnpm test-git-hooks`        | Test the native Git hook behavior                    |
+| `pnpm typecheck`             | Type-check all packages                              |
+| `pnpm format`                | Format the codebase with `oxfmt`                     |
+| `pnpm format-check`          | Verify formatting without writing changes            |
+| `pnpm lint-fix`              | Run type-aware linting and auto-fix with `oxlint`    |
+| `pnpm lint-check`            | Run type-aware linting and fail on warnings          |
+| `pnpm lint-actions`          | Audit GitHub Actions with `zizmor`                   |
+| `pnpm lint-publish`          | Validate publishable package metadata (`publint`)    |
+| `pnpm pre-commit`            | Format, lint-fix, validate, and stage all files      |
+| `pnpm pre-push`              | Run the complete local pre-push validation graph     |
+| `pnpm run git-hooks-install` | Install this checkout's native Git hooks             |
+
+When `BENCHER_OUTPUT_DIR` is set, the selected package benchmarks write namespaced [Bencher Metric Format](https://bencher.dev/docs/reference/bencher-metric-format/) JSON files there instead of console tables. The reusable benchmark workflow uses those files to maintain performance history without changing the local `pnpm test-bench` experience.
 
 `pnpm lint-actions` requires [`zizmor`](https://docs.zizmor.sh/installation/)
 1.29.0, matching the exact version pinned by CI. Set `GH_TOKEN` (for example,
