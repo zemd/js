@@ -21,12 +21,13 @@ jobs:
     name: Benchmarks
     # BENCHER_PROJECT is a repository variable. This guard keeps the workflow
     # dormant until setup is complete and excludes pull requests from forks.
+    # Caller code runs without credentials; a separate fresh runner publishes.
     if: vars.BENCHER_PROJECT != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     uses: zemd/js/.github/workflows/shared-benchmarks.yml@__SHA__ # v2
     permissions:
       contents: read # checkout the repository for benchmarks
-      checks: write # publish the Bencher report as a GitHub Check
-      pull-requests: write # publish the report on same-repository pull requests
+      checks: write # used only by the isolated Bencher publishing job
+      pull-requests: write # used only by the isolated Bencher publishing job
     with:
       project: ${{ vars.BENCHER_PROJECT }}
       # Keep reports informational until the project has stable thresholds.
