@@ -9,6 +9,7 @@
     "url": "https://zemd.dev"
   },
   "scripts": {
+    "test-bench": "turbo run test-bench --filter=@zemd/color --filter=@zemd/std-modules",
     "build": "turbo run build",
     "test": "turbo run test",
     "test-browser": "turbo run test-browser",

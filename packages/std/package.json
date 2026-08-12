@@ -63,6 +63,7 @@
     }
   },
   "scripts": {
+    "test-bench": "node ./benchmarks/objects.bench.ts",
     "build": "tsdown",
     "dev": "tsdown --watch",
     "lint-publish": "publint",

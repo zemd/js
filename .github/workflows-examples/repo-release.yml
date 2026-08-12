@@ -18,7 +18,7 @@ concurrency:
 jobs:
   release:
     name: Release
-    uses: zemd/js/.github/workflows/shared-release.yml@__SHA__ # v1
+    uses: zemd/js/.github/workflows/shared-release.yml@__SHA__ # v2
     # Node.js lts/*, main, release/main, the release PR title, npmjs.org, and
     # the `build` and `lint-publish` scripts are fixed shared conventions.
     permissions:

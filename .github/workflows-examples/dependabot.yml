@@ -21,7 +21,7 @@ updates:
         dependency-type: "development"
 
   # Also keeps the `zemd/js/.github/workflows/shared-*.yml@<sha>` pins current,
-  # rewriting both the SHA and the `# v1` comment.
+  # rewriting both the SHA and the `# v2` comment.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

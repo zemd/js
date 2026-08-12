@@ -2,7 +2,7 @@ name: Shared CI
 
 # Shared pull request pipeline for the pnpm + turbo monorepos.
 # Call it from a repository with:
-#   uses: zemd/js/.github/workflows/shared-ci.yml@<sha> # v1
+#   uses: zemd/js/.github/workflows/shared-ci.yml@<sha> # v2
 # See .github/workflows-examples/ for ready-to-copy caller workflows.
 
 permissions: {}

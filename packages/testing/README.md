@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@zemd/testing?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/testing)
 
-Focused, dependency-free helpers for small gaps in Node.js 24's native `node:test` runner. The package is ESM-only and requires Node.js 24 or newer.
+Focused, dependency-free helpers for small gaps in Node.js 24's native testing and performance APIs. The package is ESM-only and requires Node.js 24 or newer.
 
 ## Installation
 
@@ -69,6 +69,62 @@ await result;
 ```
 
 The helper does not attempt to detect when the microtask queue is empty. Keeping the bound explicit avoids nondeterministic or unbounded flushing.
+
+## Synchronous benchmarks
+
+`benchmark` measures a synchronous task in repeated batches with `node:perf_hooks`. It performs an unmeasured warmup and reports mean, median, minimum, and maximum nanoseconds per task invocation. Operations per second are calculated from the mean. If a warmup or measured invocation returns a Promise or another thenable, `benchmark` throws a `TypeError` instead of reporting incomplete timings.
+
+```ts
+import { benchmark, formatBenchmarkResult } from "@zemd/testing";
+
+const input = '{"status":"ok"}';
+let checksum = 0;
+const result = benchmark(
+  "JSON.parse",
+  () => {
+    const parsed = JSON.parse(input) as { status: string };
+    checksum += parsed.status.length;
+  },
+  {
+    iterations: 10_000,
+    budgetNanoseconds: 1_000,
+  },
+);
+
+if (checksum === 0) throw new Error("unexpected empty result");
+
+console.table([formatBenchmarkResult(result)]);
+```
+
+`formatBenchmarkResult` keeps raw measurements separate from display formatting. It selects an appropriate duration unit, renders large throughput values compactly, and reports the coefficient of variation across measured batches. Lower variation means the batches were more consistent; a single-sample result reports `n/a` because variation cannot be estimated.
+
+`toBencherMetricFormat` converts one or more raw results to [Bencher Metric Format](https://bencher.dev/docs/reference/bencher-metric-format/) JSON. Give each package a stable namespace so benchmarks from different packages cannot collide and the same benchmark name keeps one history across releases:
+
+```ts
+import { toBencherMetricFormat } from "@zemd/testing";
+
+const metrics = toBencherMetricFormat([result], {
+  namespace: "@acme/parser",
+});
+
+process.stdout.write(`${JSON.stringify(metrics)}\n`);
+```
+
+The resulting `latency` value is the mean nanoseconds per operation and `throughput` is operations per second. Both values must be finite numbers so they remain valid BMF values after JSON serialization. The transformer performs no file or network I/O; benchmark scripts decide whether to print the readable table or persist BMF JSON for CI.
+
+When `budgetNanoseconds` is set, the formatted result describes the mean relative to that informational budget:
+
+- `within budget` means the result has at least 10% headroom.
+- `near budget` means the result has less than 10% headroom without exceeding the budget.
+- `over budget` means the measured mean exceeded the budget.
+
+The status does not throw or fail the benchmark. A budget is only meaningful when derived from the expected workload, and results should only be compared across equivalent runtime and machine conditions.
+
+Each sample contains the configured number of iterations. The default is five samples and up to 1,000 warmup iterations. Use larger iteration counts for very fast tasks so timing the batch dominates the measurement overhead.
+
+The task should consume its result or update an observable checksum when benchmarking otherwise-pure work. This prevents the runtime from discarding calculations whose results are unused.
+
+The helper intentionally does not provide asynchronous measurement, automatic iteration calibration, result persistence, or performance thresholds. Benchmark timings vary by runtime and machine, so they should not be used as fixed-duration unit-test assertions.
 
 For assertions, function spies, and existing object properties, prefer `node:assert` and the test context's native `context.mock.method()` or `context.mock.property()` APIs. `context.mock.property()` requires Node.js 24.3 or newer.
 

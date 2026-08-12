@@ -1,0 +1,35 @@
+name: Benchmarks
+
+permissions: {}
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened, edited, synchronize]
+  workflow_dispatch:
+
+concurrency:
+  group: benchmarks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmarks:
+    name: Benchmarks
+    # BENCHER_PROJECT is a repository variable. This guard keeps the workflow
+    # dormant until setup is complete and excludes pull requests from forks.
+    if: vars.BENCHER_PROJECT != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    uses: zemd/js/.github/workflows/shared-benchmarks.yml@__SHA__ # v2
+    permissions:
+      contents: read # checkout the repository for benchmarks
+      checks: write # publish the Bencher report as a GitHub Check
+      pull-requests: write # publish the report on same-repository pull requests
+    with:
+      project: ${{ vars.BENCHER_PROJECT }}
+      # Keep reports informational until the project has stable thresholds.
+      # error-on-alert: false
+    secrets:
+      BENCHER_API_KEY: ${{ secrets.BENCHER_API_KEY }}
