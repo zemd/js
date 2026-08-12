@@ -45,7 +45,7 @@
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.github/scripts/gha.mjs"]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build", "^build"],
       "inputs": ["benchmarks/**", "src/**", "scripts/**", "tsconfig.json", "package.json"]
     },
     "dev": {
