@@ -101,6 +101,20 @@ const workflowStep = (source: string, name: string): string => {
   return lines.slice(start, end).join("\n");
 };
 
+const workflowJob = (source: string, name: string): string => {
+  const lines = source.split("\n");
+  const marker = `  ${name}:`;
+  const start = lines.findIndex((line) => line === marker);
+  if (start < 0) throw new Error(`Workflow does not define the "${name}" job`);
+
+  let end = start + 1;
+  while (end < lines.length && !/^ {2}[A-Za-z_][A-Za-z0-9_-]*:$/.test(lines[end] ?? "")) {
+    end += 1;
+  }
+
+  return lines.slice(start, end).join("\n");
+};
+
 void test("workflow step extraction does not cross whitespace-heavy sibling boundaries", () => {
   const source = [
     "      - name: Stage packages on npm",
@@ -310,9 +324,14 @@ void test("shared benchmarks report namespaced BMF results to Bencher", () => {
   const source = read(workflowsDir, "shared-benchmarks.yml");
   const caller = read(workflowsDir, "repo-benchmarks.yml");
   const example = read(examplesDir, "repo-benchmarks.yml");
+  const benchmarkJob = workflowJob(source, "benchmarks");
+  const publishJob = workflowJob(source, "publish");
   const setup = workflowStep(source, "Setup Bencher");
   const runBenchmarks = workflowStep(source, "Run benchmarks");
   const combine = workflowStep(source, "Combine benchmark results");
+  const upload = workflowStep(source, "Upload benchmark results");
+  const download = workflowStep(source, "Download benchmark results");
+  const validate = workflowStep(source, "Validate benchmark results");
   const track = workflowStep(source, "Track benchmarks with Bencher");
 
   assert.match(source, /project:\n(?: {8}.*\n){2} {8}required: true/);
@@ -326,10 +345,35 @@ void test("shared benchmarks report namespaced BMF results to Bencher", () => {
   assert.ok(combine.includes("test-bench did not write any Bencher JSON files"));
   assert.ok(combine.includes("duplicate Bencher benchmark"));
   assert.ok(combine.includes("Object.fromEntries(entries)"));
+  assert.ok(usesAction(upload, "actions/upload-artifact"));
+  assert.ok(upload.includes("path: ${{ runner.temp }}/bencher-results.json"));
+  assert.ok(upload.includes("if-no-files-found: error"));
+  assert.ok(upload.includes("retention-days: 1"));
+
+  assert.ok(publishJob.includes("needs: benchmarks"));
+  assert.ok(usesAction(download, "actions/download-artifact"));
+  assert.ok(download.includes("path: ${{ runner.temp }}/bencher-artifact"));
+  assert.ok(validate.includes("benchmark artifact must contain only"));
+  assert.ok(validate.includes("stats.size > maxBytes"));
+  assert.ok(validate.includes("metricCount > 10_000"));
+  assert.ok(validate.includes('Object.hasOwn(metric, "value")'));
+  assert.ok(validate.includes("Number.isFinite(value)"));
+  assert.ok(validate.includes("Object.create(null)"));
+
+  assert.doesNotMatch(benchmarkJob, /\$\{\{ secrets\./);
+  assert.doesNotMatch(benchmarkJob, /github\.token/);
+  assert.doesNotMatch(benchmarkJob, /checks: write|pull-requests: write/);
+  assert.doesNotMatch(benchmarkJob, /bencherdev\/bencher/);
+  assert.doesNotMatch(publishJob, /actions\/checkout|pnpm install|pnpm run test-bench/);
+  assert.ok(publishJob.includes("BENCHER_API_KEY: ${{ secrets.BENCHER_API_KEY }}"));
+  assert.ok(
+    publishJob.indexOf("Validate benchmark results") < publishJob.indexOf("BENCHER_API_KEY"),
+  );
 
   for (const option of [
     '--project "$BENCHER_PROJECT"',
     '--branch "$BENCHER_BRANCH"',
+    '--hash "$BENCHER_HASH"',
     "--testbed ubuntu-latest",
     "--adapter json",
     '--file "$BENCHER_RESULTS_FILE"',
@@ -344,9 +388,12 @@ void test("shared benchmarks report namespaced BMF results to Bencher", () => {
     assert.ok(track.includes(option), `Bencher invocation must include ${option}`);
   }
 
-  assert.match(
-    source,
-    /^ {4}if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository$/m,
+  assert.strictEqual(
+    source.match(
+      /^ {4}if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository$/gm,
+    )?.length,
+    2,
+    "both benchmark jobs must reject fork pull requests",
   );
   for (const workflow of [caller, example]) {
     assert.ok(workflow.includes("vars.BENCHER_PROJECT != ''"));

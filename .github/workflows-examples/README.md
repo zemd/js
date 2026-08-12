@@ -49,7 +49,10 @@ intents before pnpm prepares the release pull request.
 ## Benchmark setup
 
 `shared-benchmarks.yml` runs the fixed root `test-bench` script on Node.js LTS
-and reports the results to an existing Bencher project:
+and reports the results to an existing Bencher project. Benchmark execution and
+authenticated publication use separate GitHub-hosted jobs: caller code receives
+only `contents: read`, while an immutable artifact is validated and published
+from a fresh runner that never checks out or executes caller code.
 
 1. Create the Bencher project and a project-scoped API key.
 2. Add the project slug or UUID as the `BENCHER_PROJECT` repository variable.
@@ -62,8 +65,10 @@ and reports the results to an existing Bencher project:
 The example remains dormant until `BENCHER_PROJECT` is set. It records `main`
 history and compares same-repository pull requests with their base revision;
 fork pull requests are skipped because GitHub does not expose repository secrets
-to them. Reports are informational by default. After the Bencher project has
-stable thresholds, set `error-on-alert: true` to make alerts fail the job.
+to them. The project key and write-capable GitHub token are injected only into
+the final Bencher command after the artifact has passed strict BMF validation.
+Reports are informational by default. After the Bencher project has stable
+thresholds, set `error-on-alert: true` to make alerts fail the job.
 
 ## Release setup
 

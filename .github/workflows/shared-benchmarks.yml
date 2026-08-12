@@ -31,16 +31,14 @@ env:
 
 jobs:
   benchmarks:
-    name: Continuous benchmarks
+    name: Run benchmarks
     # Repository secrets are unavailable to pull requests from forks. Skipping
-    # those runs also prevents untrusted code from reaching the Bencher key.
+    # those runs also avoids publishing unreviewed fork results to Bencher.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read # checkout the caller repository
-      checks: write # publish the Bencher report as a GitHub Check
-      pull-requests: write # publish the report on same-repository pull requests
 
     steps:
       - name: Harden Runner
@@ -66,11 +64,6 @@ jobs:
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Setup Bencher
-        uses: bencherdev/bencher@4c83b25441d145ee273adaf74be30f2382e6ba85 # v0.6.11
-        with:
-          version: "0.6.11"
 
       - name: Run benchmarks
         env:
@@ -109,12 +102,138 @@ jobs:
           await writeFile(output, `${JSON.stringify(Object.fromEntries(entries))}\n`);
           NODE
 
+      # The artifact is the only state that crosses into the credentialed job.
+      # It is immutable after upload and is validated again before publication.
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bencher-results
+          path: ${{ runner.temp }}/bencher-results.json
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish benchmarks
+    needs: benchmarks
+    # Keep the credentialed boundary unavailable to fork pull requests even if
+    # a caller accidentally removes its matching guard.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      checks: write # publish the Bencher report as a GitHub Check
+      pull-requests: write # publish the report on same-repository pull requests
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Download benchmark results
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: bencher-results
+          path: ${{ runner.temp }}/bencher-artifact
+
+      # Treat the artifact as untrusted data. The publishing runner never checks
+      # out or executes caller code and only forwards a bounded, canonical BMF file.
+      - name: Validate benchmark results
+        env:
+          BENCHER_ARTIFACT_DIR: ${{ runner.temp }}/bencher-artifact
+          BENCHER_RESULTS_FILE: ${{ runner.temp }}/bencher-results-validated.json
+        run: |
+          node --input-type=module - "$BENCHER_ARTIFACT_DIR" "$BENCHER_RESULTS_FILE" <<'NODE'
+          import { lstat, readFile, readdir, writeFile } from "node:fs/promises";
+          import { join } from "node:path";
+
+          const [directory, output] = process.argv.slice(2);
+          if (!directory || !output) throw new Error("benchmark artifact paths are required");
+
+          const artifactName = "bencher-results.json";
+          const entries = await readdir(directory, { withFileTypes: true });
+          if (
+            entries.length !== 1 ||
+            entries[0]?.name !== artifactName ||
+            !entries[0].isFile()
+          ) {
+            throw new Error(`benchmark artifact must contain only ${artifactName}`);
+          }
+
+          const input = join(directory, artifactName);
+          const stats = await lstat(input);
+          const maxBytes = 1024 * 1024;
+          if (!stats.isFile() || stats.size === 0 || stats.size > maxBytes) {
+            throw new Error(`benchmark artifact must be a non-empty file of at most ${maxBytes} bytes`);
+          }
+
+          const parsed = JSON.parse(await readFile(input, "utf8"));
+          const isRecord = (value) =>
+            value !== null && typeof value === "object" && !Array.isArray(value);
+          if (!isRecord(parsed)) throw new TypeError("benchmark artifact must contain a BMF object");
+
+          const benchmarks = Object.entries(parsed);
+          if (benchmarks.length === 0 || benchmarks.length > 1000) {
+            throw new Error("benchmark artifact must contain between 1 and 1000 benchmarks");
+          }
+
+          const allowedMetricFields = new Set(["value", "lower_value", "upper_value"]);
+          const canonical = Object.create(null);
+          let metricCount = 0;
+          for (const [benchmark, measures] of benchmarks) {
+            if (benchmark.length === 0 || benchmark.length > 1024 || !isRecord(measures)) {
+              throw new TypeError(`invalid benchmark entry: ${benchmark}`);
+            }
+
+            const measureEntries = Object.entries(measures);
+            if (measureEntries.length === 0) {
+              throw new Error(`benchmark must contain at least one measure: ${benchmark}`);
+            }
+
+            const canonicalMeasures = Object.create(null);
+            for (const [measure, metric] of measureEntries) {
+              metricCount += 1;
+              if (metricCount > 10_000) throw new Error("benchmark artifact has too many metrics");
+              if (measure.length === 0 || measure.length > 64 || !isRecord(metric)) {
+                throw new TypeError(`invalid measure entry: ${benchmark}/${measure}`);
+              }
+
+              const fields = Object.keys(metric);
+              if (
+                !Object.hasOwn(metric, "value") ||
+                fields.some((field) => !allowedMetricFields.has(field))
+              ) {
+                throw new TypeError(`invalid metric fields: ${benchmark}/${measure}`);
+              }
+
+              const canonicalMetric = Object.create(null);
+              for (const field of fields) {
+                const value = metric[field];
+                if (typeof value !== "number" || !Number.isFinite(value)) {
+                  throw new TypeError(`metric values must be finite numbers: ${benchmark}/${measure}`);
+                }
+                canonicalMetric[field] = value;
+              }
+              canonicalMeasures[measure] = canonicalMetric;
+            }
+            canonical[benchmark] = canonicalMeasures;
+          }
+
+          await writeFile(output, `${JSON.stringify(canonical)}\n`, { flag: "wx" });
+          NODE
+
+      - name: Setup Bencher
+        uses: bencherdev/bencher@4c83b25441d145ee273adaf74be30f2382e6ba85 # v0.6.11
+        with:
+          version: "0.6.11"
+
       - name: Track benchmarks with Bencher
         env:
           BENCHER_API_KEY: ${{ secrets.BENCHER_API_KEY }}
           BENCHER_BRANCH: ${{ github.head_ref || github.ref_name }}
+          BENCHER_HASH: ${{ github.event.pull_request.head.sha || github.sha }}
           BENCHER_PROJECT: ${{ inputs.project }}
-          BENCHER_RESULTS_FILE: ${{ runner.temp }}/bencher-results.json
+          BENCHER_RESULTS_FILE: ${{ runner.temp }}/bencher-results-validated.json
           BENCHER_START_POINT: ${{ github.base_ref }}
           BENCHER_START_POINT_HASH: ${{ github.event.pull_request.base.sha }}
           ERROR_ON_ALERT: ${{ inputs.error-on-alert }}
@@ -132,6 +251,7 @@ jobs:
           arguments=(
             --project "$BENCHER_PROJECT"
             --branch "$BENCHER_BRANCH"
+            --hash "$BENCHER_HASH"
             --testbed ubuntu-latest
             --adapter json
             --file "$BENCHER_RESULTS_FILE"
