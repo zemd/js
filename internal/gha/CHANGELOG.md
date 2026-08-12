@@ -1,5 +1,11 @@
 # @zemd/gha
 
+## 2.1.0
+
+### Minor Changes
+
+- Add a reusable Bencher workflow for continuous benchmark history and pull-request comparisons.
+
 ## 2.0.4
 
 ### Patch Changes

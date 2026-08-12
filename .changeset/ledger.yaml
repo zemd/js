@@ -37,6 +37,10 @@
   dir: internal/gha
   intents:
     - chatty-onions-doubt
+"@zemd/gha@2.1.0":
+  dir: internal/gha
+  intents:
+    - clever-hairs-fry
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
@@ -62,6 +66,10 @@
   dir: packages/testing
   intents:
     - mighty-doors-wear
+"@zemd/testing@1.1.0":
+  dir: packages/testing
+  intents:
+    - floppy-cameras-matter
 "@zemd/tsconfig@2.1.0":
   dir: packages/tsconfig
   intents:
