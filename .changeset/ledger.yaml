@@ -41,6 +41,10 @@
   dir: internal/gha
   intents:
     - clever-hairs-fry
+"@zemd/gha@2.1.1":
+  dir: internal/gha
+  intents:
+    - cyan-toys-mix
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:

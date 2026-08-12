@@ -1,5 +1,11 @@
 # @zemd/gha
 
+## 2.1.1
+
+### Patch Changes
+
+- Isolate benchmark execution from authenticated Bencher publishing
+
 ## 2.1.0
 
 ### Minor Changes
