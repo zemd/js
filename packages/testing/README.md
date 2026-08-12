@@ -72,7 +72,7 @@ The helper does not attempt to detect when the microtask queue is empty. Keeping
 
 ## Synchronous benchmarks
 
-`benchmark` measures a synchronous task in repeated batches with `node:perf_hooks`. It performs an unmeasured warmup and reports mean, median, minimum, and maximum nanoseconds per task invocation. Operations per second are calculated from the mean.
+`benchmark` measures a synchronous task in repeated batches with `node:perf_hooks`. It performs an unmeasured warmup and reports mean, median, minimum, and maximum nanoseconds per task invocation. Operations per second are calculated from the mean. If a warmup or measured invocation returns a Promise or another thenable, `benchmark` throws a `TypeError` instead of reporting incomplete timings.
 
 ```ts
 import { benchmark, formatBenchmarkResult } from "@zemd/testing";
@@ -110,7 +110,7 @@ const metrics = toBencherMetricFormat([result], {
 process.stdout.write(`${JSON.stringify(metrics)}\n`);
 ```
 
-The resulting `latency` value is the mean nanoseconds per operation and `throughput` is operations per second. The transformer performs no file or network I/O; benchmark scripts decide whether to print the readable table or persist BMF JSON for CI.
+The resulting `latency` value is the mean nanoseconds per operation and `throughput` is operations per second. Both values must be finite numbers so they remain valid BMF values after JSON serialization. The transformer performs no file or network I/O; benchmark scripts decide whether to print the readable table or persist BMF JSON for CI.
 
 When `budgetNanoseconds` is set, the formatted result describes the mean relative to that informational budget:
 

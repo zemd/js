@@ -100,6 +100,39 @@ void describe("benchmark", () => {
     );
   });
 
+  void test("rejects thenable tasks during warmup and measurement", async () => {
+    let handledThenables = 0;
+    const thenable = {
+      // oxlint-disable-next-line unicorn/no-thenable -- Deliberate fixture for the thenable guard.
+      then: (_resolve: (value: unknown) => void, reject: (reason: unknown) => void) => {
+        handledThenables += 1;
+        reject(new Error("async benchmark task rejected"));
+      },
+    };
+
+    assert.throws(
+      () =>
+        benchmark("async warmup", () => thenable, {
+          iterations: 1,
+          samples: 1,
+          warmupIterations: 1,
+        }),
+      /benchmark task must be synchronous/,
+    );
+    assert.throws(
+      () =>
+        benchmark("async measurement", () => thenable, {
+          iterations: 1,
+          samples: 1,
+          warmupIterations: 0,
+        }),
+      /benchmark task must be synchronous/,
+    );
+
+    await Promise.resolve();
+    assert.strictEqual(handledThenables, 2);
+  });
+
   void test("formats results for readable console tables", () => {
     const result: BenchmarkResult = {
       name: "parse",
@@ -235,5 +268,28 @@ void describe("benchmark", () => {
 
     const prototypeName = toBencherMetricFormat([{ ...result, name: "__proto__" }]);
     assert.ok(Object.hasOwn(prototypeName, "__proto__"));
+  });
+
+  void test("rejects non-finite Bencher metric values", () => {
+    const result: BenchmarkResult = {
+      name: "parse",
+      iterations: 1,
+      samples: 1,
+      meanNanoseconds: 1,
+      medianNanoseconds: 1,
+      minNanoseconds: 1,
+      maxNanoseconds: 1,
+      operationsPerSecond: 1_000_000_000,
+      variationPercent: null,
+    };
+
+    assert.throws(
+      () => toBencherMetricFormat([{ ...result, meanNanoseconds: Number.NaN }]),
+      /meanNanoseconds must be a finite number/,
+    );
+    assert.throws(
+      () => toBencherMetricFormat([{ ...result, operationsPerSecond: Number.POSITIVE_INFINITY }]),
+      /operationsPerSecond must be a finite number/,
+    );
   });
 });

@@ -72,6 +72,26 @@ const assertPositiveFiniteNumber = (name: string, value: number): void => {
   }
 };
 
+const assertFiniteNumber = (name: string, value: number): void => {
+  if (!Number.isFinite(value)) {
+    throw new RangeError(`${name} must be a finite number`);
+  }
+};
+
+const isThenable = (value: unknown): value is PromiseLike<unknown> =>
+  value !== null &&
+  (typeof value === "object" || typeof value === "function") &&
+  "then" in value &&
+  typeof value.then === "function";
+
+const runSynchronousTask = (task: () => unknown): void => {
+  const result = task();
+  if (isThenable(result)) {
+    void Promise.resolve(result).catch(() => undefined);
+    throw new TypeError("benchmark task must be synchronous");
+  }
+};
+
 const formatNanoseconds = (nanoseconds: number): string => {
   if (nanoseconds < 1_000) {
     return `${numberFormatter.format(nanoseconds)} ns`;
@@ -153,6 +173,9 @@ export const toBencherMetricFormat = (
       throw new RangeError(`Duplicate Bencher benchmark name: ${name}`);
     }
 
+    assertFiniteNumber("meanNanoseconds", result.meanNanoseconds);
+    assertFiniteNumber("operationsPerSecond", result.operationsPerSecond);
+
     names.add(name);
     entries.push([
       name,
@@ -186,14 +209,14 @@ export const benchmark = (
   }
 
   for (let iteration = 0; iteration < warmupIterations; iteration += 1) {
-    void task();
+    runSynchronousTask(task);
   }
 
   const histogram = createHistogram();
   const runSample = performance.timerify(
     () => {
       for (let iteration = 0; iteration < iterations; iteration += 1) {
-        void task();
+        runSynchronousTask(task);
       }
     },
     { histogram },
