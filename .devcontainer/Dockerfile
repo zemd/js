@@ -7,3 +7,5 @@ FROM mcr.microsoft.com/devcontainers/javascript-node:5-26-bookworm@sha256:56dedf
 COPY --from=zizmor /usr/bin/zizmor /usr/local/bin/zizmor
 
 RUN zizmor --version
+
+USER node
