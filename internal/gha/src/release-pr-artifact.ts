@@ -9,11 +9,14 @@ const BODY_FILE = "pr-body.md";
 const MAX_BODY_BYTES = 1024 * 1024;
 
 const regularFile = (path: string, maxBytes: number): void => {
-  const metadata = lstatSync(path);
+  const absolute = resolve(path);
+  const metadata = lstatSync(absolute);
   if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > maxBytes) {
     throw new Error(`${path} must be a regular file of at most ${maxBytes} bytes`);
   }
-  realpathSync(path);
+  if (realpathSync(absolute) !== absolute) {
+    throw new Error(`${path} must not traverse a symbolic link`);
+  }
 };
 
 const artifactDirectory = (path: string, expectedEntries: readonly string[]): string => {

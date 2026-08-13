@@ -190,6 +190,22 @@ void test("shared workflows are callable and self-contained", () => {
   }
 });
 
+void test("release jobs configure the npm cache after runner allocation", () => {
+  const source = read(workflowsDir, "shared-release.yml");
+
+  for (const name of ["publish", "github-release"]) {
+    const job = workflowJob(source, name);
+    const configureCache = workflowStep(job, "Configure npm cache");
+
+    assert.doesNotMatch(job, /^ {6}NPM_CONFIG_CACHE:/m);
+    assert.ok(
+      configureCache.includes(
+        `run: printf 'NPM_CONFIG_CACHE=%s/npm-cache\\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"`,
+      ),
+    );
+  }
+});
+
 void test("callers delegate to the shared workflows", () => {
   const callers: Array<[string, string]> = [
     ["repo-benchmarks.yml", "shared-benchmarks.yml"],
@@ -814,7 +830,7 @@ void test("repository-local secret and editor defaults are hardened", () => {
   for (const pattern of [".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx", ".npmrc"]) {
     assert.match(
       ignored,
-      new RegExp(`^${pattern.replaceAll(".", "\\.").replace("*", ".*")}$`, "m"),
+      new RegExp(`^${pattern.replaceAll(".", "\\.").replaceAll("*", ".*")}$`, "m"),
     );
   }
   assert.match(ignored, /^!\.env\.example$/m);

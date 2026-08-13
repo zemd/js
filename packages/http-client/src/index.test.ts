@@ -236,6 +236,7 @@ void describe("HTTP Client", () => {
         "%252e%252e",
         "a\u0000b",
         "a\nb",
+        "\u0085",
       ]) {
         assert.throws(() => pathSegment(value), TypeError, JSON.stringify(value));
       }

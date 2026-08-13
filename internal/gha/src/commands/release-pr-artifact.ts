@@ -17,7 +17,8 @@ export const releasePrArtifact: Command = {
     }
 
     const workspace = parseWorkspacePackages(readFileSync(workspacePath, "utf8"));
-    const git: GitRunner = (args) => execFileSync("git", [...args], { encoding: "utf8" });
+    const git: GitRunner = (args) =>
+      execFileSync("git", [...args], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
     createReleasePrArtifact({
       artifactDirectory,
       git,

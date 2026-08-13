@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -9,7 +17,7 @@ import { createReleasePrArtifact, readReleasePrArtifact } from "./release-pr-art
 const fixture = <T>(
   run: (paths: { artifact: string; body: string; root: string; workspace: string }) => T,
 ): T => {
-  const root = mkdtempSync(join(tmpdir(), "gha-release-pr-artifact-"));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "gha-release-pr-artifact-")));
   const workspace = join(root, "packages", "a");
   const artifact = join(root, "artifact");
   const body = join(root, "body.md");
@@ -69,5 +77,25 @@ void test("rejects a symbolic-link pull-request body", () => {
         workspacePaths: [workspace],
       });
     }, /regular file/);
+  });
+});
+
+void test("rejects a pull-request body that traverses a symbolic-link directory", () => {
+  fixture(({ artifact, root, workspace }) => {
+    const bodyDirectory = join(root, "body");
+    const bodyDirectoryLink = join(root, "body-link");
+    mkdirSync(bodyDirectory);
+    writeFileSync(join(bodyDirectory, "pr-body.md"), "Release body\n");
+    symlinkSync(bodyDirectory, bodyDirectoryLink);
+
+    assert.throws(() => {
+      createReleasePrArtifact({
+        artifactDirectory: artifact,
+        git: () => " M packages/a/package.json\0",
+        prBodyPath: join(bodyDirectoryLink, "pr-body.md"),
+        root,
+        workspacePaths: [workspace],
+      });
+    }, /must not traverse a symbolic link/);
   });
 });

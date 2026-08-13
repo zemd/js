@@ -32,8 +32,6 @@ Report vulnerabilities through one of the following private channels:
    <https://github.com/zemd/js/security/advisories/new>.
 2. **Email** — <oss@zemd.dev> with the subject line `SECURITY: <package name>`.
 
-Repository administrators maintain the hosted security controls described in [`.github/SECURITY-OPERATIONS.md`](.github/SECURITY-OPERATIONS.md).
-
 To enable triage, your report must include, to the extent known to you:
 
 - The affected package name and exact version(s).

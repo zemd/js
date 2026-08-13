@@ -981,9 +981,10 @@ const CHANGE_FILE = "changes.json";
 const BODY_FILE = "pr-body.md";
 const MAX_BODY_BYTES = 1048576;
 const regularFile = (path, maxBytes) => {
-	const metadata = lstatSync(path);
+	const absolute = resolve(path);
+	const metadata = lstatSync(absolute);
 	if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > maxBytes) throw new Error(`${path} must be a regular file of at most ${maxBytes} bytes`);
-	realpathSync(path);
+	if (realpathSync(absolute) !== absolute) throw new Error(`${path} must not traverse a symbolic link`);
 };
 const artifactDirectory = (path, expectedEntries) => {
 	const absolute = resolve(path);
@@ -1031,7 +1032,10 @@ const releasePrArtifact = {
 		const [workspacePath, prBodyPath, artifactDirectory] = argv;
 		if (!workspacePath || !prBodyPath || !artifactDirectory) throw new Error("usage: release-pr-artifact <workspace-list.json> <pr-body.md> <artifact-directory>");
 		const workspace = parseWorkspacePackages(readFileSync(workspacePath, "utf8"));
-		const git = (args) => execFileSync("git", [...args], { encoding: "utf8" });
+		const git = (args) => execFileSync("git", [...args], {
+			encoding: "utf8",
+			maxBuffer: 16777216
+		});
 		createReleasePrArtifact({
 			artifactDirectory,
 			git,
