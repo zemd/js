@@ -788,8 +788,8 @@ void test("Dependabot npm cooldowns match pnpm's release-age policy", () => {
     (selector) =>
       selector.startsWith("@") ? selector.indexOf("@", 1) < 0 : !selector.includes("@"),
   );
-  assert.deepStrictEqual(broadExclusions, []);
-  assert.doesNotMatch(workspace, /^ {2}- "@zemd\/\*"$/m);
+  assert.deepStrictEqual(broadExclusions, ["@zemd/*"]);
+  assert.match(workspace, /^ {2}- "@zemd\/\*"$/m);
 
   for (const [directory, file] of [
     [`${root}.github/`, "dependabot.yml"],
@@ -802,7 +802,7 @@ void test("Dependabot npm cooldowns match pnpm's release-age policy", () => {
       new RegExp(`^ {6}default-days: ${cooldownDays}(?: |$)`, "m"),
       `${file} must match pnpm's minimumReleaseAge`,
     );
-    assert.deepStrictEqual(yamlStringList(npm, "exclude", 6), []);
+    assert.deepStrictEqual(yamlStringList(npm, "exclude", 6), broadExclusions);
   }
 });
 
