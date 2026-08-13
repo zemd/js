@@ -3,10 +3,11 @@ name: Shared Release
 # Shared release pipeline: opens/refreshes a release pull request while intents
 # are pending, and submits packages to npm once main holds the released versions.
 # Call it from a repository with:
-#   uses: zemd/js/.github/workflows/shared-release.yml@<sha> # v2
+#   uses: zemd/js/.github/workflows/shared-release.yml@<sha> # v3
 #
 # npm trusted publishing validates the *caller* workflow filename, so name the
-# caller `repo-release.yml` and register that filename as the trusted publisher.
+# caller `repo-release.yml`, register that filename and the `npm-production`
+# environment as the trusted publisher, and protect that environment in GitHub.
 
 permissions: {}
 
@@ -21,18 +22,29 @@ on:
         description: Commit SHA for the shared tooling; keep it equal to the workflow's pinned SHA.
         type: string
         required: true
+      release-branchkeeper-client-id:
+        description: Client ID for the repository-installed Release Branchkeeper GitHub App.
+        type: string
+        required: true
+      release-publisher-client-id:
+        description: Client ID for the repository-installed Release Publisher GitHub App.
+        type: string
+        required: true
       contract-version-package:
         description: Private package manifest whose version is advanced manually from matching change intents.
         type: string
         default: ""
       staged-publishing:
-        description: Stage existing packages for npm approval without making rejection roll back the submitted version. First releases publish directly.
+        description: Stage existing packages for npm approval without making rejection roll back the submitted version. First releases fail closed and require a separate bootstrap workflow.
         type: boolean
         default: true
     secrets:
-      NPM_TOKEN:
-        description: Optional authentication for regular publishing; required when a package does not exist in the registry yet.
-        required: false
+      RELEASE_BRANCHKEEPER_PRIVATE_KEY:
+        description: Private key for the Release Branchkeeper GitHub App.
+        required: true
+      RELEASE_PUBLISHER_PRIVATE_KEY:
+        description: Private key for the Release Publisher GitHub App.
+        required: true
     outputs:
       pending:
         description: "'true' when the run opened or refreshed a release pull request instead of submitting packages."
@@ -44,18 +56,17 @@ env:
   # https://consoledonottrack.com - opts out of Turborepo and other CLI telemetry
   DO_NOT_TRACK: 1
   # This workflow's own repository checked out next to the caller's, so the
-  # release CLI is available even though `actions/checkout` above pulled the
-  # *caller* repository.
+  # release CLI remains available in jobs that intentionally never check out
+  # the caller repository.
   SHARED_CLI: .shared-ci/.github/scripts/gha.mjs
 
 jobs:
   version:
-    name: Version
+    name: Prepare release pull request
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write # create or update the release branch
-      pull-requests: write # open and refresh the release pull request
+      contents: read
     outputs:
       pending: ${{ steps.version.outputs.pending }}
     steps:
@@ -70,16 +81,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      # Kept out of git's view so it never lands in the release commit that
-      # the signed-commit command builds from the working tree.
+      # Kept out of git's view so it never appears in the validated release
+      # metadata artifact built from the caller's working tree.
       - name: Ignore the shared tooling checkout
         run: echo "/.shared-ci/" >> .git/info/exclude
 
       - name: Checkout shared tooling
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The caller must pass the repository and commit SHA matching its
-          # pinned workflow reference, so the scripts use the same revision.
           repository: ${{ inputs.shared-tooling-repository }}
           ref: ${{ inputs.shared-tooling-ref }}
           path: .shared-ci
@@ -94,10 +103,10 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "lts/*"
-          cache: "pnpm"
+          package-manager-cache: false
 
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: pnpm install --frozen-lockfile
 
       # pnpm preserves the version of a private package that is absent from the
       # registry. Prepare that contract version explicitly before it consumes
@@ -144,38 +153,102 @@ jobs:
             "${RUNNER_TEMP}/workspace.json" > "${RUNNER_TEMP}/pr-body.md"
           cat "${RUNNER_TEMP}/pr-body.md" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Open release pull request
+      - name: Build release pull request artifact
         if: steps.version.outputs.pending == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_PR_ARTIFACT: ${{ runner.temp }}/release-pr-artifact
+        run: |
+          install -d -m 0700 "$RELEASE_PR_ARTIFACT"
+          node "${SHARED_CLI}" release-pr-artifact \
+            "${RUNNER_TEMP}/workspace.json" \
+            "${RUNNER_TEMP}/pr-body.md" \
+            "$RELEASE_PR_ARTIFACT"
+
+      - name: Upload release pull request artifact
+        if: steps.version.outputs.pending == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-pr-artifact
+          path: ${{ runner.temp }}/release-pr-artifact
+          if-no-files-found: error
+          retention-days: 1
+
+  release-pr:
+    name: Open release pull request
+    needs: version
+    if: needs.version.outputs.pending == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # check out the pinned shared tooling
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout shared tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.shared-tooling-repository }}
+          ref: ${{ inputs.shared-tooling-ref }}
+          path: .shared-ci
+          persist-credentials: false
+
+      - name: Download release pull request artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-pr-artifact
+          path: ${{ runner.temp }}/release-pr-artifact
+
+      - name: Create Release Branchkeeper token
+        id: release-branchkeeper-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ inputs.release-branchkeeper-client-id }}
+          private-key: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.repository }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      # This credentialed runner never checks out caller code. The CLI accepts
+      # only bounded release metadata and validates it again before the API call.
+      - name: Open release pull request
+        env:
+          GH_TOKEN: ${{ steps.release-branchkeeper-token.outputs.token }}
+          GITHUB_TOKEN: ${{ steps.release-branchkeeper-token.outputs.token }}
+          RELEASE_ARTIFACT: ${{ runner.temp }}/release-pr-artifact
           RELEASE_BRANCH: release/main
           RELEASE_TITLE: "chore(release): version packages"
           BASE_BRANCH: main
         run: |
-          node "${SHARED_CLI}" signed-commit "$RELEASE_BRANCH" "$RELEASE_TITLE"
+          node "${SHARED_CLI}" signed-commit \
+            "$RELEASE_BRANCH" \
+            "$RELEASE_TITLE" \
+            "$GITHUB_SHA" \
+            "$RELEASE_ARTIFACT"
           pr="$(gh pr list --head "$RELEASE_BRANCH" --base "$BASE_BRANCH" --state open --json number --jq '.[].number')"
           if [ -z "$pr" ]; then
             gh pr create \
               --base "$BASE_BRANCH" \
               --head "$RELEASE_BRANCH" \
               --title "$RELEASE_TITLE" \
-              --body-file "${RUNNER_TEMP}/pr-body.md"
+              --body-file "$RELEASE_ARTIFACT/pr-body.md"
           else
-            gh pr edit "$pr" --body-file "${RUNNER_TEMP}/pr-body.md"
+            gh pr edit "$pr" --body-file "$RELEASE_ARTIFACT/pr-body.md"
           fi
 
-  # No intents were pending, so main already holds the released versions.
-  # Both recursive publish modes skip anything the registry already serves.
-  publish:
-    name: Submit packages to npm
+  # Caller code and dependency lifecycle scripts run only in this uncredentialed
+  # job. The next job receives immutable tarballs and validates them from scratch.
+  package:
+    name: Build release packages
     needs: version
     if: needs.version.outputs.pending == 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write # create git tags and GitHub releases
-      id-token: write # npm trusted publishing (OIDC)
+      contents: read
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
@@ -204,13 +277,10 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "lts/*"
-          cache: "pnpm"
-          # OIDC cannot authenticate the first publish because an npm package
-          # must exist before its trusted publisher can be configured.
-          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
 
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm run build
@@ -218,9 +288,74 @@ jobs:
       - name: Validate publishable packages
         run: pnpm run lint-publish
 
-      # npm cannot stage a package that does not exist in the registry. Keep
-      # existing packages on stage-only OIDC while routing only first releases
-      # through regular publishing with the optional token.
+      - name: Build package artifact
+        env:
+          PACKAGE_ARTIFACT: ${{ runner.temp }}/package-artifact
+        run: |
+          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/workspace.json"
+          install -d -m 0700 "$PACKAGE_ARTIFACT"
+          node "${SHARED_CLI}" package-artifact create \
+            "${RUNNER_TEMP}/workspace.json" \
+            "$PACKAGE_ARTIFACT"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: package-artifact
+          path: ${{ runner.temp }}/package-artifact
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Submit packages to npm
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: npm-production
+    permissions:
+      contents: read # check immutable package submission tags
+      id-token: write # npm trusted publishing (OIDC)
+    env:
+      NPM_CONFIG_CACHE: ${{ runner.temp }}/npm-cache
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout shared tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.shared-tooling-repository }}
+          ref: ${{ inputs.shared-tooling-ref }}
+          path: .shared-ci
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "lts/*"
+          package-manager-cache: false
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Download package artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: package-artifact
+          path: ${{ runner.temp }}/package-artifact
+
+      - name: Validate package artifact
+        run: |
+          node "${SHARED_CLI}" package-artifact validate \
+            "${RUNNER_TEMP}/package-artifact" \
+            "${RUNNER_TEMP}/release-manifest.json" \
+            "${RUNNER_TEMP}/workspace.json"
+
       - name: Select npm publishing mode
         id: publishing
         env:
@@ -228,7 +363,6 @@ jobs:
           REGISTRY_URL: "https://registry.npmjs.org"
           STAGED_PUBLISHING: ${{ inputs.staged-publishing }}
         run: |
-          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/workspace.json"
           node "${SHARED_CLI}" npm-publishing-mode \
             "${RUNNER_TEMP}/workspace.json" \
             "$REGISTRY_URL" \
@@ -237,50 +371,128 @@ jobs:
             "${RUNNER_TEMP}/direct-packages.txt" \
             "${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"
 
-      - name: Publish packages to npm directly
-        if: steps.publishing.outputs.direct == 'true'
-        env:
-          DIRECT_PACKAGES_FILE: ${{ runner.temp }}/direct-packages.txt
-          FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Reject first releases
+        if: steps.publishing.outputs.first_release == 'true'
         run: |
-          if [ "$FIRST_RELEASE" = "true" ] && [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::NPM_TOKEN is required to publish a package that does not exist in the registry."
-            exit 1
-          fi
+          echo "::error::First npm releases require a separate, manually approved bootstrap workflow. The recurring release workflow never accepts a long-lived npm token."
+          exit 1
 
-          mapfile -t packages < "$DIRECT_PACKAGES_FILE"
-          filters=()
-          for package in "${packages[@]}"; do
-            filters+=("--filter=$package")
-          done
-
-          pnpm publish -r "${filters[@]}" --access public --no-git-checks --report-summary
-          if [ -f pnpm-publish-summary.json ]; then
-            mv pnpm-publish-summary.json "${RUNNER_TEMP}/published-summary.json"
-          fi
+      - name: Publish packages to npm directly
+        if: steps.publishing.outputs.direct == 'true' && steps.publishing.outputs.first_release == 'false'
+        run: |
+          while IFS= read -r package; do
+            tarball="$(node "${SHARED_CLI}" package-artifact tarball \
+              "${RUNNER_TEMP}/release-manifest.json" \
+              "${RUNNER_TEMP}/package-artifact" \
+              "$package")"
+            pnpm publish "$tarball" \
+              --access public \
+              --no-git-checks \
+              --ignore-scripts \
+              --registry "https://registry.npmjs.org"
+          done < "${RUNNER_TEMP}/direct-packages.txt"
 
       - name: Stage packages on npm
         if: steps.publishing.outputs.stage == 'true'
-        env:
-          STAGED_PACKAGES_FILE: ${{ runner.temp }}/staged-packages.txt
         run: |
-          mapfile -t packages < "$STAGED_PACKAGES_FILE"
-          filters=()
-          for package in "${packages[@]}"; do
-            filters+=("--filter=$package")
-          done
+          while IFS= read -r package; do
+            tarball="$(node "${SHARED_CLI}" package-artifact tarball \
+              "${RUNNER_TEMP}/release-manifest.json" \
+              "${RUNNER_TEMP}/package-artifact" \
+              "$package")"
+            pnpm stage publish "$tarball" \
+              --access public \
+              --registry "https://registry.npmjs.org"
+          done < "${RUNNER_TEMP}/staged-packages.txt"
 
-          pnpm stage publish -r "${filters[@]}" --access public --no-git-checks --report-summary
-          mv pnpm-publish-summary.json "${RUNNER_TEMP}/staged-summary.json"
+      - name: Record submitted packages
+        run: |
+          install -d -m 0700 "${RUNNER_TEMP}/publication"
+          node "${SHARED_CLI}" package-artifact summary \
+            "${RUNNER_TEMP}/release-manifest.json" \
+            "${RUNNER_TEMP}/direct-packages.txt" \
+            "${RUNNER_TEMP}/publication/published-summary.json"
+          node "${SHARED_CLI}" package-artifact summary \
+            "${RUNNER_TEMP}/release-manifest.json" \
+            "${RUNNER_TEMP}/staged-packages.txt" \
+            "${RUNNER_TEMP}/publication/staged-summary.json"
 
-      # Submission is the immutable release point. Tag direct and staged
-      # versions alike so rejection cannot cause a later run to reuse one.
+      - name: Upload publication records
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: publication-records
+          path: ${{ runner.temp }}/publication
+          if-no-files-found: error
+          retention-days: 1
+
+  github-release:
+    name: Tag packages and create GitHub release
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # check out the pinned shared tooling
+    env:
+      NPM_CONFIG_CACHE: ${{ runner.temp }}/npm-cache
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout shared tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ inputs.shared-tooling-repository }}
+          ref: ${{ inputs.shared-tooling-ref }}
+          path: .shared-ci
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "lts/*"
+          package-manager-cache: false
+
+      - name: Download package artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: package-artifact
+          path: ${{ runner.temp }}/package-artifact
+
+      - name: Download publication records
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: publication-records
+          path: ${{ runner.temp }}/publication
+
+      - name: Validate package artifact
+        run: |
+          node "${SHARED_CLI}" package-artifact validate \
+            "${RUNNER_TEMP}/package-artifact" \
+            "${RUNNER_TEMP}/release-manifest.json" \
+            "${RUNNER_TEMP}/workspace.json"
+
+      - name: Create Release Publisher token
+        id: release-publisher-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ inputs.release-publisher-client-id }}
+          private-key: ${{ secrets.RELEASE_PUBLISHER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.repository }}
+          permission-contents: write
+
       - name: Tag packages and create GitHub release
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.release-publisher-token.outputs.token }}
         run: |
           node "${SHARED_CLI}" github-releases \
-            "${RUNNER_TEMP}/published-summary.json" \
-            "${RUNNER_TEMP}/staged-summary.json" \
-            "${RUNNER_TEMP}/workspace.json"
+            "${RUNNER_TEMP}/publication/published-summary.json" \
+            "${RUNNER_TEMP}/publication/staged-summary.json" \
+            "${RUNNER_TEMP}/release-manifest.json"

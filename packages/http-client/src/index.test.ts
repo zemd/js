@@ -7,6 +7,7 @@ import {
   header,
   json,
   prefix,
+  pathSegment,
   query,
   debug,
   retry,
@@ -213,6 +214,31 @@ void describe("HTTP Client", () => {
         prefix("/v1"),
         "https://api.example.com/v1/users?existing=true",
       );
+    });
+  });
+
+  void describe("pathSegment", () => {
+    void it("encodes a raw identifier as exactly one route segment", () => {
+      assert.strictEqual(pathSegment("component name:1"), "component%20name%3A1");
+    });
+
+    void it("rejects route delimiters, controls, dot segments, and pre-encoded input", () => {
+      for (const value of [
+        "",
+        ".",
+        "..",
+        "../me",
+        "a/b",
+        "a\\b",
+        "a?b",
+        "a#b",
+        "%2e%2e",
+        "%252e%252e",
+        "a\u0000b",
+        "a\nb",
+      ]) {
+        assert.throws(() => pathSegment(value), TypeError, JSON.stringify(value));
+      }
     });
   });
 
@@ -481,14 +507,51 @@ void describe("HTTP Client", () => {
   });
 
   void describe("debug", () => {
-    void it("should call custom debug function with request params", async (context) => {
+    void it("should call a custom logger with sanitized request metadata", async (context) => {
       const debugFn = context.mock.fn();
       const withDebug = compose([debug(debugFn)]);
-      await withDebug("https://api.example.com", { method: "POST" });
+      await withDebug(
+        "https://user:password@api.example.com?api_key=secret&safe=value#access_token=fragment-secret&anchor=safe",
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer secret",
+            Cookie: "session=secret",
+            "X-Request-Id": "safe-id",
+          },
+          body: "secret request body",
+        },
+      );
 
       assert.deepStrictEqual(debugFn.mock.calls[0]?.arguments, [
-        ["https://api.example.com", { method: "POST" }],
+        {
+          bodyPresent: true,
+          headers: {
+            authorization: "[REDACTED]",
+            cookie: "[REDACTED]",
+            "x-request-id": "safe-id",
+          },
+          method: "POST",
+          url: "https://%5BREDACTED%5D:%5BREDACTED%5D@api.example.com/?api_key=%5BREDACTED%5D&safe=value#access_token=%5BREDACTED%5D&anchor=safe",
+        },
       ]);
+      const logged = JSON.stringify(debugFn.mock.calls[0]?.arguments);
+      assert.doesNotMatch(logged, /secret|password|Bearer|session=/);
+    });
+
+    void it("redacts credentials from Request inputs", async (context) => {
+      const debugFn = context.mock.fn();
+      const request = new Request("https://api.example.com/resource?access_token=secret", {
+        headers: { "X-Figma-Token": "secret", Accept: "application/json" },
+      });
+
+      await compose([debug(debugFn)])(request);
+
+      const logged = JSON.stringify(debugFn.mock.calls[0]?.arguments);
+      assert.doesNotMatch(logged, /secret/);
+      assert.match(logged, /REDACTED/);
+      assert.match(logged, /application\/json/);
+      assert.strictEqual(debugFn.mock.calls[0]?.arguments[0]?.bodyPresent, false);
     });
   });
 

@@ -20,6 +20,10 @@ dist/
 # misc
 .DS_Store
 *.pem
+*.key
+*.p12
+*.pfx
+.npmrc
 
 # debug
 npm-debug.log*
@@ -28,6 +32,10 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # local env files
+.env
+.env.*
+!.env.example
+!.env.*.example
 .env*.local
 
 # typescript

@@ -37,7 +37,7 @@ workflow-specific policy choices.
 3. Adjust genuine policy inputs where needed, and delete the workflows you do
    not need.
 
-Dependabot rewrites both the SHA and the trailing `# v2` comment from then on.
+Dependabot rewrites both the SHA and the trailing `# v3` comment from then on.
 When it updates `repo-release.yml`, keep `shared-tooling-ref` equal to the SHA in
 the `uses:` line so the release scripts and reusable workflow stay on one revision.
 
@@ -74,11 +74,12 @@ thresholds, set `error-on-alert: true` to make alerts fail the job.
 
 `shared-release.yml` expects [`pnpm change`](https://pnpm.io) intents on `main`.
 On every push it either opens/refreshes a `release/main` pull request, or — when
-no intents are pending — stages packages on npm, tags them and creates a combined
-GitHub release. A maintainer must then review and approve each staged package
-with 2FA before it becomes available from npm. If any publishable workspace
-package does not exist in the registry, the workflow publishes that package
-regularly so it can be created while still staging updates to existing packages.
+no intents are pending — builds package tarballs in an uncredentialed job,
+validates them again in a fresh OIDC job, stages packages on npm, tags them and
+creates a combined GitHub release. A maintainer must then review and approve each
+staged package with 2FA before it becomes available from npm. If any publishable
+workspace package does not exist in the registry, the recurring workflow fails
+closed before publishing anything; bootstrap that package separately.
 
 Submission is the immutable release boundary. The workflow tags both directly
 published and staged package versions immediately. Approval only controls npm
@@ -88,23 +89,69 @@ the next version.
 
 [Staged publishing](https://docs.npmjs.com/staged-publishing/) is the default.
 Set `staged-publishing: false` in the caller's `with:` block when packages must
-always publish immediately. npm cannot stage a package that does not exist yet,
-so first-release detection overrides the staged default for that package.
+always publish immediately. npm cannot configure trusted publishing for a package
+that does not exist yet, so first releases are deliberately outside this workflow.
+
+### GitHub App identities
+
+The release workflow deliberately has no write-capable `GITHUB_TOKEN`. It uses
+two repository-installed GitHub Apps instead:
+
+- **Release Branchkeeper** needs only **Contents: Read and write** and **Pull
+  requests: Read and write**. It updates `release/main` and manages the release
+  pull request.
+- **Release Publisher** needs only **Contents: Read and write**. It creates the
+  immutable version tags and combined GitHub Release.
+
+Disable webhooks and event subscriptions for both Apps, install them only on the
+repositories they release, and do not grant Actions, Administration, Workflows,
+organization, or account permissions. Then configure these Actions credentials
+in every consumer repository (organization-level values may be shared only with
+the selected repositories):
+
+| Kind     | Name                               | Value                                   |
+| :------- | :--------------------------------- | :-------------------------------------- |
+| Variable | `RELEASE_BRANCHKEEPER_CLIENT_ID`   | Release Branchkeeper Client ID          |
+| Secret   | `RELEASE_BRANCHKEEPER_PRIVATE_KEY` | Release Branchkeeper's complete PEM key |
+| Variable | `RELEASE_PUBLISHER_CLIENT_ID`      | Release Publisher Client ID             |
+| Secret   | `RELEASE_PUBLISHER_PRIVATE_KEY`    | Release Publisher's complete PEM key    |
+
+The reusable workflow mints a short-lived token only in the job for that role,
+limits it to the current repository and the listed permissions, and lets the
+token action revoke it at job completion.
+
+Enforce the roles with repository rulesets:
+
+- Protect `main` normally and give neither App a bypass.
+- Restrict creation, updates, and deletion of `release/main`; make only Release
+  Branchkeeper a bypass actor.
+- Restrict creation, updates, and deletion for every release-tag pattern; make
+  only Release Publisher a bypass actor.
+- Enable immutable releases and monitor release audit events for any actor other
+  than Release Publisher.
+
+GitHub exposes release-object creation through the coarse **Contents: write**
+permission rather than a separate Release permission. The distinct keys and jobs
+enforce that separation in the workflow; the rulesets independently enforce the
+branch and tag boundaries.
 
 For npm [**trusted publishing**](https://docs.npmjs.com/trusted-publishers/):
 
 - Keep the caller named `repo-release.yml`. npm validates the calling workflow's
   filename, not the reusable workflow that runs the publish.
 - Register the trusted publisher per package with the _consumer_ repository and
-  `repo-release.yml`.
+  `repo-release.yml`, and set its environment to `npm-production`.
+- Create and protect the `npm-production` GitHub environment; require maintainer
+  review and allow deployments only from protected branches.
 - Configure each existing package's trusted publisher to allow only
   `npm stage publish` for the default behavior. Consumers that disable staged
   publishing must allow `npm publish` instead (or allow both actions).
 - `id-token: write` must be granted by the caller job, which the example does.
-- Pass `NPM_TOKEN` as the optional reusable-workflow secret until every package
-  exists on npm. It is exposed only to regular publishing and is required when
-  first-release detection adds the package-creation step. After the first release,
-  configure that package's stage-only trusted publisher.
+- Bootstrap a first release through a separate, manually reviewed procedure with
+  a short-lived granular token. Configure its trusted publisher immediately
+  afterward. The recurring workflow does not accept an npm token.
+- After OIDC publishing is verified, configure npm publishing access to require
+  2FA and disallow traditional tokens, then revoke obsolete automation tokens.
 - `repository.url` in each `package.json` must match the repository exactly.
 
 ## Repository settings
@@ -123,8 +170,9 @@ For npm [**trusted publishing**](https://docs.npmjs.com/trusted-publishers/):
   workflow. Pass an input instead.
 - A called workflow's `github.workflow` is the _caller's_ name, so do not reuse
   the same `concurrency.group` on both sides with `cancel-in-progress: true`.
-- Permissions can only be narrowed by the called workflow, never widened, which
-  is why each example declares them on the calling job.
+- Permissions can only be narrowed by the called workflow, never widened. The
+  caller grants only read access plus npm OIDC; GitHub App installation tokens
+  carry the narrowly scoped GitHub write permissions independently.
 - `shared-zizmor.yml` deliberately uses annotation output instead of SARIF so
   any finding fails the job. Its weekly caller also catches advisories published
   after an action was pinned; CodeQL remains the stateful code-scanning feed.

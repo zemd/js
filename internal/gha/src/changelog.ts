@@ -1,5 +1,15 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { lstatSync, readFileSync, realpathSync } from "node:fs";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
+
+const MAX_CHANGELOG_BYTES = 1024 * 1024;
+
+const isWithin = (root: string, path: string): boolean => {
+  const fromRoot = relative(root, path);
+  return (
+    fromRoot === "" ||
+    (!isAbsolute(fromRoot) && fromRoot !== ".." && !fromRoot.startsWith(`..${sep}`))
+  );
+};
 
 // Pulls the section for `version` out of a Keep a Changelog style file. Heading
 // levels are demoted to bold because the entry is rendered inside <details>,
@@ -7,7 +17,15 @@ import { join } from "node:path";
 export const changelogEntry = (packagePath: string, version: string): string => {
   let changelog: string;
   try {
-    changelog = readFileSync(join(packagePath, "CHANGELOG.md"), "utf8");
+    const root = realpathSync(resolve(packagePath));
+    const path = join(root, "CHANGELOG.md");
+    const metadata = lstatSync(path);
+    if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > MAX_CHANGELOG_BYTES) {
+      return "";
+    }
+    const canonical = realpathSync(path);
+    if (!isWithin(root, canonical)) return "";
+    changelog = readFileSync(canonical, "utf8");
   } catch {
     return "";
   }

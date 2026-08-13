@@ -17,7 +17,11 @@
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
     "vscode": {
-      "extensions": ["EditorConfig.EditorConfig", "ms-playwright.playwright", "oxc.oxc-vscode"],
+      "extensions": [
+        "EditorConfig.EditorConfig@0.18.2",
+        "ms-playwright.playwright@1.1.19",
+        "oxc.oxc-vscode@1.60.0"
+      ],
       "settings": {
         "editor.defaultFormatter": "oxc.oxc-vscode",
         "editor.formatOnSave": true,

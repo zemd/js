@@ -11,17 +11,27 @@ import { fakeGitHub } from "./testing/fake-github.ts";
 
 const SHA = "b".repeat(40);
 const NOW = new Date("2026-08-05T09:41:07.000Z");
+const manifest = (...packages: Array<{ name: string; version: string }>) => ({
+  packages: packages.map(({ name, version }, index) => ({
+    changelog: "",
+    file: `package-${String(index).padStart(4, "0")}.tgz`,
+    name,
+    path: `packages/${index}`,
+    sha256: "a".repeat(64),
+    version,
+  })),
+});
 
 void test("renders one npm link and one changelog block per package", () => {
   const body = renderCombinedReleaseBody({
     published: [{ name: "@acme/one", version: "1.0.0" }],
-    paths: new Map([["@acme/one", "/nowhere"]]),
+    changelogs: new Map([["@acme/one", "- Security fix"]]),
     notes: "## What's Changed",
   });
 
   assert.ok(body.includes("| [`@acme/one`](https://www.npmjs.com/package/@acme/one) | `1.0.0` |"));
   assert.ok(body.includes("<summary><code>@acme/one@1.0.0</code></summary>"));
-  assert.ok(body.includes("_No changelog entry recorded._"));
+  assert.ok(body.includes("- Security fix"));
   assert.ok(body.includes("## What's Changed"));
 });
 
@@ -29,7 +39,7 @@ void test("labels packages that still require npm staged-publish approval", () =
   const body = renderCombinedReleaseBody({
     published: [],
     staged: [{ name: "@acme/one", version: "1.0.0" }],
-    paths: new Map(),
+    changelogs: new Map(),
   });
 
   assert.ok(body.includes("## Packages staged on npm"));
@@ -42,7 +52,7 @@ void test("separates directly published first releases from staged updates", () 
   const body = renderCombinedReleaseBody({
     published: [{ name: "@acme/new", version: "1.0.0" }],
     staged: [{ name: "@acme/existing", version: "2.0.0" }],
-    paths: new Map(),
+    changelogs: new Map(),
   });
 
   assert.ok(body.includes("## Published packages"));
@@ -90,7 +100,11 @@ void test("tags every submitted package and creates one combined release", async
       { name: "@acme/one", version: "1.0.0" },
     ],
     staged: [{ name: "@acme/staged", version: "3.0.0" }],
-    workspace: [],
+    manifest: manifest(
+      { name: "@acme/two", version: "2.0.0" },
+      { name: "@acme/one", version: "1.0.0" },
+      { name: "@acme/staged", version: "3.0.0" },
+    ),
     now: NOW,
   });
 
@@ -110,7 +124,7 @@ void test("marks the release as a prerelease when every version is one", async (
     api: github.api,
     sha: SHA,
     published: [{ name: "@acme/one", version: "1.0.0-beta.1" }],
-    workspace: [],
+    manifest: manifest({ name: "@acme/one", version: "1.0.0-beta.1" }),
     now: NOW,
   });
 
@@ -127,7 +141,7 @@ void test("skips a package tag that already exists", async () => {
     api: github.api,
     sha: SHA,
     published: [{ name: "@acme/one", version: "1.0.0" }],
-    workspace: [],
+    manifest: manifest({ name: "@acme/one", version: "1.0.0" }),
     now: NOW,
   });
 
@@ -141,10 +155,45 @@ void test("does nothing when pnpm published nothing", async () => {
     api: github.api,
     sha: SHA,
     published: [],
-    workspace: [],
+    manifest: manifest(),
     now: NOW,
   });
 
+  assert.deepStrictEqual(github.createdRefs, []);
+  assert.deepStrictEqual(github.createdReleases, []);
+});
+
+void test("rejects publication records that differ from the validated artifact", async () => {
+  const github = fakeGitHub();
+
+  await assert.rejects(
+    releasePublishedPackages({
+      api: github.api,
+      sha: SHA,
+      published: [{ name: "@acme/one", version: "9.9.9" }],
+      manifest: manifest({ name: "@acme/one", version: "1.0.0" }),
+      now: NOW,
+    }),
+    /absent from the validated artifact/,
+  );
+  assert.deepStrictEqual(github.createdRefs, []);
+  assert.deepStrictEqual(github.createdReleases, []);
+});
+
+void test("rejects a package recorded in both publication modes", async () => {
+  const github = fakeGitHub();
+
+  await assert.rejects(
+    releasePublishedPackages({
+      api: github.api,
+      sha: SHA,
+      published: [{ name: "@acme/one", version: "1.0.0" }],
+      staged: [{ name: "@acme/one", version: "1.0.0" }],
+      manifest: manifest({ name: "@acme/one", version: "1.0.0" }),
+      now: NOW,
+    }),
+    /submitted more than once/,
+  );
   assert.deepStrictEqual(github.createdRefs, []);
   assert.deepStrictEqual(github.createdReleases, []);
 });
@@ -157,7 +206,7 @@ void test("fails the run when the release cannot be created", async () => {
       api: github.api,
       sha: SHA,
       published: [{ name: "@acme/one", version: "1.0.0" }],
-      workspace: [],
+      manifest: manifest({ name: "@acme/one", version: "1.0.0" }),
       now: NOW,
     }),
     /one or more release steps failed/,

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { commands } from "./commands/index.ts";
+import { planContractVersion } from "./contract-version.ts";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const workflowsDir = `${root}.github/workflows/`;
@@ -214,19 +215,20 @@ void test("the shared contract guard only inspects pull-request change intents",
 });
 
 void test("every native unit-test package exposes the fixed test-coverage script", () => {
-  const manifests = [`${root}packages/`, `${root}internal/`].flatMap((directory) =>
-    readdirSync(directory, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => {
-        const path = `${directory}${entry.name}/package.json`;
-        return {
-          path,
-          manifest: JSON.parse(readFileSync(path, "utf8")) as {
-            name?: string;
-            scripts?: Record<string, string>;
-          },
-        };
-      }),
+  const manifests = [`${root}packages/`, `${root}http-clients/`, `${root}internal/`].flatMap(
+    (directory) =>
+      readdirSync(directory, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => {
+          const path = `${directory}${entry.name}/package.json`;
+          return {
+            path,
+            manifest: JSON.parse(readFileSync(path, "utf8")) as {
+              name?: string;
+              scripts?: Record<string, string>;
+            },
+          };
+        }),
   );
   const tested = manifests.filter(({ manifest }) => manifest.scripts?.["test"]?.includes("--test"));
   assert.ok(tested.length > 0);
@@ -422,7 +424,7 @@ void test("shared workflow platform and release conventions are fixed", () => {
   for (const input of removedInputs) {
     for (const workflow of shared) {
       assert.doesNotMatch(workflow, new RegExp(`^ {6}${input}:$`, "m"));
-      assert.ok(!workflow.includes(`inputs.${input}`));
+      assert.doesNotMatch(workflow, new RegExp(`\\binputs\\.${input}(?![a-z0-9-])`));
     }
     for (const example of examples) assert.ok(!example.includes(`${input}:`));
   }
@@ -451,7 +453,7 @@ void test("shared workflow platform and release conventions are fixed", () => {
   assert.doesNotMatch(ci, /^ {6}dependency-review:$/m);
   assert.doesNotMatch(ci, /\binputs\.dependency-review(?!-)/);
   assert.match(ci, /^ {4}if: github\.event_name == 'pull_request'$/m);
-  assert.match(ci, /dependency-review-severity:\n(?: {8}.*\n){2} {8}default: "high"/);
+  assert.match(ci, /dependency-review-severity:\n(?: {8}.*\n){2} {8}default: "moderate"/);
   assert.match(
     ci,
     /dependency-review-scopes:\n(?: {8}.*\n){2} {8}default: "runtime, development, unknown"/,
@@ -506,8 +508,8 @@ void test("the release tooling is checked out from the pinned shared revision", 
   const caller = read(workflowsDir, "repo-release.yml");
   const example = read(examplesDir, "repo-release.yml");
 
-  // `actions/checkout` pulls the *caller* repository, so the CLI this workflow
-  // runs has to come from an explicitly configured second checkout.
+  // Privileged jobs do not check out caller code, so every job gets the CLI
+  // from an explicitly configured shared-tooling checkout.
   assert.match(source, /shared-tooling-repository:\n(?: {8}.*\n){2} {8}required: true/);
   assert.match(source, /shared-tooling-ref:\n(?: {8}.*\n){2} {8}required: true/);
   assert.match(source, /repository: \$\{\{ inputs\.shared-tooling-repository \}\}/);
@@ -522,10 +524,149 @@ void test("the release tooling is checked out from the pinned shared revision", 
   assert.ok(source.includes(`SHARED_CLI: .shared-ci/.github/scripts/${BUNDLE}`));
 });
 
-void test("keeps tokens out of staging and uses direct publishing for first releases", () => {
+void test("isolates caller code from every credentialed release job", () => {
+  const source = read(workflowsDir, "shared-release.yml");
+  const version = workflowJob(source, "version");
+  const releasePr = workflowJob(source, "release-pr");
+  const packageJob = workflowJob(source, "package");
+  const publish = workflowJob(source, "publish");
+  const githubRelease = workflowJob(source, "github-release");
+
+  for (const job of [version, packageJob]) {
+    assert.match(job, /^ {6}contents: read$/m);
+    assert.doesNotMatch(job, /contents: write|pull-requests: write|id-token: write/);
+    assert.doesNotMatch(job, /\$\{\{ secrets\.|github\.token/);
+  }
+
+  for (const job of [releasePr, publish, githubRelease]) {
+    assert.doesNotMatch(job, /- name: Checkout Repo/);
+    assert.doesNotMatch(job, /pnpm install|pnpm run build|pnpm run lint-publish/);
+    assert.match(job, /- name: Checkout shared tooling/);
+  }
+
+  assert.match(releasePr, /^ {6}contents: read #/m);
+  assert.doesNotMatch(releasePr, /^ {6}(?:contents|pull-requests): write/m);
+  assert.doesNotMatch(releasePr, /^ {6}id-token: write/m);
+  assert.ok(releasePr.includes("Download release pull request artifact"));
+  assert.ok(releasePr.includes('node "${SHARED_CLI}" signed-commit'));
+  assert.ok(releasePr.includes('"$GITHUB_SHA"'));
+
+  assert.match(publish, /^ {4}environment: npm-production$/m);
+  assert.match(publish, /^ {6}id-token: write # npm trusted publishing \(OIDC\)$/m);
+  assert.doesNotMatch(publish, /contents: write|pull-requests: write/);
+  assert.ok(publish.includes("Download package artifact"));
+  assert.ok(publish.includes("Validate package artifact"));
+
+  assert.match(githubRelease, /^ {6}contents: read #/m);
+  assert.doesNotMatch(githubRelease, /^ {6}(?:contents|pull-requests): write/m);
+  assert.doesNotMatch(githubRelease, /^ {6}id-token: write/m);
+  assert.ok(githubRelease.includes("Download package artifact"));
+  assert.ok(githubRelease.includes("Download publication records"));
+  assert.ok(githubRelease.includes("Validate package artifact"));
+});
+
+void test("uses separate repository-scoped GitHub Apps for release writes", () => {
+  const source = read(workflowsDir, "shared-release.yml");
+  const caller = read(workflowsDir, "repo-release.yml");
+  const example = read(examplesDir, "repo-release.yml");
+  const releasePr = workflowJob(source, "release-pr");
+  const githubRelease = workflowJob(source, "github-release");
+  const sharedWorkflows = workflowJob(caller, "shared-workflows");
+  const branchkeeperToken = workflowStep(source, "Create Release Branchkeeper token");
+  const publisherToken = workflowStep(source, "Create Release Publisher token");
+  const localPublisherToken = workflowStep(caller, "Create Release Publisher token");
+  const openReleasePr = workflowStep(source, "Open release pull request");
+  const createRelease = workflowStep(source, "Tag packages and create GitHub release");
+  const createSharedRelease = workflowStep(caller, "Tag and release the shared workflows");
+
+  for (const input of ["release-branchkeeper-client-id", "release-publisher-client-id"]) {
+    assert.match(source, new RegExp(`${input}:\\n(?: {8}.*\\n){2} {8}required: true`));
+  }
+  for (const secret of ["RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"]) {
+    assert.match(source, new RegExp(`${secret}:\\n(?: {8}.*\\n) {8}required: true`));
+  }
+
+  for (const tokenStep of [branchkeeperToken, publisherToken, localPublisherToken]) {
+    assert.ok(usesAction(tokenStep, "actions/create-github-app-token"));
+    assert.ok(tokenStep.includes("owner: ${{ github.repository_owner }}"));
+    assert.ok(tokenStep.includes("repositories: ${{ github.repository }}"));
+    assert.ok(tokenStep.includes("permission-contents: write"));
+  }
+
+  assert.ok(branchkeeperToken.includes("client-id: ${{ inputs.release-branchkeeper-client-id }}"));
+  assert.ok(
+    branchkeeperToken.includes("private-key: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}"),
+  );
+  assert.ok(branchkeeperToken.includes("permission-pull-requests: write"));
+  assert.doesNotMatch(branchkeeperToken, /PUBLISHER|release-publisher/);
+
+  assert.ok(publisherToken.includes("client-id: ${{ inputs.release-publisher-client-id }}"));
+  assert.ok(publisherToken.includes("private-key: ${{ secrets.RELEASE_PUBLISHER_PRIVATE_KEY }}"));
+  assert.doesNotMatch(publisherToken, /permission-pull-requests|BRANCHKEEPER|branchkeeper/);
+  assert.ok(localPublisherToken.includes("vars.RELEASE_PUBLISHER_CLIENT_ID"));
+  assert.ok(localPublisherToken.includes("secrets.RELEASE_PUBLISHER_PRIVATE_KEY"));
+
+  assert.ok(
+    openReleasePr.includes("GH_TOKEN: ${{ steps.release-branchkeeper-token.outputs.token }}"),
+  );
+  assert.ok(
+    openReleasePr.includes("GITHUB_TOKEN: ${{ steps.release-branchkeeper-token.outputs.token }}"),
+  );
+  assert.ok(
+    createRelease.includes("GITHUB_TOKEN: ${{ steps.release-publisher-token.outputs.token }}"),
+  );
+  assert.ok(
+    createSharedRelease.includes(
+      "GITHUB_TOKEN: ${{ steps.release-publisher-token.outputs.token }}",
+    ),
+  );
+  for (const writeStep of [openReleasePr, createRelease, createSharedRelease]) {
+    assert.doesNotMatch(writeStep, /github\.token/);
+  }
+
+  assert.ok(
+    releasePr.indexOf("Download release pull request artifact") <
+      releasePr.indexOf("Create Release Branchkeeper token"),
+  );
+  assert.ok(
+    githubRelease.indexOf("Validate package artifact") <
+      githubRelease.indexOf("Create Release Publisher token"),
+  );
+  assert.match(sharedWorkflows, /^ {6}contents: read #/m);
+  assert.doesNotMatch(sharedWorkflows, /^ {6}contents: write/m);
+  assert.doesNotMatch(sharedWorkflows, /github\.token|RELEASE_BRANCHKEEPER/);
+
+  for (const workflow of [caller, example]) {
+    const releaseCall = workflowJob(workflow, "release");
+    assert.match(releaseCall, /^ {6}contents: read #/m);
+    assert.match(releaseCall, /^ {6}id-token: write # npm trusted publishing \(OIDC\)$/m);
+    assert.doesNotMatch(releaseCall, /^ {6}(?:contents|pull-requests): write/m);
+    assert.ok(
+      releaseCall.includes(
+        "release-branchkeeper-client-id: ${{ vars.RELEASE_BRANCHKEEPER_CLIENT_ID }}",
+      ),
+    );
+    assert.ok(
+      releaseCall.includes("release-publisher-client-id: ${{ vars.RELEASE_PUBLISHER_CLIENT_ID }}"),
+    );
+    assert.ok(
+      releaseCall.includes(
+        "RELEASE_BRANCHKEEPER_PRIVATE_KEY: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}",
+      ),
+    );
+    assert.ok(
+      releaseCall.includes(
+        "RELEASE_PUBLISHER_PRIVATE_KEY: ${{ secrets.RELEASE_PUBLISHER_PRIVATE_KEY }}",
+      ),
+    );
+  }
+});
+
+void test("publishes only validated tarballs without a recurring npm token", () => {
   const source = read(workflowsDir, "shared-release.yml");
   const example = read(examplesDir, "repo-release.yml");
   const publishingModeStep = workflowStep(source, "Select npm publishing mode");
+  const rejectFirstReleaseStep = workflowStep(source, "Reject first releases");
   const stagedPublishingStep = workflowStep(source, "Stage packages on npm");
   const directPublishingStep = workflowStep(source, "Publish packages to npm directly");
 
@@ -544,40 +685,44 @@ void test("keeps tokens out of staging and uses direct publishing for first rele
   assert.ok(
     publishingModeStep.includes('"${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"'),
   );
+  assert.match(
+    rejectFirstReleaseStep,
+    /^ {8}if: steps\.publishing\.outputs\.first_release == 'true'$/m,
+  );
+  assert.ok(rejectFirstReleaseStep.includes("never accepts a long-lived npm token"));
   assert.match(stagedPublishingStep, /^ {8}if: steps\.publishing\.outputs\.stage == 'true'$/m);
-  assert.ok(
-    stagedPublishingStep.includes(
-      'pnpm stage publish -r "${filters[@]}" --access public --no-git-checks --report-summary',
-    ),
-  );
-  assert.ok(
-    stagedPublishingStep.includes("STAGED_PACKAGES_FILE: ${{ runner.temp }}/staged-packages.txt"),
-  );
-  assert.ok(stagedPublishingStep.includes('filters+=("--filter=$package")'));
+  assert.ok(stagedPublishingStep.includes('node "${SHARED_CLI}" package-artifact tarball'));
+  assert.ok(stagedPublishingStep.includes('pnpm stage publish "$tarball"'));
+  assert.ok(stagedPublishingStep.includes('--registry "https://registry.npmjs.org"'));
   assert.ok(!stagedPublishingStep.includes("NPM_TOKEN"));
   assert.ok(!stagedPublishingStep.includes("NODE_AUTH_TOKEN"));
-  assert.match(directPublishingStep, /^ {8}if: steps\.publishing\.outputs\.direct == 'true'$/m);
-  assert.ok(
-    directPublishingStep.includes("FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}"),
+  assert.match(
+    directPublishingStep,
+    /^ {8}if: steps\.publishing\.outputs\.direct == 'true' && steps\.publishing\.outputs\.first_release == 'false'$/m,
   );
-  assert.ok(
-    directPublishingStep.includes("DIRECT_PACKAGES_FILE: ${{ runner.temp }}/direct-packages.txt"),
+  assert.ok(directPublishingStep.includes('node "${SHARED_CLI}" package-artifact tarball'));
+  assert.ok(directPublishingStep.includes('pnpm publish "$tarball"'));
+  assert.ok(directPublishingStep.includes("--ignore-scripts"));
+  assert.ok(directPublishingStep.includes('--registry "https://registry.npmjs.org"'));
+  assert.doesNotMatch(source, /NPM_TOKEN|NODE_AUTH_TOKEN/);
+  assert.deepStrictEqual(
+    [...source.matchAll(/\$\{\{ secrets\.([A-Z_]+) \}\}/g)]
+      .map((match) => match[1])
+      .sort((left, right) => left.localeCompare(right)),
+    ["RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"],
   );
-  assert.ok(directPublishingStep.includes('mapfile -t packages < "$DIRECT_PACKAGES_FILE"'));
-  assert.ok(directPublishingStep.includes('filters+=("--filter=$package")'));
-  assert.ok(!directPublishingStep.includes("DIRECT_ALL"));
-  assert.ok(directPublishingStep.includes("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}"));
-  assert.ok(
-    directPublishingStep.includes(
-      'pnpm publish -r "${filters[@]}" --access public --no-git-checks --report-summary',
-    ),
-  );
-  assert.strictEqual(source.match(/NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/g)?.length, 1);
-  assert.match(source, /NPM_TOKEN:\n(?: {8}.*\n) {8}required: false/);
-  assert.ok(source.includes('"${RUNNER_TEMP}/published-summary.json"'));
-  assert.ok(source.includes('"${RUNNER_TEMP}/staged-summary.json"'));
+  assert.strictEqual(source.match(/^ {10}package-manager-cache: false$/gm)?.length, 4);
+  assert.doesNotMatch(source, /^ {10}cache: "pnpm"$/m);
+  assert.ok(source.includes('"${RUNNER_TEMP}/publication/published-summary.json"'));
+  assert.ok(source.includes('"${RUNNER_TEMP}/publication/staged-summary.json"'));
   assert.ok(example.includes("# staged-publishing: true"));
-  assert.ok(example.includes("NPM_TOKEN: ${{ secrets.NPM_TOKEN }}"));
+  assert.doesNotMatch(example, /NPM_TOKEN|NODE_AUTH_TOKEN/);
+  assert.deepStrictEqual(
+    [...example.matchAll(/\$\{\{ secrets\.([A-Z_]+) \}\}/g)]
+      .map((match) => match[1])
+      .sort((left, right) => left.localeCompare(right)),
+    ["RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"],
+  );
 });
 
 void test("can advance a private release-contract version before pnpm consumes its intents", () => {
@@ -635,12 +780,16 @@ void test("Dependabot npm cooldowns match pnpm's release-age policy", () => {
   const minimumReleaseAgeMinutes = Number(configuredMinimumReleaseAge);
   assert.strictEqual(minimumReleaseAgeMinutes % 1440, 0);
   assert.match(workspace, /^minimumReleaseAgeStrict: true$/m);
+  assert.match(workspace, /^minimumReleaseAgeIgnoreMissingTime: false$/m);
+  assert.match(workspace, /^trustPolicy: no-downgrade$/m);
 
   const cooldownDays = minimumReleaseAgeMinutes / 1440;
-  const exclusions = yamlStringList(workspace, "minimumReleaseAgeExclude", 0).filter((selector) =>
-    selector.startsWith("@") ? selector.indexOf("@", 1) < 0 : !selector.includes("@"),
+  const broadExclusions = yamlStringList(workspace, "minimumReleaseAgeExclude", 0).filter(
+    (selector) =>
+      selector.startsWith("@") ? selector.indexOf("@", 1) < 0 : !selector.includes("@"),
   );
-  assert.ok(exclusions.length > 0);
+  assert.deepStrictEqual(broadExclusions, []);
+  assert.doesNotMatch(workspace, /^ {2}- "@zemd\/\*"$/m);
 
   for (const [directory, file] of [
     [`${root}.github/`, "dependabot.yml"],
@@ -653,7 +802,51 @@ void test("Dependabot npm cooldowns match pnpm's release-age policy", () => {
       new RegExp(`^ {6}default-days: ${cooldownDays}(?: |$)`, "m"),
       `${file} must match pnpm's minimumReleaseAge`,
     );
-    assert.deepStrictEqual(yamlStringList(npm, "exclude", 6), exclusions);
+    assert.deepStrictEqual(yamlStringList(npm, "exclude", 6), []);
+  }
+});
+
+void test("repository-local secret and editor defaults are hardened", () => {
+  const ignored = readFileSync(`${root}.gitignore`, "utf8");
+  for (const pattern of [".env", ".env.*", "*.pem", "*.key", "*.p12", "*.pfx", ".npmrc"]) {
+    assert.match(
+      ignored,
+      new RegExp(`^${pattern.replaceAll(".", "\\.").replace("*", ".*")}$`, "m"),
+    );
+  }
+  assert.match(ignored, /^!\.env\.example$/m);
+  assert.match(ignored, /^!\.env\.\*\.example$/m);
+
+  const devcontainer = JSON.parse(
+    readFileSync(`${root}.devcontainer/devcontainer.json`, "utf8"),
+  ) as { customizations: { vscode: { extensions: string[] } } };
+  for (const extension of devcontainer.customizations.vscode.extensions) {
+    assert.match(extension, /^[\w.-]+\.[\w.-]+@\d+\.\d+\.\d+$/);
+  }
+
+  const policy = readFileSync(`${root}SECURITY.md`, "utf8");
+  assert.ok(policy.includes("within two business days"));
+  assert.ok(policy.includes("CVSS v4.0"));
+  assert.ok(policy.includes("demonstrably exploitable through a supported package"));
+});
+
+void test("every public package requests npm provenance", () => {
+  for (const directory of [`${root}packages/`, `${root}http-clients/`]) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const path = `${directory}${entry.name}/package.json`;
+      const manifest = JSON.parse(readFileSync(path, "utf8")) as {
+        name?: string;
+        private?: boolean;
+        publishConfig?: { provenance?: boolean };
+      };
+      if (manifest.private === true) continue;
+      assert.strictEqual(
+        manifest.publishConfig?.provenance,
+        true,
+        `${manifest.name ?? path} must publish with provenance`,
+      );
+    }
   }
 });
 
@@ -670,9 +863,14 @@ void test("Dependabot keeps GitHub Actions behind a seven-day cooldown", () => {
 void test("examples pin the shared workflows through a replaceable placeholder", () => {
   const examples = yamlFiles(examplesDir);
   const contract = JSON.parse(readFileSync(`${root}internal/gha/package.json`, "utf8")) as {
+    name: string;
     version: string;
   };
-  const expectedComment = `v${contract.version.split(".")[0]}`;
+  const intents = readdirSync(`${root}.changeset/`)
+    .filter((file) => file.endsWith(".md") && file.toLowerCase() !== "readme.md")
+    .map((file) => ({ id: file, source: readFileSync(`${root}.changeset/${file}`, "utf8") }));
+  const plannedVersion = planContractVersion(contract, intents)?.newVersion ?? contract.version;
+  const expectedComment = `v${plannedVersion.split(".")[0]}`;
   assert.ok(examples.length > 0);
 
   for (const file of examples) {

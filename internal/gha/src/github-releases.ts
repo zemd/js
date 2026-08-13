@@ -1,6 +1,6 @@
-import { changelogEntry } from "./changelog.ts";
 import type { GitHubApi } from "./github.ts";
-import type { PublishedPackage, WorkspacePackage } from "./pnpm.ts";
+import type { PackageArtifactManifest } from "./package-artifact.ts";
+import type { PublishedPackage } from "./pnpm.ts";
 import { packageReleaseTag } from "./release-tags.ts";
 
 const RELEASE_TAG_PREFIX = "release-";
@@ -8,7 +8,7 @@ const RELEASE_TAG_PREFIX = "release-";
 export interface CombinedRelease {
   readonly published: readonly PublishedPackage[];
   readonly staged?: readonly PublishedPackage[];
-  readonly paths: ReadonlyMap<string, string>;
+  readonly changelogs: ReadonlyMap<string, string>;
   readonly notes?: string;
 }
 
@@ -43,7 +43,7 @@ const appendPackageTable = (
 export const renderCombinedReleaseBody = ({
   published,
   staged = [],
-  paths,
+  changelogs,
   notes,
 }: CombinedRelease): string => {
   const out: string[] = [];
@@ -55,15 +55,12 @@ export const renderCombinedReleaseBody = ({
   out.push("");
 
   for (const { name, version } of submitted) {
-    const packagePath = paths.get(name);
     out.push("<details>");
     out.push(`<summary><code>${name}@${version}</code></summary>`);
     out.push("");
     out.push("<br>");
     out.push("");
-    out.push(
-      (packagePath ? changelogEntry(packagePath, version) : "") || "_No changelog entry recorded._",
-    );
+    out.push(changelogs.get(name) || "_No changelog entry recorded._");
     out.push("");
     out.push("</details>");
     out.push("");
@@ -122,7 +119,7 @@ export interface PackageReleaseInput {
   readonly sha: string;
   readonly published: readonly PublishedPackage[];
   readonly staged?: readonly PublishedPackage[];
-  readonly workspace: readonly WorkspacePackage[];
+  readonly manifest: PackageArtifactManifest;
   readonly now?: Date;
 }
 
@@ -134,7 +131,7 @@ export const releasePublishedPackages = async ({
   sha,
   published,
   staged = [],
-  workspace,
+  manifest,
   now = new Date(),
 }: PackageReleaseInput): Promise<void> => {
   if (published.length === 0 && staged.length === 0) {
@@ -147,7 +144,21 @@ export const releasePublishedPackages = async ({
   const releases = [...publishedReleases, ...stagedReleases].sort((a, b) =>
     a.name.localeCompare(b.name),
   );
-  const paths = new Map(workspace.map((entry) => [entry.name, entry.path]));
+  const packages = new Map(manifest.packages.map((entry) => [entry.name, entry]));
+  const submitted = new Set<string>();
+  for (const release of releases) {
+    if (submitted.has(release.name)) {
+      throw new Error(`package was submitted more than once: ${release.name}`);
+    }
+    submitted.add(release.name);
+    const artifact = packages.get(release.name);
+    if (!artifact || artifact.version !== release.version) {
+      throw new Error(
+        `submitted package is absent from the validated artifact: ${release.name}@${release.version}`,
+      );
+    }
+  }
+  const changelogs = new Map(manifest.packages.map((entry) => [entry.name, entry.changelog]));
 
   let failed = false;
 
@@ -166,7 +177,7 @@ export const releasePublishedPackages = async ({
     body: renderCombinedReleaseBody({
       published: publishedReleases,
       staged: stagedReleases,
-      paths,
+      changelogs,
       notes,
     }),
     prerelease: releases.every(({ version }) => version.includes("-")),

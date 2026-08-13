@@ -25,11 +25,13 @@ was rejected on npm; another release must advance the package version.
 ```text
 gha.mjs contract-version         prepare <package.json> <intents-dir> <state.json>
 gha.mjs contract-version         finalize <state.json> <releases.json>
-gha.mjs github-releases          <published-summary.json> <staged-summary.json> <workspace-list.json>
+gha.mjs github-releases          <published-summary.json> <staged-summary.json> <release-manifest.json>
 gha.mjs npm-publishing-mode      <workspace-list.json> <registry-url> <staged-publishing> <first-releases.txt> <direct-packages.txt> <staged-packages.txt>
+gha.mjs package-artifact         <create|validate|tarball|summary> ...
+gha.mjs release-pr-artifact      <workspace-list.json> <pr-body.md> <artifact-directory>
 gha.mjs release-pr-body          <releases.json> <workspace-list.json>
 gha.mjs shared-workflows-release <package.json> <workflows-dir>
-gha.mjs signed-commit            <branch> <message>
+gha.mjs signed-commit            <branch> <message> <base-oid> <artifact-directory>
 ```
 
 Each lives in `src/commands/` as a thin argument-parsing adapter over a tested

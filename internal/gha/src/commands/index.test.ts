@@ -8,6 +8,8 @@ void test("exposes every release step the shared workflows need", () => {
     "contract-version",
     "github-releases",
     "npm-publishing-mode",
+    "package-artifact",
+    "release-pr-artifact",
     "release-pr-body",
     "shared-workflows-release",
     "signed-commit",

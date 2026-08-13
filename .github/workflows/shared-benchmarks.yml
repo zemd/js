@@ -3,7 +3,7 @@ name: Shared Benchmarks
 # Continuous benchmark history with Bencher. Call it from a repository whose
 # fixed `test-bench` script writes Bencher Metric Format JSON files directly to
 # the directory provided in BENCHER_OUTPUT_DIR.
-#   uses: zemd/js/.github/workflows/shared-benchmarks.yml@<sha> # v2
+#   uses: zemd/js/.github/workflows/shared-benchmarks.yml@<sha> # v3
 
 permissions: {}
 

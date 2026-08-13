@@ -2,7 +2,7 @@ import fc from "fast-check";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { compose, header, json, method, prefix, query } from "./index.ts";
+import { compose, header, json, method, pathSegment, prefix, query } from "./index.ts";
 import type { TFetchFn } from "./type.ts";
 
 const URL_TEMPLATES = [
@@ -107,6 +107,22 @@ const withoutRejections = async (run: () => Promise<void>): Promise<void> => {
 };
 
 void describe("url transformers", () => {
+  void it("should never let a raw path segment change route depth", () => {
+    fc.assert(
+      fc.property(fc.string({ minLength: 1, maxLength: 64 }), (input) => {
+        try {
+          const encoded = pathSegment(input);
+          const url = new URL(`/v1/files/${encoded}`, "https://api.example.com");
+          assert.strictEqual(url.pathname.split("/").length, 4);
+          assert.strictEqual(decodeURIComponent(url.pathname.slice("/v1/files/".length)), input);
+        } catch (error) {
+          assert.ok(error instanceof TypeError);
+        }
+      }),
+      { numRuns: 2000 },
+    );
+  });
+
   void it("should never rewrite the origin of the request", async () => {
     const queryParams = fc.dictionary(fc.string({ maxLength: 12 }), fc.string({ maxLength: 12 }), {
       maxKeys: 4,

@@ -20,10 +20,12 @@ catalog:
 # Seven days; keep aligned with Dependabot's npm cooldown.
 minimumReleaseAge: 10080
 minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
 minimumReleaseAgeExclude:
   - "@zemd/*"
   - hono@4.13.1
   - nanoid@3.3.17
+trustPolicy: no-downgrade
 
 overrides:
   hono@<4.12.34: ^4.12.34

@@ -9,9 +9,6 @@ updates:
     # Match pnpm's release-age policy for npm packages.
     cooldown:
       default-days: 7 # pnpm-workspace.yaml: minimumReleaseAge / 1440
-      # Keep exemptions aligned with pnpm-workspace.yaml.
-      exclude:
-        - "@zemd/*"
     versioning-strategy: "increase" # the workspace pins exact versions (saveExact)
     open-pull-requests-limit: 10
     groups:
@@ -21,7 +18,7 @@ updates:
         dependency-type: "development"
 
   # Also keeps the `zemd/js/.github/workflows/shared-*.yml@<sha>` pins current,
-  # rewriting both the SHA and the `# v2` comment.
+  # rewriting both the SHA and the `# v3` comment.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

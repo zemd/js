@@ -16,13 +16,17 @@ pnpm add @zemd/figma-rest-api
 ## Usage
 
 ```ts
-import { figma, figmaToken, header } from "@zemd/figma-rest-api";
+import { figma, figmaToken } from "@zemd/figma-rest-api";
 
 const client = figma([figmaToken("your-figma-token")]);
-// alternatively you can use figma([header("Authorization", "Bearer <TOKEN>")]);
 const response = await client.v1.files.getFile("filekey");
 console.log(response);
 ```
+
+Path identifiers are treated as raw single segments. Values containing delimiters, dot
+segments, control characters, or pre-encoded `%` sequences are rejected before a request is
+sent. `figmaToken()` also refuses to attach a credential to any origin other than
+`https://api.figma.com`.
 
 ## License
 

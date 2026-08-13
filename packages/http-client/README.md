@@ -26,6 +26,16 @@ Some real-world examples you can find in `../apis/` folder.
 
 A simple example you can also find here [src/example.ts](./src/example.ts)
 
+### Safe paths and debugging
+
+Use `pathSegment(value)` for every untrusted value inserted into a URL pathname. It accepts a
+raw segment, rejects delimiters, controls, dot segments and pre-encoded input, then encodes the
+value exactly once.
+
+`debug(logger)` reports request method, redacted URL and headers, and whether a body exists. It
+never reports request bodies or raw values of authorization, cookie, token, key, password, or
+secret fields.
+
 ### Retrying requests
 
 `retry(maxRetries, delay, backoffFactor, shouldRetry)` treats `maxRetries` as retries after

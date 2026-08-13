@@ -47,7 +47,7 @@ async function generateApi(data: Schema) {
 
   sourceFile.addImportDeclaration({
     moduleSpecifier: "@zemd/http-client",
-    namedImports: ["createEndpoint", "query", "body", "method", "prefix", "json"],
+    namedImports: ["createEndpoint", "query", "body", "method", "pathSegment", "prefix", "json"],
   });
 
   sourceFile.addImportDeclaration({
@@ -124,7 +124,7 @@ async function generateApi(data: Schema) {
           }) ?? [];
 
       const pathTemplate = pathParams.reduce((acc, param) => {
-        return acc.replace(`{${param.origName}}`, `\${${param.name}}`);
+        return acc.replace(`{${param.origName}}`, `\${pathSegment(${param.name})}`);
       }, path);
 
       let queryParams = null;

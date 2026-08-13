@@ -46,6 +46,9 @@ serve({
 > [!NOTE]
 > `loggerHttp` middleware does not colorize output, just a simple formatting according to the provided format. However, if you want to colorize the output, you can configure this within the Logtown Wrapper. The `loggerHttp` provides all the fields from the formatted string as an object.
 
+Custom formats are parsed as literal text plus `:transformer[argument]` tokens. Format strings
+are never evaluated as JavaScript.
+
 ## License
 
 `@logtown/hono` released under the Apache 2.0 license

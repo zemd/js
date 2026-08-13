@@ -32,6 +32,8 @@ Report vulnerabilities through one of the following private channels:
    <https://github.com/zemd/js/security/advisories/new>.
 2. **Email** — <oss@zemd.dev> with the subject line `SECURITY: <package name>`.
 
+Repository administrators maintain the hosted security controls described in [`.github/SECURITY-OPERATIONS.md`](.github/SECURITY-OPERATIONS.md).
+
 To enable triage, your report must include, to the extent known to you:
 
 - The affected package name and exact version(s).
@@ -47,8 +49,9 @@ Reports that do not contain sufficient information to reproduce and validate the
 
 The maintainers will use reasonable efforts to:
 
-- Acknowledge receipt of your report.
-- Validate the report and determine severity, typically using [CVSS v3.1](https://www.first.org/cvss/).
+- Acknowledge receipt within two business days.
+- Provide an initial assessment within seven business days and a status update at least every fourteen calendar days while remediation is active.
+- Validate the report and determine severity, normally using [CVSS v4.0](https://www.first.org/cvss/v4-0/); CVSS v3.1 may be used when ecosystem tooling requires it.
 - Keep you informed of remediation progress.
 - Publish a GitHub Security Advisory and request a CVE identifier where the issue warrants it.
 - Credit the reporter in the advisory, unless anonymity is requested in writing.
@@ -66,11 +69,11 @@ By submitting a report, you agree to the following, which constitute conditions 
 
 ## Scope
 
-**In scope:** the source code contained in this repository and the `@zemd/*`, `logtown`, and `@logtown/*` artifacts published to npm from this repository.
+**In scope:** the source code contained in this repository and the `@zemd/*`, `logtown`, and `@logtown/*` artifacts published to npm from this repository. This includes vulnerabilities in a third-party dependency when they are demonstrably exploitable through a supported package or repository workflow.
 
 **Out of scope**, and expressly excluded from the Safe Harbor below:
 
-- Vulnerabilities in third-party dependencies, transitive or otherwise. Report those to their respective maintainers; you may notify us so that a version bump can be issued.
+- Vulnerabilities that exist only in a third-party dependency and cannot be exercised through a supported package or repository workflow. Report those to the dependency's maintainers; you may notify us so that a version bump can be issued.
 - Vulnerabilities in third-party services or APIs accessed by the HTTP clients in this repository, including but not limited to the Figma and Flickr APIs.
 - Findings that require a compromised host, malicious dependency, physical access, privileged local access, or otherwise depend on an already-compromised environment.
 - Insecure usage patterns arising from a consumer's own application code, configuration, secrets management, or deployment.
