@@ -75,6 +75,13 @@ const usesReferences = (source: string): Array<{ reference: string; comment?: st
     ...(comment === undefined ? {} : { comment }),
   }));
 
+const secretReferences = (source: string): string[] =>
+  [...source.matchAll(/\$\{\{ secrets\.([A-Z_]+) \}\}/g)].map((match) => {
+    const secret = match[1];
+    if (secret === undefined) throw new Error("Secret reference capture is missing");
+    return secret;
+  });
+
 const usesAction = (source: string, action: string): boolean =>
   usesReferences(source).some(({ reference }) => reference.startsWith(`${action}@`));
 
@@ -706,9 +713,7 @@ void test("publishes only validated tarballs without a recurring npm token", () 
   assert.ok(directPublishingStep.includes('--registry "https://registry.npmjs.org"'));
   assert.doesNotMatch(source, /NPM_TOKEN|NODE_AUTH_TOKEN/);
   assert.deepStrictEqual(
-    [...source.matchAll(/\$\{\{ secrets\.([A-Z_]+) \}\}/g)]
-      .map((match) => match[1])
-      .sort((left, right) => left.localeCompare(right)),
+    secretReferences(source).sort((left, right) => left.localeCompare(right)),
     ["RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"],
   );
   assert.strictEqual(source.match(/^ {10}package-manager-cache: false$/gm)?.length, 4);
@@ -718,9 +723,7 @@ void test("publishes only validated tarballs without a recurring npm token", () 
   assert.ok(example.includes("# staged-publishing: true"));
   assert.doesNotMatch(example, /NPM_TOKEN|NODE_AUTH_TOKEN/);
   assert.deepStrictEqual(
-    [...example.matchAll(/\$\{\{ secrets\.([A-Z_]+) \}\}/g)]
-      .map((match) => match[1])
-      .sort((left, right) => left.localeCompare(right)),
+    secretReferences(example).sort((left, right) => left.localeCompare(right)),
     ["RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"],
   );
 });
