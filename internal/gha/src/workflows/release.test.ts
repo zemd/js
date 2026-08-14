@@ -113,6 +113,26 @@ void test("checkout-free release jobs give GitHub CLI an explicit repository", (
   assert.match(openReleasePr, /^ {10}GH_REPO: \$\{\{ github\.repository \}\}$/m);
 });
 
+void test("checkout-free release jobs source pnpm from the shared tooling manifest", () => {
+  const source = read(workflowsDir, "shared-release.yml");
+
+  for (const name of ["version", "package"]) {
+    const setupPnpm = workflowStep(workflowJob(source, name), "Setup pnpm");
+    assert.doesNotMatch(setupPnpm, /^ {10}package_json_file:/m);
+  }
+
+  for (const name of ["publish", "github-release"]) {
+    const job = workflowJob(source, name);
+    const checkout = job.indexOf("- name: Checkout shared tooling");
+    const setup = job.indexOf("- name: Setup pnpm");
+    const setupPnpm = workflowStep(job, "Setup pnpm");
+
+    assert.ok(checkout > -1);
+    assert.ok(checkout < setup);
+    assert.match(setupPnpm, /^ {10}package_json_file: \.shared-ci\/package\.json$/m);
+  }
+});
+
 void test("isolates caller code from every credentialed release job", () => {
   const source = read(workflowsDir, "shared-release.yml");
   const version = workflowJob(source, "version");
