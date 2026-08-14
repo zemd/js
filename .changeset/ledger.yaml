@@ -66,6 +66,11 @@
   dir: internal/gha
   intents:
     - fluffy-pianos-wash
+"@zemd/gha@4.0.0":
+  dir: internal/gha
+  intents:
+    - brown-hornets-care
+    - thirty-carpets-lick
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:

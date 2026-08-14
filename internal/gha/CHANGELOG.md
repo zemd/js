@@ -1,5 +1,15 @@
 # @zemd/gha
 
+## 4.0.0
+
+### Major Changes
+
+- Remove the `shared-tooling-repository` and `shared-tooling-ref` release inputs; shared release jobs now resolve tooling from the called workflow's own pinned revision.
+
+### Patch Changes
+
+- Allow shared release workflows to process private workspace packages without versions.
+
 ## 3.0.1
 
 ### Patch Changes
