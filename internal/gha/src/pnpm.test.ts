@@ -38,6 +38,38 @@ void test("normalises the private flag on workspace packages", () => {
   ]);
 });
 
+void test("accepts private workspace packages without a version", () => {
+  const workspace = parseWorkspacePackages(
+    JSON.stringify([
+      { name: "@zemd/react", version: "0.0.0", path: "/repo", private: true },
+      {
+        name: "@zemd/example-react-modals-next16",
+        path: "/repo/packages/modals/examples/next16",
+        private: true,
+      },
+    ]),
+  );
+
+  assert.deepStrictEqual(workspace, [
+    { name: "@zemd/react", version: "0.0.0", path: "/repo", private: true },
+    {
+      name: "@zemd/example-react-modals-next16",
+      path: "/repo/packages/modals/examples/next16",
+      private: true,
+    },
+  ]);
+});
+
+void test("requires public workspace packages to have a version", () => {
+  assert.throws(
+    () =>
+      parseWorkspacePackages(
+        JSON.stringify([{ name: "@zemd/public", path: "/repo/packages/public" }]),
+      ),
+    /pnpm list -r --json\[0\]: expected "version" to be a string, got undefined/,
+  );
+});
+
 void test("treats a publish summary without published packages as empty", () => {
   assert.deepStrictEqual(parsePublishSummary(JSON.stringify({})), []);
 });

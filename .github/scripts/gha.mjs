@@ -103,6 +103,7 @@ const asString = (source, key, context) => {
 	if (typeof value !== "string") throw new Error(`${context}: expected "${key}" to be a string, got ${JSON.stringify(value)}`);
 	return value;
 };
+const isPublicWorkspacePackage = (workspacePackage) => !workspacePackage.private;
 const parseAppliedReleases = (json) => asArray(JSON.parse(json), "pnpm version -r --json").map((entry, index) => {
 	const context = `pnpm version -r --json[${index}]`;
 	const record = asRecord(entry, context);
@@ -115,11 +116,19 @@ const parseAppliedReleases = (json) => asArray(JSON.parse(json), "pnpm version -
 const parseWorkspacePackages = (json) => asArray(JSON.parse(json), "pnpm list -r --json").map((entry, index) => {
 	const context = `pnpm list -r --json[${index}]`;
 	const record = asRecord(entry, context);
+	const name = asString(record, "name", context);
+	const path = asString(record, "path", context);
+	const isPrivate = record["private"] === true;
+	if (record["version"] === void 0 && isPrivate) return {
+		name,
+		path,
+		private: true
+	};
 	return {
-		name: asString(record, "name", context),
+		name,
 		version: asString(record, "version", context),
-		path: asString(record, "path", context),
-		private: record["private"] === true
+		path,
+		private: isPrivate
 	};
 });
 const parsePublishSummary = (json) => {
@@ -476,7 +485,7 @@ const createPackageArtifact = ({ directory: inputDirectory, pack = defaultPack, 
 	const directory = artifactDirectory$1(inputDirectory);
 	if (readdirSync(directory).length !== 0) throw new Error("package artifact directory is not empty");
 	const canonicalRoot = realpathSync(resolve(root));
-	const publicPackages = workspace.filter(({ private: isPrivate }) => !isPrivate);
+	const publicPackages = workspace.filter(isPublicWorkspacePackage);
 	if (publicPackages.length === 0 || publicPackages.length > MAX_PACKAGES) throw new Error(`expected between 1 and ${MAX_PACKAGES} public packages`);
 	const manifest = { packages: publicPackages.map((workspacePackage, index) => {
 		validateNameVersion(workspacePackage.name, workspacePackage.version);
@@ -704,7 +713,7 @@ const packageExistsOnRegistry = async (packageName, registryUrl, request) => {
 	return true;
 };
 const planNpmPublishing = async (workspace, stagedPublishing, packageExists, releaseTagExists) => {
-	const publicPackages = workspace.filter((workspacePackage) => !workspacePackage.private);
+	const publicPackages = workspace.filter(isPublicWorkspacePackage);
 	const submissionState = await Promise.all(publicPackages.map(async (workspacePackage) => ({
 		workspacePackage,
 		submitted: await releaseTagExists(packageReleaseTag(workspacePackage.name, workspacePackage.version))

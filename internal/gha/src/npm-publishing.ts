@@ -1,3 +1,4 @@
+import { isPublicWorkspacePackage } from "./pnpm.ts";
 import type { PublishedPackage, WorkspacePackage } from "./pnpm.ts";
 import { packageReleaseTag } from "./release-tags.ts";
 
@@ -56,7 +57,7 @@ export const planNpmPublishing = async (
   packageExists: (packageName: string) => Promise<boolean>,
   releaseTagExists: (tag: string) => Promise<boolean>,
 ): Promise<NpmPublishingPlan> => {
-  const publicPackages = workspace.filter((workspacePackage) => !workspacePackage.private);
+  const publicPackages = workspace.filter(isPublicWorkspacePackage);
   const submissionState = await Promise.all(
     publicPackages.map(async (workspacePackage) => ({
       workspacePackage,

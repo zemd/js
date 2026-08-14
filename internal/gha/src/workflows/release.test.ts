@@ -88,17 +88,21 @@ void test("the release tooling is checked out from the pinned shared revision", 
   const caller = read(workflowsDir, "repo-release.yml");
   const example = read(examplesDir, "repo-release.yml");
 
-  // Privileged jobs do not check out caller code, so every job gets the CLI
-  // from an explicitly configured shared-tooling checkout.
-  assert.match(source, /shared-tooling-repository:\n(?: {8}.*\n){2} {8}required: true/);
-  assert.match(source, /shared-tooling-ref:\n(?: {8}.*\n){2} {8}required: true/);
-  assert.match(source, /repository: \$\{\{ inputs\.shared-tooling-repository \}\}/);
-  assert.match(source, /ref: \$\{\{ inputs\.shared-tooling-ref \}\}/);
-  assert.ok(!source.includes("job.workflow_"));
-  assert.match(caller, /shared-tooling-repository: \$\{\{ github\.repository \}\}/);
-  assert.match(caller, /shared-tooling-ref: \$\{\{ github\.sha \}\}/);
-  assert.match(example, /shared-tooling-repository: zemd\/js/);
-  assert.match(example, /shared-tooling-ref: __SHA__/);
+  for (const workflow of [source, caller, example]) {
+    assert.ok(!workflow.includes("shared-tooling-repository"));
+    assert.ok(!workflow.includes("shared-tooling-ref"));
+  }
+
+  // Privileged jobs do not check out caller code. Every job gets the CLI from
+  // the exact repository and commit that define the called workflow instead.
+  for (const name of ["version", "release-pr", "package", "publish", "github-release"]) {
+    const checkout = workflowStep(workflowJob(source, name), "Checkout shared tooling");
+
+    assert.match(checkout, /^ {10}repository: \$\{\{ job\.workflow_repository \}\}$/m);
+    assert.match(checkout, /^ {10}ref: \$\{\{ job\.workflow_sha \}\}$/m);
+  }
+
+  assert.match(example, /uses: zemd\/js\/\.github\/workflows\/shared-release\.yml@__SHA__/);
   assert.match(source, /path: \.shared-ci/);
   assert.match(source, /echo "\/\.shared-ci\/" >> \.git\/info\/exclude/);
   assert.ok(source.includes(`SHARED_CLI: .shared-ci/.github/scripts/${BUNDLE}`));

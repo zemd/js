@@ -2,7 +2,7 @@ name: Shared zizmor
 
 # Blocking GitHub Actions security linting for workflows, custom actions and
 # Dependabot configuration. Call it from a repository with:
-#   uses: zemd/js/.github/workflows/shared-zizmor.yml@<sha> # v3
+#   uses: zemd/js/.github/workflows/shared-zizmor.yml@<sha> # v4
 
 permissions: {}
 
