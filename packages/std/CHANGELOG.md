@@ -1,5 +1,11 @@
 # @zemd/std-modules
 
+## 0.1.2
+
+### Patch Changes
+
+- Require npm provenance metadata for published artifacts.
+
 ## 0.1.1
 
 ### Patch Changes

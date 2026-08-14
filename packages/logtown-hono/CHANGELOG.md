@@ -1,5 +1,11 @@
 # @logtown/hono
 
+## 5.0.2
+
+### Patch Changes
+
+- Parse custom HTTP log formats without dynamic JavaScript evaluation.
+
 ## 5.0.1
 
 ### Patch Changes

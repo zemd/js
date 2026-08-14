@@ -1,5 +1,14 @@
 # @zemd/figma-rest-api
 
+## 3.0.26
+
+### Patch Changes
+
+- Encode every generated path identifier and refuse to forward Figma tokens outside api.figma.com.
+
+- Updated dependencies:
+  - @zemd/http-client@6.0.0
+
 ## 3.0.25
 
 ### Patch Changes

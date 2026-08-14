@@ -1,5 +1,15 @@
 # @zemd/gha
 
+## 3.0.0
+
+### Major Changes
+
+- Isolate release metadata, package building, npm publishing, and GitHub writes across validated artifact boundaries; restore the optional npm-token fallback for first releases; and authenticate release-branch and GitHub Release operations with separate, repository-scoped GitHub Apps.
+
+### Patch Changes
+
+- Give the GitHub CLI an explicit repository when opening release pull requests.
+
 ## 2.1.1
 
 ### Patch Changes

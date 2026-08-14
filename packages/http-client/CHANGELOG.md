@@ -1,5 +1,11 @@
 # @zemd/http-client
 
+## 6.0.0
+
+### Major Changes
+
+- Encode untrusted URL path segments and replace raw debug payloads with redacted metadata that never includes request bodies.
+
 ## 5.0.0
 
 ### Major Changes
