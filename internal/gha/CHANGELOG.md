@@ -1,5 +1,11 @@
 # @zemd/gha
 
+## 3.0.1
+
+### Patch Changes
+
+- Fix checkout-free release jobs to install pnpm from the pinned shared tooling manifest.
+
 ## 3.0.0
 
 ### Major Changes
