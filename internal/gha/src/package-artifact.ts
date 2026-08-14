@@ -4,6 +4,7 @@ import { lstatSync, readFileSync, readdirSync, realpathSync, writeFileSync } fro
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
 import { changelogEntry } from "./changelog.ts";
+import { isPublicWorkspacePackage } from "./pnpm.ts";
 import type { PublishedPackage, WorkspacePackage } from "./pnpm.ts";
 
 const MAX_PACKAGES = 100;
@@ -202,7 +203,7 @@ export const createPackageArtifact = ({
   if (readdirSync(directory).length !== 0)
     throw new Error("package artifact directory is not empty");
   const canonicalRoot = realpathSync(resolve(root));
-  const publicPackages = workspace.filter(({ private: isPrivate }) => !isPrivate);
+  const publicPackages = workspace.filter(isPublicWorkspacePackage);
   if (publicPackages.length === 0 || publicPackages.length > MAX_PACKAGES) {
     throw new Error(`expected between 1 and ${MAX_PACKAGES} public packages`);
   }

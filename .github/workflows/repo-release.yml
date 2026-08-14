@@ -21,8 +21,6 @@ jobs:
       contents: read # check release state and pinned tooling
       id-token: write # npm trusted publishing (OIDC)
     with:
-      shared-tooling-repository: ${{ github.repository }}
-      shared-tooling-ref: ${{ github.sha }}
       release-branchkeeper-client-id: ${{ vars.RELEASE_BRANCHKEEPER_CLIENT_ID }}
       release-publisher-client-id: ${{ vars.RELEASE_PUBLISHER_CLIENT_ID }}
       # pnpm does not advance this private, unpublished contract package.

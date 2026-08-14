@@ -3,7 +3,7 @@ name: Shared Release
 # Shared release pipeline: opens/refreshes a release pull request while intents
 # are pending, and submits packages to npm once main holds the released versions.
 # Call it from a repository with:
-#   uses: zemd/js/.github/workflows/shared-release.yml@<sha> # v3
+#   uses: zemd/js/.github/workflows/shared-release.yml@<sha> # v4
 #
 # npm trusted publishing validates the *caller* workflow filename, so name the
 # caller `repo-release.yml`, register that filename and the `npm-production`
@@ -14,14 +14,6 @@ permissions: {}
 on:
   workflow_call:
     inputs:
-      shared-tooling-repository:
-        description: Repository containing the scripts bundled with this reusable workflow.
-        type: string
-        required: true
-      shared-tooling-ref:
-        description: Commit SHA for the shared tooling; keep it equal to the workflow's pinned SHA.
-        type: string
-        required: true
       release-branchkeeper-client-id:
         description: Client ID for the repository-installed Release Branchkeeper GitHub App.
         type: string
@@ -58,9 +50,9 @@ on:
 env:
   # https://consoledonottrack.com - opts out of Turborepo and other CLI telemetry
   DO_NOT_TRACK: 1
-  # This workflow's own repository checked out next to the caller's, so the
-  # release CLI remains available in jobs that intentionally never check out
-  # the caller repository.
+  # Each job checks out this workflow's own repository and resolved commit next
+  # to the caller's, so the release CLI remains available in jobs that
+  # intentionally never check out the caller repository.
   SHARED_CLI: .shared-ci/.github/scripts/gha.mjs
 
 jobs:
@@ -92,8 +84,8 @@ jobs:
       - name: Checkout shared tooling
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ inputs.shared-tooling-repository }}
-          ref: ${{ inputs.shared-tooling-ref }}
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: .shared-ci
           persist-credentials: false
 
@@ -193,8 +185,8 @@ jobs:
       - name: Checkout shared tooling
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ inputs.shared-tooling-repository }}
-          ref: ${{ inputs.shared-tooling-ref }}
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: .shared-ci
           persist-credentials: false
 
@@ -268,8 +260,8 @@ jobs:
       - name: Checkout shared tooling
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ inputs.shared-tooling-repository }}
-          ref: ${{ inputs.shared-tooling-ref }}
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: .shared-ci
           persist-credentials: false
 
@@ -332,8 +324,8 @@ jobs:
       - name: Checkout shared tooling
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ inputs.shared-tooling-repository }}
-          ref: ${{ inputs.shared-tooling-ref }}
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: .shared-ci
           persist-credentials: false
 
@@ -456,8 +448,8 @@ jobs:
       - name: Checkout shared tooling
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ inputs.shared-tooling-repository }}
-          ref: ${{ inputs.shared-tooling-ref }}
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
           path: .shared-ci
           persist-credentials: false
 

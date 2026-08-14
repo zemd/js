@@ -16,9 +16,10 @@ Ready-to-copy callers for this repository's reusable workflows.
 
 1. Copy the required `repo-*.yml` files to `.github/workflows/` and
    `dependabot.yml` to `.github/`.
-2. Replace every `__SHA__` placeholder with the commit SHA for the v3 release
+2. Replace every `__SHA__` placeholder with the commit SHA for the v4 release
    you want to use.
 3. Review the comments and optional `with:` inputs in each copied file.
 
-Keep the release caller named `repo-release.yml` for npm trusted publishing, and
-keep its `shared-tooling-ref` equal to the SHA in its `uses:` line.
+Keep the release caller named `repo-release.yml` for npm trusted publishing.
+Its `uses:` line is the only shared-tooling revision to maintain; the called
+workflow resolves its own repository and commit from GitHub's job context.

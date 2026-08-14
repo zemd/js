@@ -8,12 +8,21 @@ export interface AppliedRelease {
   readonly newVersion: string;
 }
 
-export interface WorkspacePackage {
+interface WorkspacePackageIdentity {
   readonly name: string;
-  readonly version: string;
   readonly path: string;
-  readonly private: boolean;
 }
+
+export type WorkspacePackage = WorkspacePackageIdentity &
+  (
+    | { readonly version: string; readonly private: boolean }
+    | { readonly version?: never; readonly private: true }
+  );
+
+export type PublicWorkspacePackage = WorkspacePackageIdentity & {
+  readonly version: string;
+  readonly private: false;
+};
 
 export interface PublishedPackage {
   readonly name: string;
@@ -42,6 +51,10 @@ const asString = (source: Record<string, unknown>, key: string, context: string)
   return value;
 };
 
+export const isPublicWorkspacePackage = (
+  workspacePackage: WorkspacePackage,
+): workspacePackage is PublicWorkspacePackage => !workspacePackage.private;
+
 export const parseAppliedReleases = (json: string): readonly AppliedRelease[] =>
   asArray(JSON.parse(json), "pnpm version -r --json").map((entry, index) => {
     const context = `pnpm version -r --json[${index}]`;
@@ -57,11 +70,19 @@ export const parseWorkspacePackages = (json: string): readonly WorkspacePackage[
   asArray(JSON.parse(json), "pnpm list -r --json").map((entry, index) => {
     const context = `pnpm list -r --json[${index}]`;
     const record = asRecord(entry, context);
+    const name = asString(record, "name", context);
+    const path = asString(record, "path", context);
+    const isPrivate = record["private"] === true;
+
+    if (record["version"] === undefined && isPrivate) {
+      return { name, path, private: true };
+    }
+
     return {
-      name: asString(record, "name", context),
+      name,
       version: asString(record, "version", context),
-      path: asString(record, "path", context),
-      private: record["private"] === true,
+      path,
+      private: isPrivate,
     };
   });
 
