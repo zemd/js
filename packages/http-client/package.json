@@ -1,6 +1,6 @@
 {
   "name": "@zemd/http-client",
-  "version": "5.0.0",
+  "version": "6.0.0",
   "description": "A lightweight framework to build your custom fetch",
   "keywords": [
     "compose",

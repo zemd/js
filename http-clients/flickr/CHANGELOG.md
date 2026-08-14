@@ -1,5 +1,14 @@
 # @zemd/flickr-rest-api
 
+## 2.0.2
+
+### Patch Changes
+
+- Prevent debug logging from exposing Flickr API keys.
+
+- Updated dependencies:
+  - @zemd/http-client@6.0.0
+
 ## 2.0.1
 
 ### Patch Changes

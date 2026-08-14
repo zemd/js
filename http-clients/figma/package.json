@@ -1,6 +1,6 @@
 {
   "name": "@zemd/figma-rest-api",
-  "version": "3.0.25",
+  "version": "3.0.26",
   "description": "A lightweight fetch-based and type-safe Figma Rest API client.",
   "keywords": [
     "api",

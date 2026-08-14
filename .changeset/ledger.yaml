@@ -1,11 +1,23 @@
+"@logtown/hono@5.0.2":
+  dir: packages/logtown-hono
+  intents:
+    - quiet-heads-repeat
 "@zemd/color@1.0.0":
   dir: packages/color
   intents:
     - light-plums-shine
+"@zemd/figma-rest-api@3.0.26":
+  dir: http-clients/figma
+  intents:
+    - calm-tigers-stick
 "@zemd/flickr-rest-api@2.0.0":
   dir: http-clients/flickr
   intents:
     - flickr-http-client-sync
+"@zemd/flickr-rest-api@2.0.2":
+  dir: http-clients/flickr
+  intents:
+    - forty-geckos-sniff
 "@zemd/gha@1.0.0":
   dir: internal/gha
   intents:
@@ -45,6 +57,11 @@
   dir: internal/gha
   intents:
     - cyan-toys-mix
+"@zemd/gha@3.0.0":
+  dir: internal/gha
+  intents:
+    - funky-phones-say
+    - modern-dryers-give
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
@@ -53,6 +70,10 @@
   dir: packages/http-client
   intents:
     - modern-bags-beg
+"@zemd/http-client@6.0.0":
+  dir: packages/http-client
+  intents:
+    - honest-hairs-call
 "@zemd/openapi@0.0.2":
   dir: packages/openapi
   intents:
@@ -66,6 +87,10 @@
   dir: packages/std
   intents:
     - crisp-deserts-jam
+"@zemd/std-modules@0.1.2":
+  dir: packages/std
+  intents:
+    - flat-bushes-pull
 "@zemd/testing@1.0.0":
   dir: packages/testing
   intents:
