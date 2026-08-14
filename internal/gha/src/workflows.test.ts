@@ -685,11 +685,11 @@ void test("uses separate repository-scoped GitHub Apps for release writes", () =
   }
 });
 
-void test("publishes only validated tarballs without a recurring npm token", () => {
+void test("keeps the npm token out of staging and requires it for first releases", () => {
   const source = read(workflowsDir, "shared-release.yml");
+  const caller = read(workflowsDir, "repo-release.yml");
   const example = read(examplesDir, "repo-release.yml");
   const publishingModeStep = workflowStep(source, "Select npm publishing mode");
-  const rejectFirstReleaseStep = workflowStep(source, "Reject first releases");
   const stagedPublishingStep = workflowStep(source, "Stage packages on npm");
   const directPublishingStep = workflowStep(source, "Publish packages to npm directly");
 
@@ -708,39 +708,52 @@ void test("publishes only validated tarballs without a recurring npm token", () 
   assert.ok(
     publishingModeStep.includes('"${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"'),
   );
-  assert.match(
-    rejectFirstReleaseStep,
-    /^ {8}if: steps\.publishing\.outputs\.first_release == 'true'$/m,
-  );
-  assert.ok(rejectFirstReleaseStep.includes("never accepts a long-lived npm token"));
+  assert.ok(!source.includes("- name: Reject first releases"));
   assert.match(stagedPublishingStep, /^ {8}if: steps\.publishing\.outputs\.stage == 'true'$/m);
   assert.ok(stagedPublishingStep.includes('node "${SHARED_CLI}" package-artifact tarball'));
   assert.ok(stagedPublishingStep.includes('pnpm stage publish "$tarball"'));
   assert.ok(stagedPublishingStep.includes('--registry "https://registry.npmjs.org"'));
   assert.ok(!stagedPublishingStep.includes("NPM_TOKEN"));
   assert.ok(!stagedPublishingStep.includes("NODE_AUTH_TOKEN"));
-  assert.match(
-    directPublishingStep,
-    /^ {8}if: steps\.publishing\.outputs\.direct == 'true' && steps\.publishing\.outputs\.first_release == 'false'$/m,
+  assert.match(directPublishingStep, /^ {8}if: steps\.publishing\.outputs\.direct == 'true'$/m);
+  assert.ok(
+    directPublishingStep.includes("FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}"),
+  );
+  assert.ok(directPublishingStep.includes("NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}"));
+  assert.ok(
+    directPublishingStep.includes(
+      'if [ "$FIRST_RELEASE" = "true" ] && [ -z "$NODE_AUTH_TOKEN" ]; then',
+    ),
+  );
+  assert.ok(
+    directPublishingStep.includes(
+      "NPM_TOKEN is required to publish a package that does not exist in the registry.",
+    ),
+  );
+  assert.ok(
+    directPublishingStep.indexOf('[ -z "$NODE_AUTH_TOKEN" ]') <
+      directPublishingStep.indexOf("while IFS= read -r package"),
   );
   assert.ok(directPublishingStep.includes('node "${SHARED_CLI}" package-artifact tarball'));
   assert.ok(directPublishingStep.includes('pnpm publish "$tarball"'));
   assert.ok(directPublishingStep.includes("--ignore-scripts"));
   assert.ok(directPublishingStep.includes('--registry "https://registry.npmjs.org"'));
-  assert.doesNotMatch(source, /NPM_TOKEN|NODE_AUTH_TOKEN/);
+  assert.match(source, /NPM_TOKEN:\n(?: {8}.*\n) {8}required: false/);
+  assert.strictEqual(source.match(/NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/g)?.length, 1);
   assert.deepStrictEqual(
     secretReferences(source).sort((left, right) => left.localeCompare(right)),
-    ["RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"],
+    ["NPM_TOKEN", "RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"],
   );
   assert.strictEqual(source.match(/^ {10}package-manager-cache: false$/gm)?.length, 4);
   assert.doesNotMatch(source, /^ {10}cache: "pnpm"$/m);
   assert.ok(source.includes('"${RUNNER_TEMP}/publication/published-summary.json"'));
   assert.ok(source.includes('"${RUNNER_TEMP}/publication/staged-summary.json"'));
   assert.ok(example.includes("# staged-publishing: true"));
-  assert.doesNotMatch(example, /NPM_TOKEN|NODE_AUTH_TOKEN/);
+  assert.ok(caller.includes("NPM_TOKEN: ${{ secrets.NPM_TOKEN }}"));
+  assert.ok(example.includes("NPM_TOKEN: ${{ secrets.NPM_TOKEN }}"));
   assert.deepStrictEqual(
     secretReferences(example).sort((left, right) => left.localeCompare(right)),
-    ["RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"],
+    ["NPM_TOKEN", "RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"],
   );
 });
 

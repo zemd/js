@@ -28,6 +28,7 @@ jobs:
       # pnpm does not advance this private, unpublished contract package.
       contract-version-package: internal/gha/package.json
     secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       RELEASE_BRANCHKEEPER_PRIVATE_KEY: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}
       RELEASE_PUBLISHER_PRIVATE_KEY: ${{ secrets.RELEASE_PUBLISHER_PRIVATE_KEY }}
   # Publishes the `shared-*.yml` contract itself: a `vX.Y.Z` tag, a moving `vX`

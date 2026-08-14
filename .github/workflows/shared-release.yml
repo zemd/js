@@ -35,10 +35,13 @@ on:
         type: string
         default: ""
       staged-publishing:
-        description: Stage existing packages for npm approval without making rejection roll back the submitted version. First releases fail closed and require a separate bootstrap workflow.
+        description: Stage existing packages for npm approval without making rejection roll back the submitted version. First releases publish directly.
         type: boolean
         default: true
     secrets:
+      NPM_TOKEN:
+        description: Optional authentication for regular publishing; required when a package does not exist in the registry yet.
+        required: false
       RELEASE_BRANCHKEEPER_PRIVATE_KEY:
         description: Private key for the Release Branchkeeper GitHub App.
         required: true
@@ -372,15 +375,20 @@ jobs:
             "${RUNNER_TEMP}/direct-packages.txt" \
             "${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"
 
-      - name: Reject first releases
-        if: steps.publishing.outputs.first_release == 'true'
-        run: |
-          echo "::error::First npm releases require a separate, manually approved bootstrap workflow. The recurring release workflow never accepts a long-lived npm token."
-          exit 1
-
+      # npm cannot stage a package that does not exist in the registry, and its
+      # trusted publisher cannot be configured before that first release. Keep
+      # the optional token scoped to regular publishing of validated tarballs.
       - name: Publish packages to npm directly
-        if: steps.publishing.outputs.direct == 'true' && steps.publishing.outputs.first_release == 'false'
+        if: steps.publishing.outputs.direct == 'true'
+        env:
+          FIRST_RELEASE: ${{ steps.publishing.outputs.first_release }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          if [ "$FIRST_RELEASE" = "true" ] && [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN is required to publish a package that does not exist in the registry."
+            exit 1
+          fi
+
           while IFS= read -r package; do
             tarball="$(node "${SHARED_CLI}" package-artifact tarball \
               "${RUNNER_TEMP}/release-manifest.json" \

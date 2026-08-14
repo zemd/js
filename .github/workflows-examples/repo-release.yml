@@ -33,5 +33,8 @@ jobs:
       # contract-version-package: "" # Private workflow/tooling contract, if any.
       # staged-publishing: true # Set false when every release should publish directly.
     secrets:
+      # Optional after every package exists. First releases automatically use
+      # regular publishing and require this repository secret.
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       RELEASE_BRANCHKEEPER_PRIVATE_KEY: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}
       RELEASE_PUBLISHER_PRIVATE_KEY: ${{ secrets.RELEASE_PUBLISHER_PRIVATE_KEY }}
