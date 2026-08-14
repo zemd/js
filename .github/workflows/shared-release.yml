@@ -217,9 +217,11 @@ jobs:
 
       # This credentialed runner never checks out caller code. The CLI accepts
       # only bounded release metadata and validates it again before the API call.
+      # Give `gh` an explicit repository because the workspace is not a git repo.
       - name: Open release pull request
         env:
           GH_TOKEN: ${{ steps.release-branchkeeper-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
           GITHUB_TOKEN: ${{ steps.release-branchkeeper-token.outputs.token }}
           RELEASE_ARTIFACT: ${{ runner.temp }}/release-pr-artifact
           RELEASE_BRANCH: release/main
