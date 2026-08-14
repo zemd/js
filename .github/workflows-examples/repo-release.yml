@@ -18,20 +18,23 @@ concurrency:
 jobs:
   release:
     name: Release
-    uses: zemd/js/.github/workflows/shared-release.yml@__SHA__ # v2
+    uses: zemd/js/.github/workflows/shared-release.yml@__SHA__ # v3
     # Node.js lts/*, main, release/main, the release PR title, npmjs.org, and
     # the `build` and `lint-publish` scripts are fixed shared conventions.
     permissions:
-      contents: write # release branch, git tags and GitHub releases
-      pull-requests: write # open and refresh the release pull request
+      contents: read # check release state and pinned tooling
       id-token: write # npm trusted publishing (OIDC)
     with:
       # Keep this SHA equal to the one in `uses` above.
       shared-tooling-repository: zemd/js
       shared-tooling-ref: __SHA__
+      release-branchkeeper-client-id: ${{ vars.RELEASE_BRANCHKEEPER_CLIENT_ID }}
+      release-publisher-client-id: ${{ vars.RELEASE_PUBLISHER_CLIENT_ID }}
       # contract-version-package: "" # Private workflow/tooling contract, if any.
       # staged-publishing: true # Set false when every release should publish directly.
     secrets:
       # Optional after every package exists. First releases automatically use
       # regular publishing and require this repository secret.
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      RELEASE_BRANCHKEEPER_PRIVATE_KEY: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}
+      RELEASE_PUBLISHER_PRIVATE_KEY: ${{ secrets.RELEASE_PUBLISHER_PRIVATE_KEY }}

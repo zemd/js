@@ -2,7 +2,7 @@ name: Shared Scorecard
 
 # Shared OpenSSF Scorecard analysis.
 # Call it from a repository with:
-#   uses: zemd/js/.github/workflows/shared-scorecard.yml@<sha> # v2
+#   uses: zemd/js/.github/workflows/shared-scorecard.yml@<sha> # v3
 
 permissions: {}
 

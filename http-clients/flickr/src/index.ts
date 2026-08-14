@@ -1,5 +1,5 @@
-import * as photosets from "./api/photosets.js";
-import * as activity from "./api/activity.js";
+import * as photosets from "./api/photosets.ts";
+import * as activity from "./api/activity.ts";
 import {
   createEndpoint,
   debug as debugTransformer,

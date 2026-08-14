@@ -1,6 +1,7 @@
 import type { MiddlewareHandler, Context as HonoContext } from "hono";
 import { createLogger } from "logtown";
 import type { ConnInfo, GetConnInfo } from "hono/conninfo";
+import { compileFormat } from "./format.ts";
 
 const logger = createLogger("http");
 
@@ -130,47 +131,6 @@ const transformers: Partial<Record<SupportedTransformers, TransformerFn>> = {
   "http-version": () => "-",
 };
 
-const trimLogMessage = (message: string) => {
-  let result = message.trim();
-
-  while (result.startsWith("-")) {
-    result = result.slice(1);
-  }
-
-  while (result.endsWith("-")) {
-    result = result.slice(0, -1);
-  }
-
-  result = result.replace(/\s+/g, " ");
-  return result;
-};
-
-// inspired by expressjs/morgan
-const compile = (format: string) => {
-  const keys: string[] = [];
-  const escapeLiteral = (text: string) => text.replace(/[\\`]/g, "\\$&").replace(/\$\{/g, "\\${");
-  const code = escapeLiteral(format).replace(/:([-\w]{2,})(?:\[([^\]]+)\])?/g, (_, key, arg) => {
-    keys.push(
-      `${JSON.stringify(key)}: transformers?.[${JSON.stringify(key)}]?.(context, info, ${JSON.stringify(arg)}) ?? ""`,
-    );
-    return `\${transformers?.[${JSON.stringify(key)}]?.(context, info, ${JSON.stringify(arg)}) ?? ""}`;
-  });
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval -- Formats are compiled once before request handling.
-  const func = new Function(
-    "transformers, context, info",
-    `"use strict"; return { message: \`${code}\`, ${keys.join(",")} }`,
-  );
-  return (
-    transformers: Partial<Record<SupportedTransformers, TransformerFn>>,
-    ...params: Parameters<TransformerFn>
-  ) => {
-    const [context, info] = params;
-    const res = func(transformers, context, info);
-    res.message = trimLogMessage(res.message);
-    return res;
-  };
-};
-
 export const loggerHttp = ({
   format,
   getConnInfo,
@@ -182,7 +142,7 @@ export const loggerHttp = ({
   };
 
   const fmt = FORMATS[format as FormatName] ?? format ?? FORMATS["apache-combined"];
-  const compiled = compile(fmt);
+  const compiled = compileFormat<HonoContext, TransformerInfo>(fmt);
 
   return async (context, next) => {
     const connInfo = getConnInfo?.(context);

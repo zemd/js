@@ -18,17 +18,19 @@ jobs:
     name: Release
     uses: ./.github/workflows/shared-release.yml
     permissions:
-      contents: write # release branch, git tags and GitHub releases
-      pull-requests: write # open and refresh the release pull request
+      contents: read # check release state and pinned tooling
       id-token: write # npm trusted publishing (OIDC)
     with:
       shared-tooling-repository: ${{ github.repository }}
       shared-tooling-ref: ${{ github.sha }}
+      release-branchkeeper-client-id: ${{ vars.RELEASE_BRANCHKEEPER_CLIENT_ID }}
+      release-publisher-client-id: ${{ vars.RELEASE_PUBLISHER_CLIENT_ID }}
       # pnpm does not advance this private, unpublished contract package.
       contract-version-package: internal/gha/package.json
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
+      RELEASE_BRANCHKEEPER_PRIVATE_KEY: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}
+      RELEASE_PUBLISHER_PRIVATE_KEY: ${{ secrets.RELEASE_PUBLISHER_PRIVATE_KEY }}
   # Publishes the `shared-*.yml` contract itself: a `vX.Y.Z` tag, a moving `vX`
   # tag and a release whose body carries SHA-pinned `uses:` lines to copy.
   shared-workflows:
@@ -38,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: write # publish the shared workflow tags and GitHub release
+      contents: read # check out the protected main branch
 
     steps:
       - name: Harden Runner
@@ -51,8 +53,18 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Create Release Publisher token
+        id: release-publisher-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_PUBLISHER_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_PUBLISHER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.repository }}
+          permission-contents: write
+
       - name: Tag and release the shared workflows
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ steps.release-publisher-token.outputs.token }}
         run: |
           node .github/scripts/gha.mjs shared-workflows-release internal/gha/package.json .github/workflows

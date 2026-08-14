@@ -2,7 +2,7 @@ name: Shared CI
 
 # Shared pull request pipeline for the pnpm + turbo monorepos.
 # Call it from a repository with:
-#   uses: zemd/js/.github/workflows/shared-ci.yml@<sha> # v2
+#   uses: zemd/js/.github/workflows/shared-ci.yml@<sha> # v3
 # See .github/workflows-examples/ for ready-to-copy caller workflows.
 
 permissions: {}
@@ -26,7 +26,7 @@ on:
       dependency-review-severity:
         description: Lowest advisory severity that fails the dependency review.
         type: string
-        default: "high"
+        default: "moderate"
       dependency-review-scopes:
         description: Dependency scopes the review applies to.
         type: string

@@ -63,6 +63,38 @@ export const json = (): TFetchTransformer => {
   return header("Content-Type", "application/json");
 };
 
+const INVALID_PATH_DELIMITER = /[%/\\?#]/;
+
+const hasControlCharacter = (value: string): boolean => {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (
+      codePoint !== undefined &&
+      (codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f))
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
+ * Encodes one raw URL path segment without allowing it to alter route structure.
+ * Pre-encoded input is rejected so callers cannot trigger ambiguous double decoding.
+ */
+export const pathSegment = (value: string): string => {
+  if (
+    value.length === 0 ||
+    value === "." ||
+    value === ".." ||
+    INVALID_PATH_DELIMITER.test(value) ||
+    hasControlCharacter(value)
+  ) {
+    throw new TypeError("Invalid URL path segment.", { cause: { received: value } });
+  }
+  return encodeURIComponent(value);
+};
+
 const modifyUrlPath = (input: TFetchFnParams[0], prefix: string): TFetchFnParams[0] => {
   if (input instanceof Request) {
     const urlObj = new URL(input.url);
@@ -342,18 +374,71 @@ export const cache = (maxAge: number = 60_000, maxEntries: number = 100): TFetch
   };
 };
 
-const consoleDebug = (p: any) => {
-  console.debug(JSON.stringify(p, null, 4));
+const SENSITIVE_FIELD =
+  /(?:^|[-_.])(api[-_.]?key|auth(?:orization)?|cookie|credential|jwt|key|password|secret|session|sig(?:nature)?|token)(?:$|[-_.])/i;
+const REDACTED = "[REDACTED]";
+
+const redactUrl = (input: string): string => {
+  const absolute = URL.canParse(input);
+  const url = new URL(input, absolute ? undefined : "https://debug.invalid");
+  if (url.username) url.username = REDACTED;
+  if (url.password) url.password = REDACTED;
+  for (const key of url.searchParams.keys()) {
+    if (SENSITIVE_FIELD.test(key)) url.searchParams.set(key, REDACTED);
+  }
+  if (url.hash.includes("=")) {
+    const fragment = new URLSearchParams(url.hash.slice(1));
+    for (const key of fragment.keys()) {
+      if (SENSITIVE_FIELD.test(key)) fragment.set(key, REDACTED);
+    }
+    url.hash = fragment.toString();
+  }
+  return absolute ? url.toString() : `${url.pathname}${url.search}${url.hash}`;
+};
+
+const redactHeaders = (headers: HeadersInit | undefined): Readonly<Record<string, string>> => {
+  const redacted: Record<string, string> = {};
+  for (const [key, value] of new Headers(headers).entries()) {
+    redacted[key] = SENSITIVE_FIELD.test(key) ? REDACTED : value;
+  }
+  return redacted;
+};
+
+export interface DebugRequest {
+  readonly bodyPresent: boolean;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly method: string;
+  readonly url: string;
+}
+
+export type DebugLogger = (request: DebugRequest) => void;
+
+const debugRequest = ([input, init]: TFetchFnParams): DebugRequest => {
+  const request = input instanceof Request ? input : undefined;
+  const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+  return {
+    bodyPresent:
+      (init?.body !== undefined && init.body !== null) ||
+      (request !== undefined && request.body !== null),
+    headers: redactHeaders(init?.headers ?? request?.headers),
+    method: init?.method ?? request?.method ?? "GET",
+    url: redactUrl(url),
+  };
+};
+
+const consoleDebug: DebugLogger = (request) => {
+  console.debug(JSON.stringify(request, null, 2));
 };
 
 /**
  * Creates a transformer that logs request parameters for debugging purposes.
+ * Credentials in URLs and headers are redacted, and request bodies are never logged.
  * @param fn Optional custom logging function (defaults to console.debug with JSON.stringify)
- * @returns A transformer function that logs the request parameters before passing them to the next transformer
+ * @returns A transformer function that logs sanitized request metadata
  */
-export const debug = (fn: Function = consoleDebug): TFetchTransformer => {
+export const debug = (fn: DebugLogger = consoleDebug): TFetchTransformer => {
   return async (fetchFn: TFetchFn, ...params: TFetchFnParams) => {
-    fn(params);
+    fn(debugRequest(params));
     return fetchFn(...params);
   };
 };

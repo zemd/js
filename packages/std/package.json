@@ -62,6 +62,9 @@
       "import": "./dist/types.mjs"
     }
   },
+  "publishConfig": {
+    "provenance": true
+  },
   "scripts": {
     "test-bench": "node ./benchmarks/objects.bench.ts",
     "build": "tsdown",
