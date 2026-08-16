@@ -5,6 +5,7 @@ packages:
   - packages/*
   - http-clients/*
   - internal/*
+  - integrations/*
 
 versioning:
   changelog:
