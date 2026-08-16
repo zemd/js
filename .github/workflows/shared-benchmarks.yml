@@ -20,8 +20,8 @@ on:
         default: false
     secrets:
       BENCHER_API_KEY:
-        description: Project-scoped Bencher API key used to submit benchmark reports.
-        required: true
+        description: Optional project-scoped Bencher API key used to submit benchmark reports. Publishing is skipped when absent.
+        required: false
 
 # Not inherited from the caller: `env` defined at the caller's workflow level is
 # never propagated into a reusable workflow.
@@ -222,12 +222,29 @@ jobs:
           await writeFile(output, `${JSON.stringify(canonical)}\n`, { flag: "wx" });
           NODE
 
+      # Do not expose the secret until the caller-produced artifact is validated.
+      - name: Check benchmark publishing configuration
+        id: publishing
+        env:
+          BENCHER_API_KEY: ${{ secrets.BENCHER_API_KEY }}
+        run: |
+          if [ -z "$BENCHER_API_KEY" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping benchmark publishing because BENCHER_API_KEY is not configured."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Bencher
+        if: steps.publishing.outputs.enabled == 'true'
         uses: bencherdev/bencher@4c83b25441d145ee273adaf74be30f2382e6ba85 # v0.6.11
         with:
           version: "0.6.11"
 
+      # A non-empty but invalid key reaches Bencher so authentication failures
+      # still fail the workflow.
       - name: Track benchmarks with Bencher
+        if: steps.publishing.outputs.enabled == 'true'
         env:
           BENCHER_API_KEY: ${{ secrets.BENCHER_API_KEY }}
           BENCHER_BRANCH: ${{ github.head_ref || github.ref_name }}
@@ -241,10 +258,6 @@ jobs:
         run: |
           if [ -z "$BENCHER_PROJECT" ]; then
             echo "::error::The Bencher project input must not be empty."
-            exit 1
-          fi
-          if [ -z "$BENCHER_API_KEY" ]; then
-            echo "::error::The BENCHER_API_KEY secret is required."
             exit 1
           fi
 

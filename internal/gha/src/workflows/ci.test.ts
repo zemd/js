@@ -136,7 +136,6 @@ void test("shared benchmarks report namespaced BMF results to Bencher", () => {
   const track = workflowStep(source, "Track benchmarks with Bencher");
 
   assert.match(source, /project:\n(?: {8}.*\n){2} {8}required: true/);
-  assert.match(source, /BENCHER_API_KEY:\n(?: {8}.*\n) {8}required: true/);
   assert.match(source, /error-on-alert:\n(?: {8}.*\n){2} {8}default: false/);
   assert.ok(usesAction(setup, "bencherdev/bencher"));
   assert.match(setup, /^ {10}version: "\d+\.\d+\.\d+"$/m);
@@ -206,4 +205,38 @@ void test("shared benchmarks report namespaced BMF results to Bencher", () => {
     assert.match(workflow, /^ {6}checks: write # .+$/m);
     assert.match(workflow, /^ {6}pull-requests: write # .+$/m);
   }
+});
+
+void test("missing Bencher API key skips publication without masking invalid keys", () => {
+  const source = read(workflowsDir, "shared-benchmarks.yml");
+  const benchmarkJob = workflowJob(source, "benchmarks");
+  const publishJob = workflowJob(source, "publish");
+  const runBenchmarks = workflowStep(source, "Run benchmarks");
+  const download = workflowStep(source, "Download benchmark results");
+  const validate = workflowStep(source, "Validate benchmark results");
+  const publishing = workflowStep(source, "Check benchmark publishing configuration");
+  const setup = workflowStep(source, "Setup Bencher");
+  const track = workflowStep(source, "Track benchmarks with Bencher");
+
+  assert.match(source, /BENCHER_API_KEY:\n(?: {8}.*\n) {8}required: false/);
+  assert.doesNotMatch(benchmarkJob, /BENCHER_API_KEY|steps\.publishing/);
+  assert.doesNotMatch(runBenchmarks, /steps\.publishing/);
+  assert.doesNotMatch(download, /^ {8}if:/m);
+  assert.doesNotMatch(validate, /^ {8}if:/m);
+  assert.ok(
+    publishJob.indexOf("Validate benchmark results") <
+      publishJob.indexOf("Check benchmark publishing configuration"),
+  );
+
+  assert.ok(publishing.includes("BENCHER_API_KEY: ${{ secrets.BENCHER_API_KEY }}"));
+  assert.ok(publishing.includes('if [ -z "$BENCHER_API_KEY" ]; then'));
+  assert.ok(publishing.includes('echo "enabled=false" >> "$GITHUB_OUTPUT"'));
+  assert.ok(publishing.includes('echo "enabled=true" >> "$GITHUB_OUTPUT"'));
+  assert.ok(publishing.includes("Skipping benchmark publishing"));
+
+  for (const step of [setup, track]) {
+    assert.match(step, /^ {8}if: steps\.publishing\.outputs\.enabled == 'true'$/m);
+  }
+  assert.doesNotMatch(track, /BENCHER_API_KEY secret is required|continue-on-error/);
+  assert.ok(track.trimEnd().endsWith('bencher run "${arguments[@]}"'));
 });
