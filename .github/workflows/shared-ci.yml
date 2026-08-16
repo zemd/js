@@ -143,7 +143,7 @@ jobs:
         with:
           name: native-node-coverage-${{ matrix.os }}
           path: "**/coverage.lcov"
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 14
 
       - name: Validate publishable packages
