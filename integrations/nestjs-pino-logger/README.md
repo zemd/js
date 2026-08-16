@@ -180,4 +180,4 @@ fields beyond the safe defaults.
 
 ## 💙 💛 Donate
 
-[![](https://img.shields.io/static/v1?label=UNITED24&message=support%20Ukraine&color=blue)](https://u24.gov.ua/)
+[![Support Ukraine through UNITED24](https://img.shields.io/static/v1?label=UNITED24&message=support%20Ukraine&color=blue)](https://u24.gov.ua/)
