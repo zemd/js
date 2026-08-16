@@ -1,5 +1,13 @@
 # @zemd/gha
 
+## 4.0.1
+
+### Patch Changes
+
+- Allow shared CI to succeed when tests produce no LCOV coverage files.
+
+- Allow benchmark runs to succeed without publishing when the Bencher API key is missing.
+
 ## 4.0.0
 
 ### Major Changes

@@ -71,6 +71,11 @@
   intents:
     - brown-hornets-care
     - thirty-carpets-lick
+"@zemd/gha@4.0.1":
+  dir: internal/gha
+  intents:
+    - legal-cups-burn
+    - loud-groups-roll
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
