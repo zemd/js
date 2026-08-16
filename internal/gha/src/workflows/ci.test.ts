@@ -113,7 +113,7 @@ void test("shared workflows use fixed package script names", () => {
   assert.ok(usesAction(upload, "actions/upload-artifact"));
   assert.ok(upload.includes("name: native-node-coverage-${{ matrix.os }}"));
   assert.ok(upload.includes('path: "**/coverage.lcov"'));
-  assert.ok(upload.includes("if-no-files-found: error"));
+  assert.ok(upload.includes("if-no-files-found: ignore"));
   assert.ok(source.includes("if: inputs.playwright-filter != ''"));
   assert.ok(browser.includes("run: pnpm run test-browser"));
   assert.ok(caller.includes('playwright-filter: "@zemd/std-modules"'));
