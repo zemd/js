@@ -19,9 +19,8 @@ concurrency:
 jobs:
   benchmarks:
     name: Benchmarks
-    # Keep the workflow dormant until the Bencher project and key are configured,
-    # and never publish results from a fork. The reusable workflow runs caller
-    # code without credentials, then publishes from a separate fresh runner.
+    # Run benchmarks once the Bencher project is configured, even if publishing
+    # is disabled by a missing API key. Never run caller code from a fork.
     if: vars.BENCHER_PROJECT != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     uses: ./.github/workflows/shared-benchmarks.yml
     permissions:
