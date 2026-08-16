@@ -88,6 +88,10 @@
   dir: packages/http-client
   intents:
     - honest-hairs-call
+"@zemd/nestjs-pino-logger@2.0.0":
+  dir: integrations/nestjs-pino-logger
+  intents:
+    - social-cities-greet
 "@zemd/openapi@0.0.2":
   dir: packages/openapi
   intents:
