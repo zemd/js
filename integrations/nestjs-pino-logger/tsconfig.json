@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "@zemd/nestjs-pino-logger",
+  "extends": "@zemd/tsconfig/tsconfig-library.json",
+  "compilerOptions": {
+    "erasableSyntaxOnly": false,
+    "experimentalDecorators": true,
+    "types": ["node"]
+  },
+  "include": ["benchmarks/**/*.ts", "src/**/*.ts", "tsdown.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

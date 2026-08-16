@@ -26,6 +26,12 @@ Each package is published independently to npm, using the `@zemd` and `@logtown`
 | [`logtown`](packages/logtown)               | [![npm](https://img.shields.io/npm/v/logtown?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/logtown)                     | `Apache-2.0`    | Versatile logging wrapper for JavaScript projects    |
 | [`@logtown/hono`](packages/logtown-hono)    | [![npm](https://img.shields.io/npm/v/@logtown/hono?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@logtown/hono)         | `Apache-2.0`    | Hono middleware for logging with `logtown`           |
 
+### Integrations
+
+| Package                                                       | Version                                                                                                                                                   | License         | Description                   |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ----------------------------- |
+| [`@zemd/nestjs-pino-logger`](integrations/nestjs-pino-logger) | [![npm](https://img.shields.io/npm/v/@zemd/nestjs-pino-logger?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/nestjs-pino-logger) | `BlueOak-1.0.0` | NestJS logger powered by Pino |
+
 ### HTTP clients
 
 | Package                                        | Version                                                                                                                                             | License      | Description                                               |

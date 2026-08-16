@@ -6,19 +6,20 @@ The maintainers of the `@zemd/js` monorepo take the security of the published pa
 
 Security fixes are provided **only for the latest released version** of each package published from this repository. Older releases are considered end-of-life the moment a newer version is published, and no patches, backports, or advisories will be issued for them.
 
-| Package                 | Supported                |
-| ----------------------- | ------------------------ |
-| `@zemd/color`           | Latest published release |
-| `@zemd/std-modules`     | Latest published release |
-| `@zemd/http-client`     | Latest published release |
-| `@zemd/openapi`         | Latest published release |
-| `@zemd/testing`         | Latest published release |
-| `@zemd/tsconfig`        | Latest published release |
-| `logtown`               | Latest published release |
-| `@logtown/hono`         | Latest published release |
-| `@zemd/figma-rest-api`  | Latest published release |
-| `@zemd/flickr-rest-api` | Latest published release |
-| Any prior version       | **Not supported**        |
+| Package                    | Supported                |
+| -------------------------- | ------------------------ |
+| `@zemd/color`              | Latest published release |
+| `@zemd/std-modules`        | Latest published release |
+| `@zemd/http-client`        | Latest published release |
+| `@zemd/openapi`            | Latest published release |
+| `@zemd/testing`            | Latest published release |
+| `@zemd/tsconfig`           | Latest published release |
+| `logtown`                  | Latest published release |
+| `@logtown/hono`            | Latest published release |
+| `@zemd/nestjs-pino-logger` | Latest published release |
+| `@zemd/figma-rest-api`     | Latest published release |
+| `@zemd/flickr-rest-api`    | Latest published release |
+| Any prior version          | **Not supported**        |
 
 Users are solely responsible for keeping their dependencies current.
 
