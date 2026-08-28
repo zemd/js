@@ -1,0 +1,321 @@
+name: Changeset for shared action updates
+
+permissions: {}
+
+# CI is intentionally unprivileged. This follow-up always loads from the default
+# branch, so the Release Branchkeeper key is never exposed to pull-request code.
+on: # zizmor: ignore[dangerous-triggers] Default-branch code; no PR checkout or artifacts.
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - requested
+      - completed
+
+concurrency:
+  group: changeset-action-updates-${{ github.event.workflow_run.head_repository.id }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect missing release intent
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # read immutable base and head workflow files
+      pull-requests: read # identify the triggering PR and its changed files
+    outputs:
+      head-sha: ${{ steps.detect.outputs.head-sha }}
+      pr-number: ${{ steps.detect.outputs.pr-number }}
+      required: ${{ steps.detect.outputs.required }}
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      # Read files through the API; never check out or execute pull-request code.
+      - name: Detect an action update without a changeset
+        id: detect
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            core.setOutput("required", "false");
+
+            const workflowRun = context.payload.workflow_run;
+            const pullRequests = workflowRun?.pull_requests ?? [];
+            if (!workflowRun || pullRequests.length !== 1) {
+              core.info("The CI run is not associated with exactly one pull request");
+              return;
+            }
+
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullRequests[0].number,
+            });
+            const repository = context.repo.owner + "/" + context.repo.repo;
+            const trustedAuthors = new Set(["zemd", "dependabot[bot]"]);
+            if (
+              pull.state !== "open" ||
+              pull.base.ref !== "main" ||
+              pull.head.repo?.full_name !== repository
+            ) {
+              core.info("Only open, same-repository pull requests targeting main are supported");
+              return;
+            }
+            if (pull.head.ref === "release/main") {
+              core.info("The release pull request manages its own release intent");
+              return;
+            }
+            if (!trustedAuthors.has(pull.user?.login ?? "")) {
+              core.info("The pull-request author is not allowed to receive automated commits");
+              return;
+            }
+            if (pull.head.sha !== workflowRun.head_sha) {
+              core.info("A newer pull-request commit will be handled by its own CI run");
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: pull.number,
+              per_page: 100,
+            });
+            const sharedWorkflow = /^\.github\/workflows\/shared-[a-z0-9-]+\.yml$/;
+            const changedWorkflows = files.filter(
+              (file) =>
+                sharedWorkflow.test(file.filename) ||
+                (file.previous_filename !== undefined &&
+                  sharedWorkflow.test(file.previous_filename)),
+            );
+            if (changedWorkflows.length === 0) {
+              core.info("No shared workflow changed");
+              return;
+            }
+
+            const readAt = async (path, ref) => {
+              try {
+                const { data } = await github.rest.repos.getContent({
+                  ...context.repo,
+                  path,
+                  ref,
+                });
+                if (
+                  Array.isArray(data) ||
+                  data.type !== "file" ||
+                  typeof data.content !== "string"
+                ) {
+                  throw new Error("Expected " + path + " at " + ref + " to be a file");
+                }
+                return Buffer.from(data.content, "base64").toString("utf8");
+              } catch (error) {
+                if (error && typeof error === "object" && error.status === 404) return "";
+                throw error;
+              }
+            };
+            const actionSnapshot = (source) => {
+              const actions = [];
+              const pattern =
+                /^([ \t]*(?:-[ \t]+)?uses:[ \t]*)["']?([^"'#\s]+)["']?(?:[ \t]+#.*)?$/gm;
+              const shape = source.replace(pattern, (line, prefix, reference) => {
+                if (reference.startsWith("./")) return line;
+
+                const separator = reference.lastIndexOf("@");
+                if (separator <= 0 || separator === reference.length - 1) return line;
+                const action = {
+                  identity: reference.slice(0, separator),
+                  ref: reference.slice(separator + 1),
+                };
+                actions.push(action);
+                // Dependabot updates the version comment beside a pinned ref too.
+                return prefix + action.identity + "@<ref>";
+              });
+              return { actions, shape };
+            };
+
+            let actionRefChanged = false;
+            for (const file of changedWorkflows) {
+              const previousPath = file.previous_filename ?? file.filename;
+              if (file.status !== "modified" || previousPath !== file.filename) {
+                core.info(file.filename + " was added, removed, or renamed; release intent must be manual");
+                return;
+              }
+              const before = await readAt(previousPath, pull.base.sha);
+              const after = await readAt(file.filename, pull.head.sha);
+              const beforeSnapshot = actionSnapshot(before);
+              const afterSnapshot = actionSnapshot(after);
+              const beforeActions = beforeSnapshot.actions;
+              const afterActions = afterSnapshot.actions;
+              const identitiesUnchanged =
+                beforeActions.length === afterActions.length &&
+                beforeActions.every(
+                  (action, index) => action.identity === afterActions[index]?.identity,
+                );
+              if (!identitiesUnchanged || beforeSnapshot.shape !== afterSnapshot.shape) {
+                core.info(
+                  file.filename +
+                    " contains changes beyond action refs and version comments; release intent must be manual",
+                );
+                return;
+              }
+              if (
+                beforeActions.some((action, index) => action.ref !== afterActions[index]?.ref)
+              ) {
+                actionRefChanged = true;
+              }
+            }
+            if (!actionRefChanged) {
+              core.info("Shared workflow action refs are unchanged");
+              return;
+            }
+
+            // Match the release parser's exact frontmatter semantics. A package name in
+            // prose, or a package key with an invalid bump, is not a release intent.
+            const scalar = (value) => {
+              const trimmed = value.trim();
+              const quote = trimmed.at(0);
+              return (quote === '"' || quote === "'") && trimmed.at(-1) === quote
+                ? trimmed.slice(1, -1)
+                : trimmed;
+            };
+            const hasReleaseIntent = (source) => {
+              const body =
+                source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1] ?? "";
+              for (const line of body.split(/\r?\n/)) {
+                const separator = line.indexOf(":");
+                if (separator < 0 || scalar(line.slice(0, separator)) !== "@zemd/gha") {
+                  continue;
+                }
+                if (/^(?:major|minor|patch)$/.test(scalar(line.slice(separator + 1)))) {
+                  return true;
+                }
+              }
+              return false;
+            };
+
+            const changesets = files.filter(
+              (file) =>
+                (file.status === "added" || file.status === "modified") &&
+                /^\.changeset\/[^/]+\.md$/.test(file.filename),
+            );
+            for (const file of changesets) {
+              const source = await readAt(file.filename, pull.head.sha);
+              if (hasReleaseIntent(source)) {
+                core.info("The pull request already records an @zemd/gha release intent");
+                return;
+              }
+            }
+
+            core.setOutput("head-sha", pull.head.sha);
+            core.setOutput("pr-number", String(pull.number));
+            core.setOutput("required", "true");
+
+  commit:
+    name: Commit release intent
+    needs: detect
+    if: needs.detect.outputs.required == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Create Release Branchkeeper token
+        id: release-branchkeeper-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_BRANCHKEEPER_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.repository }}
+          permission-contents: write
+          permission-pull-requests: read
+
+      # GraphQL creates a GitHub-signed commit attributed to the Branchkeeper App.
+      - name: Commit the changeset
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          EXPECTED_HEAD_SHA: ${{ needs.detect.outputs.head-sha }}
+          PR_NUMBER: ${{ needs.detect.outputs.pr-number }}
+        with:
+          github-token: ${{ steps.release-branchkeeper-token.outputs.token }}
+          script: |
+            const pullNumber = Number(process.env.PR_NUMBER);
+            const expectedHeadOid = process.env.EXPECTED_HEAD_SHA;
+            if (!Number.isSafeInteger(pullNumber) || !/^[0-9a-f]{40}$/.test(expectedHeadOid ?? "")) {
+              throw new Error("Invalid pull-request identity from the detection job");
+            }
+
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            const repository = context.repo.owner + "/" + context.repo.repo;
+            const trustedAuthors = new Set(["zemd", "dependabot[bot]"]);
+            if (
+              pull.state !== "open" ||
+              pull.base.ref !== "main" ||
+              pull.head.ref === "release/main" ||
+              pull.head.repo?.full_name !== repository ||
+              pull.head.sha !== expectedHeadOid ||
+              !trustedAuthors.has(pull.user?.login ?? "")
+            ) {
+              core.info("The pull request is no longer eligible for an automated release intent");
+              return;
+            }
+
+            const changesetPath = ".changeset/shared-actions-" + pull.number + ".md";
+            try {
+              await github.rest.repos.getContent({
+                ...context.repo,
+                path: changesetPath,
+                ref: expectedHeadOid,
+              });
+              throw new Error("Refusing to overwrite existing " + changesetPath);
+            } catch (error) {
+              if (!error || typeof error !== "object" || error.status !== 404) throw error;
+            }
+
+            const changeset = [
+              "---",
+              '"@zemd/gha": patch',
+              "---",
+              "",
+              "Update the action versions used by the shared GitHub Actions workflows.",
+              "",
+            ].join("\n");
+            const mutation = [
+              "mutation ($input: CreateCommitOnBranchInput!) {",
+              "  createCommitOnBranch(input: $input) {",
+              "    commit { oid }",
+              "  }",
+              "}",
+            ].join("\n");
+            const result = await github.graphql(mutation, {
+              input: {
+                branch: {
+                  repositoryNameWithOwner: repository,
+                  branchName: pull.head.ref,
+                },
+                expectedHeadOid,
+                message: {
+                  headline: "chore: add changeset for action updates",
+                },
+                fileChanges: {
+                  additions: [
+                    {
+                      path: changesetPath,
+                      contents: Buffer.from(changeset).toString("base64"),
+                    },
+                  ],
+                },
+              },
+            });
+            const oid = result.createCommitOnBranch?.commit?.oid;
+            if (!oid) throw new Error("GitHub did not return the created commit");
+            core.notice("Created " + changesetPath + " in commit " + oid);
