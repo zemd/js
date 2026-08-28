@@ -84,12 +84,44 @@ jobs:
             git diff --name-only --diff-filter=AM -z "$BASE_SHA...$HEAD_SHA" -- \
               '.changeset/*.md'
           )
-          if [ "${#changesets[@]}" -eq 0 ] ||
-            ! grep -lF '"@zemd/gha"' "${changesets[@]}" >/dev/null 2>&1
-          then
+
+          missing_release_intent() {
             echo "::error::Add a change intent for @zemd/gha, these shared files changed:"
             printf '%s\n' "$changed"
             exit 1
+          }
+          if [ "${#changesets[@]}" -eq 0 ]; then
+            missing_release_intent
+          fi
+
+          # Keep this in sync with internal/gha/src/contract-version.ts: only an
+          # exact package key and a supported bump in frontmatter count as intent.
+          if ! node --input-type=module - "${changesets[@]}" <<'NODE'
+          import { readFileSync } from "node:fs";
+
+          const scalar = (value) => {
+            const trimmed = value.trim();
+            const quote = trimmed.at(0);
+            return (quote === '"' || quote === "'") && trimmed.at(-1) === quote
+              ? trimmed.slice(1, -1)
+              : trimmed;
+          };
+          const hasReleaseIntent = (source) => {
+            const body = source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1] ?? "";
+            for (const line of body.split(/\r?\n/)) {
+              const separator = line.indexOf(":");
+              if (separator < 0 || scalar(line.slice(0, separator)) !== "@zemd/gha") continue;
+              if (/^(?:major|minor|patch)$/.test(scalar(line.slice(separator + 1)))) return true;
+            }
+            return false;
+          };
+
+          if (!process.argv.slice(2).some((path) => hasReleaseIntent(readFileSync(path, "utf8")))) {
+            process.exitCode = 1;
+          }
+          NODE
+          then
+            missing_release_intent
           fi
           echo "release intent recorded alongside:"
           printf '%s\n' "$changed"

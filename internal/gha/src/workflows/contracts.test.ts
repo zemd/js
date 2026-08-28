@@ -22,9 +22,13 @@ void test("workflow filenames distinguish repository callers from shared workflo
   }
 });
 
-void test("workflow examples mirror the repository caller filenames", () => {
+void test("workflow examples mirror the reusable-workflow caller filenames", () => {
   const callers = yamlFiles(workflowsDir)
-    .filter((file) => file.startsWith("repo-"))
+    .filter(
+      (file) =>
+        file.startsWith("repo-") &&
+        read(workflowsDir, file).includes("uses: ./.github/workflows/shared-"),
+    )
     .sort();
 
   assert.deepStrictEqual(workflowExampleFiles().sort(), callers);
@@ -124,8 +128,10 @@ void test("the shared contract guard only inspects pull-request change intents",
 
   assert.match(step, /git diff --name-only --diff-filter=AM -z "\$BASE_SHA\.\.\.\$HEAD_SHA" --/);
   assert.ok(step.includes("'.changeset/*.md'"));
-  assert.ok(step.includes(`grep -lF '"@zemd/gha"' "\${changesets[@]}"`));
-  assert.doesNotMatch(step, /grep[^\n]*\.changeset/);
+  assert.ok(step.includes('scalar(line.slice(0, separator)) !== "@zemd/gha"'));
+  assert.ok(step.includes("/^(?:major|minor|patch)$/"));
+  assert.ok(step.includes('hasReleaseIntent(readFileSync(path, "utf8"))'));
+  assert.doesNotMatch(step, /grep|\.includes\([^\n]*@zemd\/gha/);
 });
 
 void test("every runner job has a bounded timeout", () => {
