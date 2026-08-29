@@ -13,7 +13,7 @@ on: # zizmor: ignore[dangerous-triggers] Default-branch code; generated data is 
       - completed
 
 concurrency:
-  group: figma-api-updates-${{ github.event.workflow_run.head_repository.id }}-${{ github.event.workflow_run.head_branch }}
+  group: pr-automation-figma-api-regeneration-${{ github.event.workflow_run.head_repository.id }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
 jobs:
