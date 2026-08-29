@@ -1,5 +1,11 @@
 # @zemd/figma-rest-api
 
+## 3.0.27
+
+### Patch Changes
+
+- Regenerate the Figma REST API client from the updated API specification.
+
 ## 3.0.26
 
 ### Patch Changes

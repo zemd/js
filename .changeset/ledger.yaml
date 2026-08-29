@@ -10,6 +10,10 @@
   dir: http-clients/figma
   intents:
     - calm-tigers-stick
+"@zemd/figma-rest-api@3.0.27":
+  dir: http-clients/figma
+  intents:
+    - figma-api-56
 "@zemd/flickr-rest-api@2.0.0":
   dir: http-clients/flickr
   intents:
