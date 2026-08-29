@@ -1,5 +1,11 @@
 # @zemd/gha
 
+## 4.0.3
+
+### Patch Changes
+
+- Skip release jobs when no package or shared workflow release is pending, using exact release lookups and a credential-isolated validated plan.
+
 ## 4.0.2
 
 ### Patch Changes

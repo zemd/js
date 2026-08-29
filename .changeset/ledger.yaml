@@ -84,6 +84,10 @@
   dir: internal/gha
   intents:
     - shared-actions-57
+"@zemd/gha@4.0.3":
+  dir: internal/gha
+  intents:
+    - many-pandas-build
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
