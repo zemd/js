@@ -3,12 +3,11 @@ import { resolve } from "node:path";
 
 import { isPublicWorkspacePackage } from "./pnpm.ts";
 import type { WorkspacePackage } from "./pnpm.ts";
-import { isReleaseVersion } from "./semver.ts";
+import { isReleaseVersion, isSemVer } from "./semver.ts";
 
 const MAX_ARTIFACT_BYTES = 1024 * 1024;
 const MAX_PACKAGES = 100;
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
-const PACKAGE_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 
 export interface ReleasePlanPackage {
   readonly name: string;
@@ -47,7 +46,7 @@ const validateNameVersion = (name: string, version: string, context: string): vo
   if (name.length > 214 || !PACKAGE_NAME.test(name)) {
     throw new Error(`${context}: invalid npm package name ${JSON.stringify(name)}`);
   }
-  if (!PACKAGE_VERSION.test(version)) {
+  if (!isSemVer(version)) {
     throw new Error(`${context}: invalid npm package version ${JSON.stringify(version)}`);
   }
 };

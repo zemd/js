@@ -5,8 +5,9 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
 //#region src/semver.ts
-const SEMVER = /^\d+\.\d+\.\d+$/;
-const isReleaseVersion = (version) => SEMVER.test(version);
+const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$(?![\s\S])/;
+const isSemVer = (version) => SEMVER.test(version);
+const isReleaseVersion = (version) => isSemVer(version) && !version.includes("-") && !version.includes("+");
 const parseVersion = (version) => {
 	const [core = "", ...prerelease] = version.split("-");
 	const [major = 0, minor = 0, patch = 0] = core.split(".").map(Number);
@@ -373,7 +374,7 @@ const MAX_TOTAL_BYTES = 524288e3;
 const MAX_CHANGELOG_BYTES = 1048576;
 const NPM_REGISTRY = "https://registry.npmjs.org";
 const PACKAGE_NAME$1 = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
-const PACKAGE_VERSION$1 = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+const PACKAGE_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const TARBALL_NAME = /^package-\d{4}\.tgz$/;
 const isWithin$1 = (root, path) => {
 	const fromRoot = relative(root, path);
@@ -398,7 +399,7 @@ const portablePath = (path) => {
 };
 const validateNameVersion$1 = (name, version) => {
 	if (name.length > 214 || !PACKAGE_NAME$1.test(name)) throw new Error(`invalid npm package name: ${JSON.stringify(name)}`);
-	if (!PACKAGE_VERSION$1.test(version)) throw new Error(`invalid npm package version: ${JSON.stringify(version)}`);
+	if (!PACKAGE_VERSION.test(version)) throw new Error(`invalid npm package version: ${JSON.stringify(version)}`);
 };
 const regularTarball = (directory, file) => {
 	if (!TARBALL_NAME.test(file)) throw new Error(`invalid release tarball name: ${file}`);
@@ -1157,7 +1158,6 @@ const releasePrBody = {
 const MAX_ARTIFACT_BYTES = 1048576;
 const MAX_PACKAGES = 100;
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
-const PACKAGE_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const record = (value, context) => {
 	if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error(`${context}: expected an object`);
 	return value;
@@ -1172,7 +1172,7 @@ const stringField = (value, key, context) => {
 };
 const validateNameVersion = (name, version, context) => {
 	if (name.length > 214 || !PACKAGE_NAME.test(name)) throw new Error(`${context}: invalid npm package name ${JSON.stringify(name)}`);
-	if (!PACKAGE_VERSION.test(version)) throw new Error(`${context}: invalid npm package version ${JSON.stringify(version)}`);
+	if (!isSemVer(version)) throw new Error(`${context}: invalid npm package version ${JSON.stringify(version)}`);
 };
 const validatePlan = (plan) => {
 	if (plan.contractVersion !== "" && !isReleaseVersion(plan.contractVersion)) throw new Error(`release plan: expected an empty or plain semver contract version, got ${JSON.stringify(plan.contractVersion)}`);

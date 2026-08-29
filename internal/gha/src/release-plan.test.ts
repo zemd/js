@@ -81,6 +81,26 @@ void test("rejects values that could escape fixed release-state request paths", 
   );
 });
 
+void test("rejects invalid package versions from a release plan artifact", (context) => {
+  const root = mkdtempSync(join(tmpdir(), "release-plan-version-"));
+  context.after(() => rmSync(root, { recursive: true, force: true }));
+  const planPath = join(root, "release-plan.json");
+
+  for (const version of ["1.2.3-", "1.2.3-alpha..1", "01.2.3", "1.2.3-01"]) {
+    writeFileSync(
+      planPath,
+      `${JSON.stringify({
+        contractVersion: "",
+        packages: [{ name: "@acme/public", version }],
+      })}\n`,
+    );
+
+    assert.throws(() => validateReleasePlanArtifact(root), {
+      message: `release plan.packages[0]: invalid npm package version ${JSON.stringify(version)}`,
+    });
+  }
+});
+
 void test("rejects unexpected files in a release plan artifact", (context) => {
   const root = mkdtempSync(join(tmpdir(), "release-plan-extra-"));
   context.after(() => rmSync(root, { recursive: true, force: true }));
