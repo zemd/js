@@ -43,6 +43,13 @@ import type {
   GetFileVersionsPathParams,
   GetFileVersionsQueryParams,
   GetFileVersionsResponse,
+  GetFolderFilesPathParams,
+  GetFolderFilesQueryParams,
+  GetFolderFilesResponse,
+  GetFolderFoldersPathParams,
+  GetFolderFoldersResponse,
+  GetFolderMetaPathParams,
+  GetFolderMetaResponse,
   GetImageFillsPathParams,
   GetImageFillsResponse,
   GetImagesPathParams,
@@ -88,6 +95,8 @@ import type {
   GetTeamComponentsPathParams,
   GetTeamComponentsQueryParams,
   GetTeamComponentsResponse,
+  GetTeamFoldersPathParams,
+  GetTeamFoldersResponse,
   GetTeamProjectsPathParams,
   GetTeamProjectsResponse,
   GetTeamStylesPathParams,
@@ -510,6 +519,44 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
       },
     },
     v2: {
+      teams: {
+        getTeamFolders: async (teamId: GetTeamFoldersPathParams["team_id"]) => {
+          return endpoint<GetTeamFoldersResponse>(`/v2/teams/${pathSegment(teamId)}/folders`, [
+            method("GET"),
+          ]);
+        },
+        getTeamWebhooks: async (teamId: GetTeamWebhooksPathParams["team_id"]) => {
+          return endpoint<GetTeamWebhooksResponse>(`/v2/teams/${pathSegment(teamId)}/webhooks`, [
+            method("GET"),
+          ]);
+        },
+      },
+      folders: {
+        getFolderFolders: async (folderId: GetFolderFoldersPathParams["folder_id"]) => {
+          return endpoint<GetFolderFoldersResponse>(
+            `/v2/folders/${pathSegment(folderId)}/folders`,
+            [method("GET")],
+          );
+        },
+        getFolderFiles: async (
+          folderId: GetFolderFilesPathParams["folder_id"],
+          options?: GetFolderFilesQueryParams,
+        ) => {
+          const transformers = [method("GET")];
+          if (options) {
+            transformers.push(query(options));
+          }
+          return endpoint<GetFolderFilesResponse>(
+            `/v2/folders/${pathSegment(folderId)}/files`,
+            transformers,
+          );
+        },
+        getFolderMeta: async (folderId: GetFolderMetaPathParams["folder_id"]) => {
+          return endpoint<GetFolderMetaResponse>(`/v2/folders/${pathSegment(folderId)}/meta`, [
+            method("GET"),
+          ]);
+        },
+      },
       webhooks: {
         getWebhooks: async (options?: GetWebhooksQueryParams) => {
           const transformers = [method("GET")];
@@ -548,13 +595,6 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
             `/v2/webhooks/${pathSegment(webhookId)}/requests`,
             [method("GET")],
           );
-        },
-      },
-      teams: {
-        getTeamWebhooks: async (teamId: GetTeamWebhooksPathParams["team_id"]) => {
-          return endpoint<GetTeamWebhooksResponse>(`/v2/teams/${pathSegment(teamId)}/webhooks`, [
-            method("GET"),
-          ]);
         },
       },
     },
