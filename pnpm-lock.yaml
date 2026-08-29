@@ -52,8 +52,8 @@ importers:
   http-clients/figma:
     dependencies:
       '@figma/rest-api-spec':
-        specifier: 0.41.0
-        version: 0.41.0
+        specifier: 0.42.0
+        version: 0.42.0
       '@zemd/http-client':
         specifier: workspace:*
         version: link:../../packages/http-client
@@ -332,8 +332,8 @@ packages:
   '@emnapi/wasi-threads@2.0.1':
     resolution: {integrity: sha512-9DsSk+o5NBX0CCJT8s0EROGSGxjR/tKu6aBTaVyq+SjAEQH4XcdcRxPBRzsBLizTTJ49MJjF+jgu3qnO9GLQcQ==}
 
-  '@figma/rest-api-spec@0.41.0':
-    resolution: {integrity: sha512-v43HkJE+ZRB0G1MXwN85LKhOE65WG1205kSCjGihdzNN2U9DyOz4Hnb7swjv+9dWyhJ+aYSQt76lFKIFqrLGNQ==}
+  '@figma/rest-api-spec@0.42.0':
+    resolution: {integrity: sha512-rx/44oRn3wFrSznwPev71KR/91RW/BNpKu4I5Z3cTpU2z6Zv/zhJwfeYmJGg4Tu2goQXoQrzv3UjNq1Ep6LcYQ==}
 
   '@lukeed/csprng@1.1.0':
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
@@ -1483,7 +1483,7 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@figma/rest-api-spec@0.41.0': {}
+  '@figma/rest-api-spec@0.42.0': {}
 
   '@lukeed/csprng@1.1.0': {}
 
