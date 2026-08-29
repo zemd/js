@@ -103,13 +103,21 @@ void test("the Figma detector requires an exact dependency version change", asyn
     before = "0.41.0",
     after = "0.42.0",
     author = "dependabot[bot]",
+    baseRef = "main",
+    headRef = "dependabot/npm_and_yarn/http-clients/figma/dependencies",
+    headRepository = "zemd/js",
     manifestChanged = true,
+    state = "open",
     workflowHeadSha = headSha,
   }: {
     before?: string;
     after?: string;
     author?: string;
+    baseRef?: string;
+    headRef?: string;
+    headRepository?: string;
     manifestChanged?: boolean;
+    state?: string;
     workflowHeadSha?: string;
   } = {}): Promise<string> => {
     const outputs = new Map<string, string>();
@@ -139,14 +147,14 @@ void test("the Figma detector requires an exact dependency version change", asyn
             get: () =>
               Promise.resolve({
                 data: {
-                  base: { ref: "main", sha: baseSha },
+                  base: { ref: baseRef, sha: baseSha },
                   head: {
-                    ref: "dependabot/npm_and_yarn/http-clients/figma/dependencies",
-                    repo: { full_name: "zemd/js" },
+                    ref: headRef,
+                    repo: { full_name: headRepository },
                     sha: headSha,
                   },
                   number: 57,
-                  state: "open",
+                  state,
                   user: { login: author },
                 },
               }),
@@ -171,6 +179,10 @@ void test("the Figma detector requires an exact dependency version change", asyn
   };
 
   assert.strictEqual(await detect(), "true");
+  assert.strictEqual(await detect({ state: "closed" }), "false");
+  assert.strictEqual(await detect({ baseRef: "develop" }), "false");
+  assert.strictEqual(await detect({ headRepository: "untrusted/js" }), "false");
+  assert.strictEqual(await detect({ headRef: "release/main" }), "false");
   assert.strictEqual(await detect({ after: "0.41.0" }), "false");
   assert.strictEqual(await detect({ manifestChanged: false }), "false");
   assert.strictEqual(await detect({ author: "someone-else" }), "false");
@@ -187,9 +199,10 @@ void test("Branchkeeper atomically commits generated Figma files and release int
     contents: Buffer.from('{"openapi":"3.0.0"}\n').toString("base64"),
   };
   const payload = JSON.stringify({ headSha, additions: [generatedAddition] });
+  let existingChangeset: { path: string; contents: string } | undefined;
   let mutationInput: unknown;
 
-  await runWorkflowJavaScript(step, {
+  const globals = {
     Buffer,
     context: { repo: { owner: "zemd", repo: "js" } },
     core: {
@@ -201,7 +214,12 @@ void test("Branchkeeper atomically commits generated Figma files and release int
         mutationInput = variables.input;
         return Promise.resolve({ createCommitOnBranch: { commit: { oid: "c".repeat(40) } } });
       },
-      paginate: () => Promise.resolve([]),
+      paginate: () =>
+        Promise.resolve(
+          existingChangeset === undefined
+            ? []
+            : [{ filename: existingChangeset.path, status: "added" }],
+        ),
       rest: {
         pulls: {
           get: () =>
@@ -233,6 +251,14 @@ void test("Branchkeeper atomically commits generated Figma files and release int
                 },
               });
             }
+            if (path === existingChangeset?.path) {
+              return Promise.resolve({
+                data: {
+                  content: Buffer.from(existingChangeset.contents).toString("base64"),
+                  type: "file",
+                },
+              });
+            }
             return Promise.reject(Object.assign(new Error("not found"), { status: 404 }));
           },
         },
@@ -249,7 +275,9 @@ void test("Branchkeeper atomically commits generated Figma files and release int
       assert.strictEqual(specifier, "node:fs");
       return { readFileSync: () => payload };
     },
-  });
+  };
+
+  await runWorkflowJavaScript(step, globals);
 
   const normalizedMutationInput: unknown = JSON.parse(JSON.stringify(mutationInput));
   assert.deepStrictEqual(normalizedMutationInput, {
@@ -272,6 +300,29 @@ void test("Branchkeeper atomically commits generated Figma files and release int
           ).toString("base64"),
         },
       ],
+    },
+  });
+
+  existingChangeset = {
+    path: ".changeset/existing-figma-api.md",
+    contents: '---\n"@zemd/figma-rest-api": "patch"\n---\n\nAlready has release intent.\n',
+  };
+  mutationInput = undefined;
+
+  await runWorkflowJavaScript(step, globals);
+
+  const normalizedExistingReleaseMutationInput: unknown = JSON.parse(JSON.stringify(mutationInput));
+  assert.deepStrictEqual(normalizedExistingReleaseMutationInput, {
+    branch: {
+      repositoryNameWithOwner: "zemd/js",
+      branchName: "dependabot/npm_and_yarn/http-clients/figma/dependencies",
+    },
+    expectedHeadOid: headSha,
+    message: {
+      headline: "chore(figma): regenerate REST API client",
+    },
+    fileChanges: {
+      additions: [generatedAddition],
     },
   });
 });
