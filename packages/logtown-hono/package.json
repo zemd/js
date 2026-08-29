@@ -52,7 +52,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@zemd/tsconfig": "workspace:*",
-    "hono": "4.13.1",
+    "hono": "4.13.3",
     "logtown": "workspace:*",
     "tsdown": "catalog:",
     "typescript": "catalog:"
