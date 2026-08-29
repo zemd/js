@@ -29,6 +29,7 @@ export interface GitHubApi {
   request<T>(path: string, method: HttpMethod, body?: unknown): Promise<GitHubResponse<T>>;
   graphql<T>(query: string, variables: unknown): Promise<GitHubResponse<T>>;
   tagExists(tag: string): Promise<boolean>;
+  releaseExists(tag: string): Promise<boolean>;
   createRef(ref: string, sha: string): Promise<GitHubResponse<unknown>>;
   updateRef(ref: string, sha: string): Promise<GitHubResponse<unknown>>;
   listReleases(): Promise<readonly ReleaseSummary[]>;
@@ -109,6 +110,20 @@ export const createGitHubApi = (options: GitHubApiOptions): GitHubApi => {
       if (response.status === 404) return false;
       if (!response.ok) {
         throw new Error(`failed to check git tag "${tag}": GitHub returned ${response.status}`);
+      }
+      return true;
+    },
+
+    releaseExists: async (tag) => {
+      const response = await request(
+        `/repos/${repository}/releases/tags/${encodeURIComponent(tag)}`,
+        "GET",
+      );
+      if (response.status === 404) return false;
+      if (!response.ok) {
+        throw new Error(
+          `failed to check GitHub release "${tag}": GitHub returned ${response.status}`,
+        );
       }
       return true;
     },

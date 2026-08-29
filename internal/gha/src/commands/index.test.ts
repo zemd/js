@@ -9,6 +9,7 @@ void test("exposes every release step the shared workflows need", () => {
     "github-releases",
     "npm-publishing-mode",
     "package-artifact",
+    "release-plan",
     "release-pr-artifact",
     "release-pr-body",
     "shared-workflows-release",

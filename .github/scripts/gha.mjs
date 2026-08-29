@@ -5,8 +5,9 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
 //#region src/semver.ts
-const SEMVER = /^\d+\.\d+\.\d+$/;
-const isReleaseVersion = (version) => SEMVER.test(version);
+const SEMVER = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$(?![\s\S])/;
+const isSemVer = (version) => SEMVER.test(version);
+const isReleaseVersion = (version) => isSemVer(version) && !version.includes("-") && !version.includes("+");
 const parseVersion = (version) => {
 	const [core = "", ...prerelease] = version.split("-");
 	const [major = 0, minor = 0, patch = 0] = core.split(".").map(Number);
@@ -367,26 +368,26 @@ const changelogEntry = (packagePath, version) => {
 
 //#endregion
 //#region src/package-artifact.ts
-const MAX_PACKAGES = 100;
+const MAX_PACKAGES$1 = 100;
 const MAX_TARBALL_BYTES = 52428800;
 const MAX_TOTAL_BYTES = 524288e3;
 const MAX_CHANGELOG_BYTES = 1048576;
 const NPM_REGISTRY = "https://registry.npmjs.org";
-const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
+const PACKAGE_NAME$1 = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const PACKAGE_VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 const TARBALL_NAME = /^package-\d{4}\.tgz$/;
 const isWithin$1 = (root, path) => {
 	const fromRoot = relative(root, path);
 	return fromRoot === "" || !isAbsolute(fromRoot) && fromRoot !== ".." && !fromRoot.startsWith(`..${sep}`);
 };
-const record$1 = (value, context) => {
+const record$2 = (value, context) => {
 	if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error(`${context}: expected an object`);
 	return value;
 };
-const exactKeys$1 = (value, expected, context) => {
+const exactKeys$2 = (value, expected, context) => {
 	if (Object.keys(value).sort().join("\0") !== [...expected].sort().join("\0")) throw new Error(`${context}: expected only ${expected.join(", ")}`);
 };
-const stringField = (value, key, context) => {
+const stringField$1 = (value, key, context) => {
 	const field = value[key];
 	if (typeof field !== "string") throw new Error(`${context}.${key}: expected a string`);
 	return field;
@@ -396,8 +397,8 @@ const portablePath = (path) => {
 	if (path.length === 0 || path.length > 4096 || path.includes("\\") || isAbsolute(path) || path.startsWith("../") || path.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) throw new Error(`invalid workspace path: ${JSON.stringify(path)}`);
 	return path;
 };
-const validateNameVersion = (name, version) => {
-	if (name.length > 214 || !PACKAGE_NAME.test(name)) throw new Error(`invalid npm package name: ${JSON.stringify(name)}`);
+const validateNameVersion$1 = (name, version) => {
+	if (name.length > 214 || !PACKAGE_NAME$1.test(name)) throw new Error(`invalid npm package name: ${JSON.stringify(name)}`);
 	if (!PACKAGE_VERSION.test(version)) throw new Error(`invalid npm package version: ${JSON.stringify(version)}`);
 };
 const regularTarball = (directory, file) => {
@@ -415,7 +416,7 @@ const regularTarball = (directory, file) => {
 const hash = (path) => {
 	return createHash("sha256").update(readFileSync(path)).digest("hex");
 };
-const artifactDirectory$1 = (path) => {
+const artifactDirectory$2 = (path) => {
 	const absolute = realpathSync(resolve(path));
 	const metadata = lstatSync(resolve(path));
 	if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new Error(`${path} must be a regular directory`);
@@ -441,22 +442,22 @@ const defaultInspect = (tarballPath) => {
 		"--registry",
 		NPM_REGISTRY
 	], { encoding: "utf8" });
-	const value = record$1(JSON.parse(source), `dry-run metadata for ${tarballPath}`);
+	const value = record$2(JSON.parse(source), `dry-run metadata for ${tarballPath}`);
 	return {
-		name: stringField(value, "name", `dry-run metadata for ${tarballPath}`),
-		version: stringField(value, "version", `dry-run metadata for ${tarballPath}`)
+		name: stringField$1(value, "name", `dry-run metadata for ${tarballPath}`),
+		version: stringField$1(value, "version", `dry-run metadata for ${tarballPath}`)
 	};
 };
 const parseManifest = (source) => {
-	const value = record$1(JSON.parse(source), "package artifact manifest");
-	exactKeys$1(value, ["packages"], "package artifact manifest");
-	if (!Array.isArray(value["packages"]) || value["packages"].length > MAX_PACKAGES) throw new Error(`package artifact manifest must contain at most ${MAX_PACKAGES} packages`);
+	const value = record$2(JSON.parse(source), "package artifact manifest");
+	exactKeys$2(value, ["packages"], "package artifact manifest");
+	if (!Array.isArray(value["packages"]) || value["packages"].length > MAX_PACKAGES$1) throw new Error(`package artifact manifest must contain at most ${MAX_PACKAGES$1} packages`);
 	const names = /* @__PURE__ */ new Set();
 	const files = /* @__PURE__ */ new Set();
 	return { packages: value["packages"].map((entry, index) => {
 		const context = `package artifact manifest.packages[${index}]`;
-		const item = record$1(entry, context);
-		exactKeys$1(item, [
+		const item = record$2(entry, context);
+		exactKeys$2(item, [
 			"changelog",
 			"file",
 			"name",
@@ -465,14 +466,14 @@ const parseManifest = (source) => {
 			"version"
 		], context);
 		const result = {
-			changelog: stringField(item, "changelog", context),
-			file: stringField(item, "file", context),
-			name: stringField(item, "name", context),
-			path: portablePath(stringField(item, "path", context)),
-			sha256: stringField(item, "sha256", context),
-			version: stringField(item, "version", context)
+			changelog: stringField$1(item, "changelog", context),
+			file: stringField$1(item, "file", context),
+			name: stringField$1(item, "name", context),
+			path: portablePath(stringField$1(item, "path", context)),
+			sha256: stringField$1(item, "sha256", context),
+			version: stringField$1(item, "version", context)
 		};
-		validateNameVersion(result.name, result.version);
+		validateNameVersion$1(result.name, result.version);
 		if (!TARBALL_NAME.test(result.file) || !/^[a-f0-9]{64}$/.test(result.sha256)) throw new Error(`${context}: invalid tarball filename or SHA-256 digest`);
 		if (Buffer.byteLength(result.changelog) > MAX_CHANGELOG_BYTES) throw new Error(`${context}: changelog is too large`);
 		if (names.has(result.name) || files.has(result.file)) throw new Error(`${context}: duplicate package name or tarball`);
@@ -482,13 +483,13 @@ const parseManifest = (source) => {
 	}) };
 };
 const createPackageArtifact = ({ directory: inputDirectory, pack = defaultPack, root = process.cwd(), workspace }) => {
-	const directory = artifactDirectory$1(inputDirectory);
+	const directory = artifactDirectory$2(inputDirectory);
 	if (readdirSync(directory).length !== 0) throw new Error("package artifact directory is not empty");
 	const canonicalRoot = realpathSync(resolve(root));
 	const publicPackages = workspace.filter(isPublicWorkspacePackage);
-	if (publicPackages.length === 0 || publicPackages.length > MAX_PACKAGES) throw new Error(`expected between 1 and ${MAX_PACKAGES} public packages`);
+	if (publicPackages.length === 0 || publicPackages.length > MAX_PACKAGES$1) throw new Error(`expected between 1 and ${MAX_PACKAGES$1} public packages`);
 	const manifest = { packages: publicPackages.map((workspacePackage, index) => {
-		validateNameVersion(workspacePackage.name, workspacePackage.version);
+		validateNameVersion$1(workspacePackage.name, workspacePackage.version);
 		const sourcePackagePath = resolve(canonicalRoot, workspacePackage.path);
 		const packagePath = realpathSync(sourcePackagePath);
 		if (!isWithin$1(canonicalRoot, packagePath)) throw new Error(`workspace package is outside the repository: ${workspacePackage.path}`);
@@ -515,7 +516,7 @@ const createPackageArtifact = ({ directory: inputDirectory, pack = defaultPack, 
 	return manifest;
 };
 const validatePackageArtifact = ({ directory: inputDirectory, inspect = defaultInspect }) => {
-	const directory = artifactDirectory$1(inputDirectory);
+	const directory = artifactDirectory$2(inputDirectory);
 	const entries = readdirSync(directory).sort();
 	const manifestPath = resolve(directory, "manifest.json");
 	const manifestMetadata = lstatSync(manifestPath);
@@ -545,7 +546,7 @@ const workspaceFromPackageArtifact = (manifest) => {
 const tarballForPackage = (directory, manifest, packageName) => {
 	const entry = manifest.packages.find(({ name }) => name === packageName);
 	if (!entry) throw new Error(`package is absent from the release artifact: ${packageName}`);
-	const artifact = artifactDirectory$1(directory);
+	const artifact = artifactDirectory$2(directory);
 	const tarball = regularTarball(artifact, entry.file);
 	if (hash(tarball.path) !== entry.sha256) throw new Error(`SHA-256 mismatch for ${entry.file}`);
 	return tarball.path;
@@ -611,6 +612,12 @@ const createGitHubApi = (options) => {
 			const response = await request(`/repos/${repository}/git/ref/tags/${encodeURIComponent(tag)}`, "GET");
 			if (response.status === 404) return false;
 			if (!response.ok) throw new Error(`failed to check git tag "${tag}": GitHub returned ${response.status}`);
+			return true;
+		},
+		releaseExists: async (tag) => {
+			const response = await request(`/repos/${repository}/releases/tags/${encodeURIComponent(tag)}`, "GET");
+			if (response.status === 404) return false;
+			if (!response.ok) throw new Error(`failed to check GitHub release "${tag}": GitHub returned ${response.status}`);
 			return true;
 		},
 		createRef: (ref, sha) => request(`/repos/${repository}/git/refs`, "POST", {
@@ -765,6 +772,7 @@ const npmPublishingMode = {
 		writeFileSync(stagedPackagesPath, plan.stagedPackages.map((packageName) => `${packageName}\n`).join(""));
 		process.stdout.write([
 			`mode=${plan.mode}`,
+			`pending=${plan.mode !== "none"}`,
 			`direct=${plan.directPackages.length > 0}`,
 			`stage=${plan.stagedPackages.length > 0}`,
 			`first_release=${plan.firstReleasePackages.length > 0}`,
@@ -928,24 +936,24 @@ const collectChanges = ({ git, root = process.cwd(), workspacePaths }) => {
 		})
 	};
 };
-const record = (value, context) => {
+const record$1 = (value, context) => {
 	if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error(`${context}: expected an object`);
 	return value;
 };
-const exactKeys = (value, expected, context) => {
+const exactKeys$1 = (value, expected, context) => {
 	if (Object.keys(value).sort().join("\0") !== [...expected].sort().join("\0")) throw new Error(`${context}: expected only ${expected.join(", ")}`);
 };
 const parseFileChanges = (source) => {
-	const value = record(JSON.parse(source), "release changes");
-	exactKeys(value, ["additions", "deletions"], "release changes");
+	const value = record$1(JSON.parse(source), "release changes");
+	exactKeys$1(value, ["additions", "deletions"], "release changes");
 	if (!Array.isArray(value["additions"]) || !Array.isArray(value["deletions"])) throw new Error("release changes: additions and deletions must be arrays");
 	if (value["additions"].length + value["deletions"].length > MAX_RELEASE_FILES) throw new Error(`release contains more than ${MAX_RELEASE_FILES} files`);
 	const paths = /* @__PURE__ */ new Set();
 	let totalBytes = 0;
 	return {
 		additions: value["additions"].map((entry, index) => {
-			const item = record(entry, `release changes.additions[${index}]`);
-			exactKeys(item, ["contents", "path"], `release changes.additions[${index}]`);
+			const item = record$1(entry, `release changes.additions[${index}]`);
+			exactKeys$1(item, ["contents", "path"], `release changes.additions[${index}]`);
 			if (typeof item["path"] !== "string" || typeof item["contents"] !== "string") throw new Error(`release changes.additions[${index}]: path and contents must be strings`);
 			const path = repositoryPath(item["path"]);
 			if (!isPortableReleaseAddition(path)) throw new Error(`unexpected release addition: ${path}`);
@@ -962,8 +970,8 @@ const parseFileChanges = (source) => {
 			};
 		}),
 		deletions: value["deletions"].map((entry, index) => {
-			const item = record(entry, `release changes.deletions[${index}]`);
-			exactKeys(item, ["path"], `release changes.deletions[${index}]`);
+			const item = record$1(entry, `release changes.deletions[${index}]`);
+			exactKeys$1(item, ["path"], `release changes.deletions[${index}]`);
 			if (typeof item["path"] !== "string") throw new Error(`release changes.deletions[${index}]: path must be a string`);
 			const path = repositoryPath(item["path"]);
 			if (!isChangesetDeletion(path)) throw new Error(`unexpected release deletion: ${path}`);
@@ -995,7 +1003,7 @@ const regularFile = (path, maxBytes) => {
 	if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > maxBytes) throw new Error(`${path} must be a regular file of at most ${maxBytes} bytes`);
 	if (realpathSync(absolute) !== absolute) throw new Error(`${path} must not traverse a symbolic link`);
 };
-const artifactDirectory = (path, expectedEntries) => {
+const artifactDirectory$1 = (path, expectedEntries) => {
 	const absolute = resolve(path);
 	const metadata = lstatSync(absolute);
 	if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new Error(`${path} must be a regular directory`);
@@ -1003,7 +1011,7 @@ const artifactDirectory = (path, expectedEntries) => {
 	return realpathSync(absolute);
 };
 const createReleasePrArtifact = ({ artifactDirectory: output, git, prBodyPath, root = process.cwd(), workspacePaths }) => {
-	const directory = artifactDirectory(output, []);
+	const directory = artifactDirectory$1(output, []);
 	regularFile(prBodyPath, MAX_BODY_BYTES);
 	const body = readFileSync(prBodyPath);
 	const changes = collectChanges({
@@ -1022,7 +1030,7 @@ const createReleasePrArtifact = ({ artifactDirectory: output, git, prBodyPath, r
 	});
 };
 const readReleasePrArtifact = (path) => {
-	const directory = artifactDirectory(path, [BODY_FILE, CHANGE_FILE]);
+	const directory = artifactDirectory$1(path, [BODY_FILE, CHANGE_FILE]);
 	const changesPath = resolve(directory, CHANGE_FILE);
 	const bodyPath = resolve(directory, BODY_FILE);
 	regularFile(changesPath, 73400320);
@@ -1146,6 +1154,130 @@ const releasePrBody = {
 };
 
 //#endregion
+//#region src/release-plan.ts
+const MAX_ARTIFACT_BYTES = 1048576;
+const MAX_PACKAGES = 100;
+const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
+const record = (value, context) => {
+	if (value === null || typeof value !== "object" || Array.isArray(value)) throw new Error(`${context}: expected an object`);
+	return value;
+};
+const exactKeys = (value, expected, context) => {
+	if (Object.keys(value).sort().join("\0") !== [...expected].sort().join("\0")) throw new Error(`${context}: expected only ${expected.join(", ")}`);
+};
+const stringField = (value, key, context) => {
+	const field = value[key];
+	if (typeof field !== "string") throw new Error(`${context}.${key}: expected a string`);
+	return field;
+};
+const validateNameVersion = (name, version, context) => {
+	if (name.length > 214 || !PACKAGE_NAME.test(name)) throw new Error(`${context}: invalid npm package name ${JSON.stringify(name)}`);
+	if (!isSemVer(version)) throw new Error(`${context}: invalid npm package version ${JSON.stringify(version)}`);
+};
+const validatePlan = (plan) => {
+	if (plan.contractVersion !== "" && !isReleaseVersion(plan.contractVersion)) throw new Error(`release plan: expected an empty or plain semver contract version, got ${JSON.stringify(plan.contractVersion)}`);
+	if (plan.packages.length > MAX_PACKAGES) throw new Error(`release plan must contain at most ${MAX_PACKAGES} packages`);
+	const names = /* @__PURE__ */ new Set();
+	for (const [index, packageRelease] of plan.packages.entries()) {
+		const context = `release plan.packages[${index}]`;
+		validateNameVersion(packageRelease.name, packageRelease.version, context);
+		if (names.has(packageRelease.name)) throw new Error(`${context}: duplicate package name ${JSON.stringify(packageRelease.name)}`);
+		names.add(packageRelease.name);
+	}
+	return plan;
+};
+const createReleasePlan = (workspace, contractVersion = "") => validatePlan({
+	contractVersion,
+	packages: workspace.filter(isPublicWorkspacePackage).map(({ name, version }) => ({
+		name,
+		version
+	})).sort((left, right) => left.name.localeCompare(right.name))
+});
+const parseReleasePlan = (source) => {
+	if (Buffer.byteLength(source) > MAX_ARTIFACT_BYTES) throw new Error(`release plan exceeds ${MAX_ARTIFACT_BYTES} bytes`);
+	const value = record(JSON.parse(source), "release plan");
+	exactKeys(value, ["contractVersion", "packages"], "release plan");
+	if (!Array.isArray(value["packages"])) throw new Error("release plan.packages: expected an array");
+	const packages = value["packages"].map((entry, index) => {
+		const context = `release plan.packages[${index}]`;
+		const item = record(entry, context);
+		exactKeys(item, ["name", "version"], context);
+		return {
+			name: stringField(item, "name", context),
+			version: stringField(item, "version", context)
+		};
+	});
+	return validatePlan({
+		contractVersion: stringField(value, "contractVersion", "release plan"),
+		packages
+	});
+};
+const artifactDirectory = (path) => {
+	const absolute = resolve(path);
+	const metadata = lstatSync(absolute);
+	if (!metadata.isDirectory() || metadata.isSymbolicLink()) throw new Error(`${path} must be a regular directory`);
+	return realpathSync(absolute);
+};
+const createReleasePlanArtifact = (directoryPath, workspace, contractVersion = "") => {
+	const directory = artifactDirectory(directoryPath);
+	if (readdirSync(directory).length !== 0) throw new Error("release plan artifact directory is not empty");
+	const plan = createReleasePlan(workspace, contractVersion);
+	writeFileSync(resolve(directory, "release-plan.json"), `${JSON.stringify(plan)}\n`, {
+		encoding: "utf8",
+		flag: "wx",
+		mode: 384
+	});
+	return plan;
+};
+const validateReleasePlanArtifact = (directoryPath) => {
+	const directory = artifactDirectory(directoryPath);
+	const entries = readdirSync(directory);
+	if (entries.length !== 1 || entries[0] !== "release-plan.json") throw new Error("release plan artifact must contain only release-plan.json");
+	const planPath = resolve(directory, "release-plan.json");
+	const metadata = lstatSync(planPath);
+	if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size === 0 || metadata.size > MAX_ARTIFACT_BYTES) throw new Error(`release-plan.json must be a non-empty regular file of at most ${MAX_ARTIFACT_BYTES} bytes`);
+	return parseReleasePlan(readFileSync(planPath, "utf8"));
+};
+const releasePlanWorkspace = (plan) => plan.packages.map(({ name, version }) => ({
+	name,
+	version,
+	path: ".",
+	private: false
+}));
+
+//#endregion
+//#region src/commands/release-plan.ts
+const manifestVersion$1 = (packagePath) => {
+	const manifest = JSON.parse(readFileSync(packagePath, "utf8"));
+	if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) throw new Error(`${packagePath}: expected a package manifest object`);
+	const version = manifest["version"];
+	if (typeof version !== "string") throw new Error(`${packagePath}: expected a string version field`);
+	return version;
+};
+const releasePlan = {
+	usage: "create <workspace-list.json> <artifact-directory> [<contract-package.json>] | validate <artifact-directory> <workspace-output.json>",
+	run: (argv) => {
+		const [operation, firstPath, secondPath, thirdPath, ...unexpected] = argv;
+		if (operation === "create" && firstPath && secondPath && unexpected.length === 0) {
+			const workspace = parseWorkspacePackages(readFileSync(firstPath, "utf8"));
+			createReleasePlanArtifact(secondPath, workspace, thirdPath ? manifestVersion$1(thirdPath) : "");
+			return;
+		}
+		if (operation === "validate" && firstPath && secondPath && thirdPath === void 0 && unexpected.length === 0) {
+			const plan = validateReleasePlanArtifact(firstPath);
+			writeFileSync(secondPath, `${JSON.stringify(releasePlanWorkspace(plan))}\n`, {
+				encoding: "utf8",
+				flag: "wx",
+				mode: 384
+			});
+			process.stdout.write(`contract_version=${plan.contractVersion}\n`);
+			return;
+		}
+		throw new Error("usage: release-plan create <workspace-list.json> <artifact-directory> [<contract-package.json>] | validate <artifact-directory> <workspace-output.json>");
+	}
+};
+
+//#endregion
 //#region src/shared-workflows.ts
 const renderSharedReleaseBody = ({ repository, version, sha, workflows, changelog, notes }) => {
 	const major = version.split(".")[0];
@@ -1178,6 +1310,10 @@ const renderSharedReleaseBody = ({ repository, version, sha, workflows, changelo
 	}
 	return `${out.join("\n")}\n`;
 };
+const sharedWorkflowReleasePending = async (api, version) => {
+	if (!isReleaseVersion(version)) throw new Error(`expected a plain semver version, got "${version}"`);
+	return !await api.releaseExists(`v${version}`);
+};
 const putTag = async (api, tag, sha, force) => {
 	const created = await api.createRef(`refs/tags/${tag}`, sha);
 	if (created.ok) return true;
@@ -1194,11 +1330,11 @@ const releaseSharedWorkflows = async ({ api, sha, version, packagePath, workflow
 	if (!isReleaseVersion(version)) throw new Error(`expected a plain semver version, got "${version}"`);
 	if (workflows.length === 0) throw new Error("no shared-*.yml workflows found");
 	const tag = `v${version}`;
-	const releases = await api.listReleases();
-	if (releases.some((release) => release.tag_name === tag)) {
+	if (!await sharedWorkflowReleasePending(api, version)) {
 		console.log(`${tag} already released, nothing to do`);
 		return;
 	}
+	const releases = await api.listReleases();
 	if (!await api.tagExists(tag) && !await putTag(api, tag, sha, false)) throw new Error(`could not create ${tag}`);
 	if (!await putTag(api, `v${version.split(".")[0]}`, sha, true)) throw new Error(`could not move the major tag for ${tag}`);
 	const previousTag = releases.filter((release) => isReleaseVersion(release.tag_name.replace(/^v/, ""))).sort((a, b) => b.created_at.localeCompare(a.created_at))[0]?.tag_name ?? "";
@@ -1229,8 +1365,15 @@ const manifestVersion = (packagePath) => {
 	return version;
 };
 const sharedWorkflowsRelease = {
-	usage: "<package.json> <workflows-dir>",
+	usage: "<package.json> <workflows-dir> | pending <version>",
 	run: async (argv) => {
+		if (argv[0] === "pending") {
+			const [, version, ...unexpected] = argv;
+			if (!version || unexpected.length > 0) throw new Error("usage: shared-workflows-release pending <version>");
+			const pending = await sharedWorkflowReleasePending(apiFromEnv(), version);
+			process.stdout.write(`pending=${pending}\n`);
+			return;
+		}
 		const [packagePath, workflowsDir] = argv;
 		if (!packagePath || !workflowsDir) throw new Error("usage: shared-workflows-release <package.json> <workflows-dir>");
 		await releaseSharedWorkflows({
@@ -1271,6 +1414,7 @@ const commands = {
 	"package-artifact": packageArtifact,
 	"release-pr-artifact": releasePrArtifact,
 	"release-pr-body": releasePrBody,
+	"release-plan": releasePlan,
 	"shared-workflows-release": sharedWorkflowsRelease,
 	"signed-commit": signedCommit
 };

@@ -30,7 +30,8 @@ gha.mjs npm-publishing-mode      <workspace-list.json> <registry-url> <staged-pu
 gha.mjs package-artifact         <create|validate|tarball|summary> ...
 gha.mjs release-pr-artifact      <workspace-list.json> <pr-body.md> <artifact-directory>
 gha.mjs release-pr-body          <releases.json> <workspace-list.json>
-gha.mjs shared-workflows-release <package.json> <workflows-dir>
+gha.mjs release-plan             <create|validate> ...
+gha.mjs shared-workflows-release <package.json> <workflows-dir> | pending <version>
 gha.mjs signed-commit            <branch> <message> <base-oid> <artifact-directory>
 ```
 

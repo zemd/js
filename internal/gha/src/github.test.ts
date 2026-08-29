@@ -88,6 +88,33 @@ void test("only treats a 404 as a missing tag", async () => {
   await assert.rejects(failedApi.tagExists("@acme/pkg@1.0.0"), /GitHub returned 503/);
 });
 
+void test("checks an exact escaped GitHub release tag", async () => {
+  const fetch = fetchReturning(okResponse({}));
+  const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });
+
+  assert.strictEqual(await api.releaseExists("release/v1.0.0"), true);
+  assert.strictEqual(
+    fetch.mock.calls[0]?.arguments[0],
+    "https://api.github.com/repos/acme/repo/releases/tags/release%2Fv1.0.0",
+  );
+});
+
+void test("only treats a 404 as a missing GitHub release", async () => {
+  const missingApi = createGitHubApi({
+    token: "secret",
+    repository: "acme/repo",
+    fetch: fetchReturning(new Response("{}", { status: 404 })),
+  });
+  assert.strictEqual(await missingApi.releaseExists("v1.0.0"), false);
+
+  const failedApi = createGitHubApi({
+    token: "secret",
+    repository: "acme/repo",
+    fetch: fetchReturning(new Response("{}", { status: 503 })),
+  });
+  await assert.rejects(failedApi.releaseExists("v1.0.0"), /GitHub returned 503/);
+});
+
 void test("tolerates an empty response body", async () => {
   const fetch = fetchReturning(new Response(null, { status: 204 }));
   const api = createGitHubApi({ token: "secret", repository: "acme/repo", fetch });

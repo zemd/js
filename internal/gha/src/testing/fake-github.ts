@@ -43,6 +43,8 @@ export const fakeGitHub = (options: FakeGitHubOptions = {}): FakeGitHub => {
 
     tagExists: (tag) => Promise.resolve(tags.has(tag)),
 
+    releaseExists: (tag) => Promise.resolve(releases.some((release) => release.tag_name === tag)),
+
     createRef: (ref, sha) => {
       const tag = ref.replace(/^refs\/tags\//, "");
       if (refused.has(ref) || (ref.startsWith("refs/tags/") && tags.has(tag))) {

@@ -7,9 +7,13 @@ export interface SemVer {
 
 export type BumpType = "major" | "minor" | "patch" | "prerelease";
 
-const SEMVER = /^\d+\.\d+\.\d+$/;
+const SEMVER =
+  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$(?![\s\S])/;
 
-export const isReleaseVersion = (version: string): boolean => SEMVER.test(version);
+export const isSemVer = (version: string): boolean => SEMVER.test(version);
+
+export const isReleaseVersion = (version: string): boolean =>
+  isSemVer(version) && !version.includes("-") && !version.includes("+");
 
 export const parseVersion = (version: string): SemVer => {
   const [core = "", ...prerelease] = version.split("-");

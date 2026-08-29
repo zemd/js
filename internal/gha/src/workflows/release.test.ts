@@ -13,6 +13,7 @@ import {
   workflowStep,
   workflowsDir,
   yamlFiles,
+  yamlStringList,
 } from "../testing/workflows.ts";
 
 void test("release jobs configure the npm cache after runner allocation", () => {
@@ -95,7 +96,7 @@ void test("the release tooling is checked out from the pinned shared revision", 
 
   // Privileged jobs do not check out caller code. Every job gets the CLI from
   // the exact repository and commit that define the called workflow instead.
-  for (const name of ["version", "release-pr", "package", "publish", "github-release"]) {
+  for (const name of ["version", "release-pr", "plan", "package", "publish", "github-release"]) {
     const checkout = workflowStep(workflowJob(source, name), "Checkout shared tooling");
 
     assert.match(checkout, /^ {10}repository: \$\{\{ job\.workflow_repository \}\}$/m);
@@ -117,13 +118,15 @@ void test("checkout-free release jobs give GitHub CLI an explicit repository", (
   assert.match(openReleasePr, /^ {10}GH_REPO: \$\{\{ github\.repository \}\}$/m);
 });
 
-void test("checkout-free release jobs source pnpm from the shared tooling manifest", () => {
+void test("release jobs source pnpm from the shared tooling manifest", () => {
   const source = read(workflowsDir, "shared-release.yml");
 
   for (const name of ["version", "package"]) {
     const setupPnpm = workflowStep(workflowJob(source, name), "Setup pnpm");
     assert.doesNotMatch(setupPnpm, /^ {10}package_json_file:/m);
   }
+
+  assert.doesNotMatch(workflowJob(source, "plan"), /- name: Setup pnpm/);
 
   for (const name of ["publish", "github-release"]) {
     const job = workflowJob(source, name);
@@ -141,6 +144,7 @@ void test("isolates caller code from every credentialed release job", () => {
   const source = read(workflowsDir, "shared-release.yml");
   const version = workflowJob(source, "version");
   const releasePr = workflowJob(source, "release-pr");
+  const plan = workflowJob(source, "plan");
   const packageJob = workflowJob(source, "package");
   const publish = workflowJob(source, "publish");
   const githubRelease = workflowJob(source, "github-release");
@@ -150,6 +154,16 @@ void test("isolates caller code from every credentialed release job", () => {
     assert.doesNotMatch(job, /contents: write|pull-requests: write|id-token: write/);
     assert.doesNotMatch(job, /\$\{\{ secrets\.|github\.token/);
   }
+
+  assert.match(plan, /^ {6}contents: read$/m);
+  assert.doesNotMatch(
+    plan,
+    /contents: write|pull-requests: write|id-token: write|\$\{\{ secrets\./,
+  );
+  assert.strictEqual(plan.match(/GITHUB_TOKEN: \$\{\{ github\.token \}\}/g)?.length, 2);
+  assert.doesNotMatch(plan, /- name: Checkout Repo|\bpnpm\b|contract-version-package/);
+  assert.ok(plan.includes("Download release plan"));
+  assert.ok(plan.includes("Validate release plan"));
 
   for (const job of [releasePr, publish, githubRelease]) {
     assert.doesNotMatch(job, /- name: Checkout Repo/);
@@ -334,7 +348,7 @@ void test("keeps the npm token out of staging and requires it for first releases
     secretReferences(source).sort((left, right) => left.localeCompare(right)),
     ["NPM_TOKEN", "RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"],
   );
-  assert.strictEqual(source.match(/^ {10}package-manager-cache: false$/gm)?.length, 4);
+  assert.strictEqual(source.match(/^ {10}package-manager-cache: false$/gm)?.length, 5);
   assert.doesNotMatch(source, /^ {10}cache: "pnpm"$/m);
   assert.ok(source.includes('"${RUNNER_TEMP}/publication/published-summary.json"'));
   assert.ok(source.includes('"${RUNNER_TEMP}/publication/staged-summary.json"'));
@@ -344,6 +358,60 @@ void test("keeps the npm token out of staging and requires it for first releases
   assert.deepStrictEqual(
     secretReferences(example).sort((left, right) => left.localeCompare(right)),
     ["NPM_TOKEN", "RELEASE_BRANCHKEEPER_PRIVATE_KEY", "RELEASE_PUBLISHER_PRIVATE_KEY"],
+  );
+});
+
+void test("gates release work before requesting npm production approval", () => {
+  const source = read(workflowsDir, "shared-release.yml");
+  const caller = read(workflowsDir, "repo-release.yml");
+  const example = read(examplesDir, "repo-release.yml");
+  const version = workflowJob(source, "version");
+  const plan = workflowJob(source, "plan");
+  const packageJob = workflowJob(source, "package");
+  const publish = workflowJob(source, "publish");
+  const sharedWorkflows = workflowJob(caller, "shared-workflows");
+  const buildReleasePlan = workflowStep(version, "Build release plan");
+  const uploadReleasePlan = workflowStep(version, "Upload release plan");
+  const downloadReleasePlan = workflowStep(plan, "Download release plan");
+  const validateReleasePlan = workflowStep(plan, "Validate release plan");
+  const packageRelease = workflowStep(plan, "Detect pending package release");
+  const contractRelease = workflowStep(plan, "Detect pending contract release");
+
+  for (const workflow of [caller, example]) {
+    assert.deepStrictEqual(yamlStringList(workflow, "paths", 4), [".changeset/**"]);
+  }
+
+  assert.ok(source.includes("package-release: ${{ steps.packages.outputs.pending }}"));
+  assert.ok(source.includes("contract-release: ${{ steps.contract.outputs.pending }}"));
+  assert.match(plan, /^ {4}needs: version$/m);
+  assert.match(plan, /^ {4}if: needs\.version\.outputs\.pending == 'false'$/m);
+  assert.doesNotMatch(plan, /environment: npm-production|id-token: write|pnpm run build/);
+  assert.match(buildReleasePlan, /^ {8}if: steps\.version\.outputs\.pending == 'false'$/m);
+  assert.ok(buildReleasePlan.includes("pnpm list -r --depth -1 --json"));
+  assert.ok(buildReleasePlan.includes('node "${SHARED_CLI}" release-plan create'));
+  assert.ok(usesAction(uploadReleasePlan, "actions/upload-artifact"));
+  assert.ok(uploadReleasePlan.includes("name: release-plan"));
+  assert.ok(usesAction(downloadReleasePlan, "actions/download-artifact"));
+  assert.ok(downloadReleasePlan.includes("name: release-plan"));
+  assert.match(validateReleasePlan, /^ {8}id: release-plan$/m);
+  assert.ok(validateReleasePlan.includes('node "${SHARED_CLI}" release-plan validate'));
+  assert.doesNotMatch(validateReleasePlan, /GITHUB_TOKEN|\bpnpm\b/);
+  assert.ok(packageRelease.includes('node "${SHARED_CLI}" npm-publishing-mode'));
+  assert.doesNotMatch(packageRelease, /\bpnpm\b/);
+  assert.match(contractRelease, /^ {8}if: steps\.release-plan\.outputs\.contract_version != ''$/m);
+  assert.ok(contractRelease.includes('node "${SHARED_CLI}" shared-workflows-release pending'));
+  assert.ok(contractRelease.includes('"$CONTRACT_VERSION" >> "$GITHUB_OUTPUT"'));
+
+  assert.match(packageJob, /^ {4}needs: plan$/m);
+  assert.match(packageJob, /^ {4}if: needs\.plan\.outputs\.package-release == 'true'$/m);
+  assert.match(publish, /^ {6}- plan$/m);
+  assert.match(publish, /^ {6}- package$/m);
+  assert.match(publish, /^ {4}if: needs\.plan\.outputs\.package-release == 'true'$/m);
+  assert.match(publish, /^ {4}environment: npm-production$/m);
+  assert.ok(
+    sharedWorkflows.includes(
+      "if: needs.release.outputs.pending == 'false' && needs.release.outputs.contract-release == 'true'",
+    ),
   );
 });
 
