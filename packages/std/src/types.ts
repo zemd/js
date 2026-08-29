@@ -11,13 +11,15 @@ export type ValueOf<T> = T[keyof T];
 
 // https://stackoverflow.com/a/66252656/1945960
 export type RemoveIndexSignature<T> = {
-  [K in keyof T as string extends K
-    ? never
-    : number extends K
+  [
+    K in keyof T as string extends K
       ? never
-      : symbol extends K
+      : number extends K
         ? never
-        : K]: T[K];
+        : symbol extends K
+          ? never
+          : K
+  ]: T[K];
 };
 
 declare const brand: unique symbol;
