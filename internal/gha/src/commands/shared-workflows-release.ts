@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 import { requireEnv } from "../env.ts";
-import { releaseSharedWorkflows } from "../shared-workflows.ts";
+import { releaseSharedWorkflows, sharedWorkflowReleasePending } from "../shared-workflows.ts";
 import type { Command } from "./command.ts";
 import { apiFromEnv } from "./context.ts";
 
@@ -26,8 +26,19 @@ const manifestVersion = (packagePath: string): string => {
 // a GitHub release whose body carries `uses:` lines already pinned to this
 // commit. The version is @zemd/gha's, which is what the workflows execute.
 export const sharedWorkflowsRelease: Command = {
-  usage: "<package.json> <workflows-dir>",
+  usage: "<package.json> <workflows-dir> | pending <version>",
   run: async (argv) => {
+    if (argv[0] === "pending") {
+      const [, version, ...unexpected] = argv;
+      if (!version || unexpected.length > 0) {
+        throw new Error("usage: shared-workflows-release pending <version>");
+      }
+
+      const pending = await sharedWorkflowReleasePending(apiFromEnv(), version);
+      process.stdout.write(`pending=${pending}\n`);
+      return;
+    }
+
     const [packagePath, workflowsDir] = argv;
 
     if (!packagePath || !workflowsDir) {

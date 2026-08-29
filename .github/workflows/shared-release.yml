@@ -44,6 +44,12 @@ on:
       pending:
         description: "'true' when the run opened or refreshed a release pull request instead of submitting packages."
         value: ${{ jobs.version.outputs.pending }}
+      package-release:
+        description: "'true' when at least one public package version has not been submitted."
+        value: ${{ jobs.plan.outputs.package-release }}
+      contract-release:
+        description: "'true' when the configured private contract version has not been released."
+        value: ${{ jobs.plan.outputs.contract-release }}
 
 # Not inherited from the caller: `env` defined at the caller's workflow level is
 # never propagated into a reusable workflow.
@@ -138,6 +144,31 @@ jobs:
           else
             echo "pending=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # Normalize the caller-controlled workspace while this runner has no
+      # explicit GitHub or npm credential. The next job accepts only this
+      # bounded data artifact and never checks out or executes caller code.
+      - name: Build release plan
+        if: steps.version.outputs.pending == 'false'
+        env:
+          CONTRACT_VERSION_PACKAGE: ${{ inputs.contract-version-package }}
+          RELEASE_PLAN_ARTIFACT: ${{ runner.temp }}/release-plan-artifact
+        run: |
+          pnpm list -r --depth -1 --json > "${RUNNER_TEMP}/workspace.json"
+          install -d -m 0700 "$RELEASE_PLAN_ARTIFACT"
+          node "${SHARED_CLI}" release-plan create \
+            "${RUNNER_TEMP}/workspace.json" \
+            "$RELEASE_PLAN_ARTIFACT" \
+            "$CONTRACT_VERSION_PACKAGE"
+
+      - name: Upload release plan
+        if: steps.version.outputs.pending == 'false'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-plan
+          path: ${{ runner.temp }}/release-plan-artifact
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Render release pull request body
         if: steps.version.outputs.pending == 'true'
@@ -236,12 +267,84 @@ jobs:
             gh pr edit "$pr" --body-file "$RELEASE_ARTIFACT/pr-body.md"
           fi
 
+  # Determine release eligibility before starting package builds or a job that
+  # references the protected npm environment. This runner receives only a
+  # strictly validated data artifact, never caller code or dependencies.
+  plan:
+    name: Detect pending releases
+    needs: version
+    if: needs.version.outputs.pending == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      package-release: ${{ steps.packages.outputs.pending }}
+      contract-release: ${{ steps.contract.outputs.pending }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout shared tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .shared-ci
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "lts/*"
+          package-manager-cache: false
+
+      - name: Download release plan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-plan
+          path: ${{ runner.temp }}/release-plan-artifact
+
+      - name: Validate release plan
+        id: release-plan
+        run: |
+          node "${SHARED_CLI}" release-plan validate \
+            "${RUNNER_TEMP}/release-plan-artifact" \
+            "${RUNNER_TEMP}/workspace.json" >> "$GITHUB_OUTPUT"
+
+      - name: Detect pending package release
+        id: packages
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REGISTRY_URL: "https://registry.npmjs.org"
+          STAGED_PUBLISHING: ${{ inputs.staged-publishing }}
+        run: |
+          node "${SHARED_CLI}" npm-publishing-mode \
+            "${RUNNER_TEMP}/workspace.json" \
+            "$REGISTRY_URL" \
+            "$STAGED_PUBLISHING" \
+            "${RUNNER_TEMP}/first-releases.txt" \
+            "${RUNNER_TEMP}/direct-packages.txt" \
+            "${RUNNER_TEMP}/staged-packages.txt" >> "$GITHUB_OUTPUT"
+
+      - name: Detect pending contract release
+        id: contract
+        if: steps.release-plan.outputs.contract_version != ''
+        env:
+          CONTRACT_VERSION: ${{ steps.release-plan.outputs.contract_version }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node "${SHARED_CLI}" shared-workflows-release pending \
+            "$CONTRACT_VERSION" >> "$GITHUB_OUTPUT"
+
   # Caller code and dependency lifecycle scripts run only in this uncredentialed
   # job. The next job receives immutable tarballs and validates them from scratch.
   package:
     name: Build release packages
-    needs: version
-    if: needs.version.outputs.pending == 'false'
+    needs: plan
+    if: needs.plan.outputs.package-release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -305,7 +408,10 @@ jobs:
 
   publish:
     name: Submit packages to npm
-    needs: package
+    needs:
+      - plan
+      - package
+    if: needs.plan.outputs.package-release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: npm-production

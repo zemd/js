@@ -5,6 +5,7 @@ import { npmPublishingMode } from "./npm-publishing-mode.ts";
 import { packageArtifact } from "./package-artifact.ts";
 import { releasePrArtifact } from "./release-pr-artifact.ts";
 import { releasePrBody } from "./release-pr-body.ts";
+import { releasePlan } from "./release-plan.ts";
 import { sharedWorkflowsRelease } from "./shared-workflows-release.ts";
 import { signedCommit } from "./signed-commit.ts";
 
@@ -15,6 +16,7 @@ export const commands: Readonly<Record<string, Command>> = {
   "package-artifact": packageArtifact,
   "release-pr-artifact": releasePrArtifact,
   "release-pr-body": releasePrBody,
+  "release-plan": releasePlan,
   "shared-workflows-release": sharedWorkflowsRelease,
   "signed-commit": signedCommit,
 };

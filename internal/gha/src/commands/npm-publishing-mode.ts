@@ -84,6 +84,7 @@ export const npmPublishingMode: Command = {
     process.stdout.write(
       [
         `mode=${plan.mode}`,
+        `pending=${plan.mode !== "none"}`,
         `direct=${plan.directPackages.length > 0}`,
         `stage=${plan.stagedPackages.length > 0}`,
         `first_release=${plan.firstReleasePackages.length > 0}`,

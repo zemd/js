@@ -6,6 +6,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - ".changeset/**"
 
 # A release must finish once started; serialize runs without cancelling one that
 # may already be publishing packages or moving tags.
@@ -34,7 +36,7 @@ jobs:
   shared-workflows:
     name: Publish shared workflows
     needs: release
-    if: needs.release.outputs.pending == 'false'
+    if: needs.release.outputs.pending == 'false' && needs.release.outputs.contract-release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

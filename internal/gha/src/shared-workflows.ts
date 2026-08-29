@@ -66,6 +66,17 @@ export interface SharedReleaseInput {
   readonly workflows: readonly string[];
 }
 
+export const sharedWorkflowReleasePending = async (
+  api: Pick<GitHubApi, "releaseExists">,
+  version: string,
+): Promise<boolean> => {
+  if (!isReleaseVersion(version)) {
+    throw new Error(`expected a plain semver version, got "${version}"`);
+  }
+
+  return !(await api.releaseExists(`v${version}`));
+};
+
 const putTag = async (
   api: GitHubApi,
   tag: string,
@@ -105,12 +116,13 @@ export const releaseSharedWorkflows = async ({
   }
 
   const tag = `v${version}`;
-  const releases = await api.listReleases();
 
-  if (releases.some((release) => release.tag_name === tag)) {
+  if (!(await sharedWorkflowReleasePending(api, version))) {
     console.log(`${tag} already released, nothing to do`);
     return;
   }
+
+  const releases = await api.listReleases();
 
   if (!(await api.tagExists(tag)) && !(await putTag(api, tag, sha, false))) {
     throw new Error(`could not create ${tag}`);

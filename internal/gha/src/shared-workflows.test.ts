@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { releaseSharedWorkflows, renderSharedReleaseBody } from "./shared-workflows.ts";
+import {
+  releaseSharedWorkflows,
+  renderSharedReleaseBody,
+  sharedWorkflowReleasePending,
+} from "./shared-workflows.ts";
 import { fakeGitHub } from "./testing/fake-github.ts";
 
 const SHA = "a".repeat(40);
@@ -72,6 +76,28 @@ void test("is a no-op when the version was already released", async () => {
 
   assert.deepStrictEqual(github.createdRefs, []);
   assert.deepStrictEqual(github.createdReleases, []);
+});
+
+void test("treats the exact GitHub release as shared workflow completion", async () => {
+  assert.strictEqual(await sharedWorkflowReleasePending(fakeGitHub().api, "1.2.3"), true);
+  assert.strictEqual(
+    await sharedWorkflowReleasePending(
+      fakeGitHub({
+        releases: [{ tag_name: "v1.2.3", created_at: "2026-08-29T00:00:00Z" }],
+      }).api,
+      "1.2.3",
+    ),
+    false,
+  );
+  assert.strictEqual(
+    await sharedWorkflowReleasePending(
+      fakeGitHub({
+        releases: [{ tag_name: "v1.2.2", created_at: "2026-08-29T00:00:00Z" }],
+      }).api,
+      "1.2.3",
+    ),
+    true,
+  );
 });
 
 void test("resumes after moving the major tag fails", async () => {
