@@ -1,0 +1,463 @@
+name: Format files for oxfmt updates
+
+permissions: {}
+
+# CI is intentionally unprivileged. This follow-up always loads from the default
+# branch, and pull-request code runs in a separate job without repository secrets.
+on: # zizmor: ignore[dangerous-triggers] Default-branch code; formatted data is validated before use.
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - requested
+      - completed
+
+concurrency:
+  group: oxfmt-updates-${{ github.event.workflow_run.head_repository.id }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect oxfmt update
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # compare the root manifest at the immutable base and head commits
+      pull-requests: read # identify the triggering PR and its changed files
+    outputs:
+      head-sha: ${{ steps.detect.outputs.head-sha }}
+      pr-number: ${{ steps.detect.outputs.pr-number }}
+      required: ${{ steps.detect.outputs.required }}
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      # Read files through the API; never check out or execute pull-request code here.
+      - name: Detect an oxfmt dependency update
+        id: detect
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            core.setOutput("required", "false");
+
+            const workflowRun = context.payload.workflow_run;
+            const pullRequests = workflowRun?.pull_requests ?? [];
+            if (!workflowRun || pullRequests.length !== 1) {
+              core.info("The CI run is not associated with exactly one pull request");
+              return;
+            }
+
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullRequests[0].number,
+            });
+            const repository = context.repo.owner + "/" + context.repo.repo;
+            const trustedAuthors = new Set(["zemd", "dependabot[bot]"]);
+            if (
+              pull.state !== "open" ||
+              pull.base.ref !== "main" ||
+              pull.head.repo?.full_name !== repository
+            ) {
+              core.info("Only open, same-repository pull requests targeting main are supported");
+              return;
+            }
+            if (pull.head.ref === "release/main") {
+              core.info("The release pull request must not receive formatting commits");
+              return;
+            }
+            if (!trustedAuthors.has(pull.user?.login ?? "")) {
+              core.info("The pull-request author is not allowed to receive automated commits");
+              return;
+            }
+            if (pull.head.sha !== workflowRun.head_sha) {
+              core.info("A newer pull-request commit will be handled by its own CI run");
+              return;
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              ...context.repo,
+              pull_number: pull.number,
+              per_page: 100,
+            });
+            const manifestPath = "package.json";
+            const manifestChanged = files.some(
+              (file) =>
+                file.filename === manifestPath &&
+                file.status === "modified" &&
+                (file.previous_filename === undefined || file.previous_filename === manifestPath),
+            );
+            if (!manifestChanged) {
+              core.info("The root package manifest is unchanged");
+              return;
+            }
+
+            const readAt = async (path, ref) => {
+              const { data } = await github.rest.repos.getContent({
+                ...context.repo,
+                path,
+                ref,
+              });
+              if (
+                Array.isArray(data) ||
+                data.type !== "file" ||
+                typeof data.content !== "string"
+              ) {
+                throw new Error("Expected " + path + " at " + ref + " to be a file");
+              }
+              return Buffer.from(data.content, "base64").toString("utf8");
+            };
+            const dependencyAt = (source) => JSON.parse(source).devDependencies?.oxfmt;
+            const before = dependencyAt(await readAt(manifestPath, pull.base.sha));
+            const after = dependencyAt(await readAt(manifestPath, pull.head.sha));
+            if (typeof before !== "string" || typeof after !== "string" || before === after) {
+              core.info("The oxfmt dependency is unchanged");
+              return;
+            }
+
+            core.notice("Formatting the repository for oxfmt " + before + " -> " + after);
+            core.setOutput("head-sha", pull.head.sha);
+            core.setOutput("pr-number", String(pull.number));
+            core.setOutput("required", "true");
+
+  format:
+    name: Format repository
+    needs: detect
+    if: needs.detect.outputs.required == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read # check out the exact pull-request commit selected by detection
+    outputs:
+      changed: ${{ steps.collect.outputs.changed }}
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout pull request
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.detect.outputs.head-sha }}
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Format files
+        run: pnpm format
+
+      # File contents are the only state that crosses into the credentialed job.
+      - name: Collect formatted files
+        id: collect
+        env:
+          EXPECTED_HEAD_SHA: ${{ needs.detect.outputs.head-sha }}
+          UPDATE_FILE: ${{ runner.temp }}/oxfmt-update.json
+        run: |
+          git add --all
+          node --input-type=module - "$UPDATE_FILE" <<'NODE'
+          import { appendFileSync, lstatSync, readFileSync, writeFileSync } from "node:fs";
+          import { execFileSync } from "node:child_process";
+
+          const [output] = process.argv.slice(2);
+          const expectedHeadSha = process.env.EXPECTED_HEAD_SHA;
+          const githubOutput = process.env.GITHUB_OUTPUT;
+          if (!output || !githubOutput || !/^[0-9a-f]{40}$/.test(expectedHeadSha ?? "")) {
+            throw new Error("Formatting output paths or pull-request identity are invalid");
+          }
+
+          const changedPaths = (diffFilter) => {
+            const stdout = execFileSync(
+              "git",
+              [
+                "diff",
+                "--cached",
+                "--name-only",
+                "-z",
+                ...(diffFilter ? [`--diff-filter=${diffFilter}`] : []),
+              ],
+              { encoding: "buffer" },
+            );
+            return stdout.toString("utf8").split("\0").filter(Boolean);
+          };
+
+          const allPaths = changedPaths();
+          const modificationPaths = changedPaths("M");
+          if (
+            allPaths.length !== modificationPaths.length ||
+            allPaths.some((path, index) => path !== modificationPaths[index])
+          ) {
+            throw new Error("Formatting may only modify existing repository files");
+          }
+          if (modificationPaths.length === 0) {
+            appendFileSync(githubOutput, "changed=false\n");
+            process.exit(0);
+          }
+          if (modificationPaths.length > 100) {
+            throw new Error("Formatting changed too many files");
+          }
+
+          let totalBytes = 0;
+          const additions = modificationPaths.map((path) => {
+            if (!lstatSync(path).isFile()) {
+              throw new Error("Invalid formatted file: " + path);
+            }
+            const contents = readFileSync(path);
+            totalBytes += contents.byteLength;
+            return { path, contents: contents.toString("base64") };
+          });
+          if (totalBytes > 8 * 1024 * 1024) {
+            throw new Error("The formatted file payload is too large");
+          }
+
+          writeFileSync(
+            output,
+            JSON.stringify({ headSha: expectedHeadSha, additions }) + "\n",
+            { encoding: "utf8", mode: 0o600, flag: "wx" },
+          );
+          appendFileSync(githubOutput, "changed=true\n");
+          NODE
+
+      - name: Upload formatted files
+        if: steps.collect.outputs.changed == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: oxfmt-update
+          path: ${{ runner.temp }}/oxfmt-update.json
+          if-no-files-found: error
+          retention-days: 1
+
+  commit:
+    name: Commit formatted files
+    needs:
+      - detect
+      - format
+    if: needs.format.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read # download the formatted-data artifact from this workflow run
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Download formatted files
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: oxfmt-update
+          path: ${{ runner.temp }}/oxfmt-artifact
+
+      # Treat the artifact as untrusted data. This runner never checks out or executes PR code.
+      - name: Validate formatted files
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/oxfmt-artifact
+          EXPECTED_HEAD_SHA: ${{ needs.detect.outputs.head-sha }}
+          VALIDATED_UPDATE_FILE: ${{ runner.temp }}/oxfmt-update-validated.json
+        run: |
+          node --input-type=module - "$ARTIFACT_DIR" "$VALIDATED_UPDATE_FILE" <<'NODE'
+          import { lstat, readFile, readdir, writeFile } from "node:fs/promises";
+          import { join } from "node:path";
+
+          const [directory, output] = process.argv.slice(2);
+          const expectedHeadSha = process.env.EXPECTED_HEAD_SHA;
+          if (!directory || !output || !/^[0-9a-f]{40}$/.test(expectedHeadSha ?? "")) {
+            throw new Error("Artifact paths or pull-request identity are invalid");
+          }
+
+          const artifactName = "oxfmt-update.json";
+          const entries = await readdir(directory, { withFileTypes: true });
+          if (entries.length !== 1 || entries[0]?.name !== artifactName || !entries[0].isFile()) {
+            throw new Error("The oxfmt artifact must contain only " + artifactName);
+          }
+          const artifactPath = join(directory, artifactName);
+          const artifact = await lstat(artifactPath);
+          if (!artifact.isFile() || artifact.size > 12 * 1024 * 1024) {
+            throw new Error("The oxfmt artifact is not a bounded regular file");
+          }
+
+          const payload = JSON.parse(await readFile(artifactPath, "utf8"));
+          if (
+            payload === null ||
+            typeof payload !== "object" ||
+            Array.isArray(payload) ||
+            Object.keys(payload).sort().join(",") !== "additions,headSha" ||
+            payload.headSha !== expectedHeadSha ||
+            !Array.isArray(payload.additions) ||
+            payload.additions.length === 0 ||
+            payload.additions.length > 100
+          ) {
+            throw new Error("The oxfmt artifact has an invalid shape");
+          }
+
+          const paths = new Set();
+          let totalBytes = 0;
+          const additions = payload.additions.map((addition) => {
+            if (
+              addition === null ||
+              typeof addition !== "object" ||
+              Array.isArray(addition) ||
+              Object.keys(addition).sort().join(",") !== "contents,path" ||
+              typeof addition.path !== "string" ||
+              typeof addition.contents !== "string"
+            ) {
+              throw new Error("The oxfmt artifact contains an invalid file entry");
+            }
+            const segments = addition.path.split("/");
+            if (
+              addition.path.length === 0 ||
+              addition.path.length > 240 ||
+              addition.path.startsWith("/") ||
+              addition.path.includes("\\") ||
+              /[\0\r\n]/.test(addition.path) ||
+              segments.some((segment) => segment === "" || segment === "." || segment === "..") ||
+              paths.has(addition.path)
+            ) {
+              throw new Error("The oxfmt artifact contains an unsafe file path");
+            }
+            const decoded = Buffer.from(addition.contents, "base64");
+            if (decoded.toString("base64") !== addition.contents) {
+              throw new Error("The oxfmt artifact contains invalid base64 data");
+            }
+            paths.add(addition.path);
+            totalBytes += decoded.byteLength;
+            return { path: addition.path, contents: addition.contents };
+          });
+          if (totalBytes > 8 * 1024 * 1024) {
+            throw new Error("The formatted file payload is too large");
+          }
+
+          await writeFile(
+            output,
+            JSON.stringify({ headSha: expectedHeadSha, additions }) + "\n",
+            { encoding: "utf8", mode: 0o600, flag: "wx" },
+          );
+          NODE
+
+      - name: Create Release Branchkeeper token
+        id: release-branchkeeper-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_BRANCHKEEPER_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.repository }}
+          permission-contents: write
+          permission-pull-requests: read
+
+      # GraphQL atomically creates a GitHub-signed commit attributed to the Branchkeeper App.
+      - name: Commit formatted files
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          EXPECTED_HEAD_SHA: ${{ needs.detect.outputs.head-sha }}
+          PR_NUMBER: ${{ needs.detect.outputs.pr-number }}
+          VALIDATED_UPDATE_FILE: ${{ runner.temp }}/oxfmt-update-validated.json
+        with:
+          github-token: ${{ steps.release-branchkeeper-token.outputs.token }}
+          script: |
+            const { readFileSync } = require("node:fs");
+
+            const pullNumber = Number(process.env.PR_NUMBER);
+            const expectedHeadOid = process.env.EXPECTED_HEAD_SHA;
+            if (!Number.isSafeInteger(pullNumber) || !/^[0-9a-f]{40}$/.test(expectedHeadOid ?? "")) {
+              throw new Error("Invalid pull-request identity from the detection job");
+            }
+            const payload = JSON.parse(readFileSync(process.env.VALIDATED_UPDATE_FILE, "utf8"));
+            if (payload.headSha !== expectedHeadOid || !Array.isArray(payload.additions)) {
+              throw new Error("The validated oxfmt update does not match the pull request");
+            }
+
+            const { data: pull } = await github.rest.pulls.get({
+              ...context.repo,
+              pull_number: pullNumber,
+            });
+            const repository = context.repo.owner + "/" + context.repo.repo;
+            const trustedAuthors = new Set(["zemd", "dependabot[bot]"]);
+            if (
+              pull.state !== "open" ||
+              pull.base.ref !== "main" ||
+              pull.head.ref === "release/main" ||
+              pull.head.repo?.full_name !== repository ||
+              pull.head.sha !== expectedHeadOid ||
+              !trustedAuthors.has(pull.user?.login ?? "")
+            ) {
+              core.info("The pull request is no longer eligible for automated formatting");
+              return;
+            }
+
+            const readAt = async (path, ref) => {
+              const { data } = await github.rest.repos.getContent({
+                ...context.repo,
+                path,
+                ref,
+              });
+              if (
+                Array.isArray(data) ||
+                data.type !== "file" ||
+                typeof data.content !== "string"
+              ) {
+                throw new Error("Expected " + path + " at " + ref + " to be a file");
+              }
+              return Buffer.from(data.content, "base64").toString("utf8");
+            };
+            const manifestPath = "package.json";
+            const dependencyAt = (source) => JSON.parse(source).devDependencies?.oxfmt;
+            const before = dependencyAt(await readAt(manifestPath, pull.base.sha));
+            const after = dependencyAt(await readAt(manifestPath, expectedHeadOid));
+            if (typeof before !== "string" || typeof after !== "string" || before === after) {
+              core.info("The pull request no longer updates oxfmt");
+              return;
+            }
+
+            for (const addition of payload.additions) {
+              const { data } = await github.rest.repos.getContent({
+                ...context.repo,
+                path: addition.path,
+                ref: expectedHeadOid,
+              });
+              if (Array.isArray(data) || data.type !== "file") {
+                throw new Error("Formatted path is not an existing file: " + addition.path);
+              }
+            }
+
+            const mutation = [
+              "mutation ($input: CreateCommitOnBranchInput!) {",
+              "  createCommitOnBranch(input: $input) {",
+              "    commit { oid }",
+              "  }",
+              "}",
+            ].join("\n");
+            const result = await github.graphql(mutation, {
+              input: {
+                branch: {
+                  repositoryNameWithOwner: repository,
+                  branchName: pull.head.ref,
+                },
+                expectedHeadOid,
+                message: {
+                  headline: "chore: format with updated oxfmt",
+                },
+                fileChanges: { additions: payload.additions },
+              },
+            });
+            const oid = result.createCommitOnBranch?.commit?.oid;
+            if (!oid) throw new Error("GitHub did not return the created commit");
+            core.notice("Committed oxfmt changes in " + oid);
