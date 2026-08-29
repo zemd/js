@@ -9,7 +9,6 @@ on: # zizmor: ignore[dangerous-triggers] Default-branch code; formatted data is 
     workflows:
       - CI
     types:
-      - requested
       - completed
 
 concurrency:

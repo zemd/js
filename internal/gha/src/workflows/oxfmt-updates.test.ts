@@ -50,7 +50,7 @@ void test("oxfmt updates run formatting without exposing the commit credential",
 
   assert.match(
     source,
-    /^ {2}workflow_run:\n {4}workflows:\n {6}- CI\n {4}types:\n {6}- requested\n {6}- completed$/m,
+    /^ {2}workflow_run:\n {4}workflows:\n {6}- CI\n {4}types:\n {6}- completed$/m,
   );
   assert.ok(source.includes("zizmor: ignore[dangerous-triggers]"));
   assert.doesNotMatch(source, /pull_request_target/);
