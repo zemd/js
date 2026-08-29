@@ -35,7 +35,7 @@ const runWorkflowJavaScript = async (
   await result;
 };
 
-const WORKFLOW = "repo-changeset-oxfmt-updates.yml";
+const WORKFLOW = "repo-pr-automation-oxfmt-formatting.yml";
 
 void test("oxfmt updates run formatting without exposing the commit credential", () => {
   const source = read(workflowsDir, WORKFLOW);

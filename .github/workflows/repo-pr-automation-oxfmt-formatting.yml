@@ -1,10 +1,10 @@
-name: Regenerate Figma API for spec updates
+name: Format files for oxfmt updates
 
 permissions: {}
 
 # CI is intentionally unprivileged. This follow-up always loads from the default
 # branch, and pull-request code runs in a separate job without repository secrets.
-on: # zizmor: ignore[dangerous-triggers] Default-branch code; generated data is validated before use.
+on: # zizmor: ignore[dangerous-triggers] Default-branch code; formatted data is validated before use.
   workflow_run:
     workflows:
       - CI
@@ -13,17 +13,17 @@ on: # zizmor: ignore[dangerous-triggers] Default-branch code; generated data is 
       - completed
 
 concurrency:
-  group: figma-api-updates-${{ github.event.workflow_run.head_repository.id }}-${{ github.event.workflow_run.head_branch }}
+  group: pr-automation-oxfmt-formatting-${{ github.event.workflow_run.head_repository.id }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: true
 
 jobs:
   detect:
-    name: Detect Figma REST API spec update
+    name: Detect oxfmt update
     if: github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      contents: read # compare the package manifest at the immutable base and head commits
+      contents: read # compare the root manifest at the immutable base and head commits
       pull-requests: read # identify the triggering PR and its changed files
     outputs:
       head-sha: ${{ steps.detect.outputs.head-sha }}
@@ -37,7 +37,7 @@ jobs:
           egress-policy: audit
 
       # Read files through the API; never check out or execute pull-request code here.
-      - name: Detect a Figma REST API spec update
+      - name: Detect an oxfmt dependency update
         id: detect
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -66,7 +66,7 @@ jobs:
               return;
             }
             if (pull.head.ref === "release/main") {
-              core.info("The release pull request must not regenerate the Figma API");
+              core.info("The release pull request must not receive formatting commits");
               return;
             }
             if (!trustedAuthors.has(pull.user?.login ?? "")) {
@@ -83,7 +83,7 @@ jobs:
               pull_number: pull.number,
               per_page: 100,
             });
-            const manifestPath = "http-clients/figma/package.json";
+            const manifestPath = "package.json";
             const manifestChanged = files.some(
               (file) =>
                 file.filename === manifestPath &&
@@ -91,7 +91,7 @@ jobs:
                 (file.previous_filename === undefined || file.previous_filename === manifestPath),
             );
             if (!manifestChanged) {
-              core.info("The Figma client manifest is unchanged");
+              core.info("The root package manifest is unchanged");
               return;
             }
 
@@ -110,22 +110,21 @@ jobs:
               }
               return Buffer.from(data.content, "base64").toString("utf8");
             };
-            const dependency = "@figma/rest-api-spec";
-            const dependencyAt = (source) => JSON.parse(source).dependencies?.[dependency];
+            const dependencyAt = (source) => JSON.parse(source).devDependencies?.oxfmt;
             const before = dependencyAt(await readAt(manifestPath, pull.base.sha));
             const after = dependencyAt(await readAt(manifestPath, pull.head.sha));
             if (typeof before !== "string" || typeof after !== "string" || before === after) {
-              core.info("The @figma/rest-api-spec dependency is unchanged");
+              core.info("The oxfmt dependency is unchanged");
               return;
             }
 
-            core.notice("Regenerating the Figma API for @figma/rest-api-spec " + before + " -> " + after);
+            core.notice("Formatting the repository for oxfmt " + before + " -> " + after);
             core.setOutput("head-sha", pull.head.sha);
             core.setOutput("pr-number", String(pull.number));
             core.setOutput("required", "true");
 
-  generate:
-    name: Generate Figma API
+  format:
+    name: Format repository
     needs: detect
     if: needs.detect.outputs.required == 'true'
     runs-on: ubuntu-latest
@@ -161,26 +160,17 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Regenerate and format the Figma API
-        run: |
-          pnpm --filter @zemd/figma-rest-api run generate-api
-          pnpm run format
+      - name: Format files
+        run: pnpm format
 
-      # Package file contents are the only state that crosses into the credentialed job.
-      - name: Collect generated package files
+      # File contents are the only state that crosses into the credentialed job.
+      - name: Collect formatted files
         id: collect
         env:
           EXPECTED_HEAD_SHA: ${{ needs.detect.outputs.head-sha }}
-          UPDATE_FILE: ${{ runner.temp }}/figma-api-update.json
+          UPDATE_FILE: ${{ runner.temp }}/oxfmt-update.json
         run: |
-          outside_untracked="$(git ls-files --others --exclude-standard -- . ':(exclude)http-clients/figma/**')"
-          if ! git diff --quiet -- . ':(exclude)http-clients/figma/**' || [ -n "$outside_untracked" ]; then
-            echo "::error::Generation or formatting changed files outside http-clients/figma"
-            git status --short
-            exit 1
-          fi
-
-          git add -- http-clients/figma
+          git add --all
           node --input-type=module - "$UPDATE_FILE" <<'NODE'
           import { appendFileSync, lstatSync, readFileSync, writeFileSync } from "node:fs";
           import { execFileSync } from "node:child_process";
@@ -189,7 +179,7 @@ jobs:
           const expectedHeadSha = process.env.EXPECTED_HEAD_SHA;
           const githubOutput = process.env.GITHUB_OUTPUT;
           if (!output || !githubOutput || !/^[0-9a-f]{40}$/.test(expectedHeadSha ?? "")) {
-            throw new Error("Generation output paths or pull-request identity are invalid");
+            throw new Error("Formatting output paths or pull-request identity are invalid");
           }
 
           const changedPaths = (diffFilter) => {
@@ -201,8 +191,6 @@ jobs:
                 "--name-only",
                 "-z",
                 ...(diffFilter ? [`--diff-filter=${diffFilter}`] : []),
-                "--",
-                "http-clients/figma",
               ],
               { encoding: "buffer" },
             );
@@ -210,32 +198,32 @@ jobs:
           };
 
           const allPaths = changedPaths();
-          const additionPaths = changedPaths("AM");
+          const modificationPaths = changedPaths("M");
           if (
-            allPaths.length !== additionPaths.length ||
-            allPaths.some((path, index) => path !== additionPaths[index])
+            allPaths.length !== modificationPaths.length ||
+            allPaths.some((path, index) => path !== modificationPaths[index])
           ) {
-            throw new Error("The Figma generator may only add or modify package files");
+            throw new Error("Formatting may only modify existing repository files");
           }
-          if (additionPaths.length === 0) {
+          if (modificationPaths.length === 0) {
             appendFileSync(githubOutput, "changed=false\n");
             process.exit(0);
           }
-          if (additionPaths.length > 50) {
-            throw new Error("The Figma generator changed too many files");
+          if (modificationPaths.length > 100) {
+            throw new Error("Formatting changed too many files");
           }
 
           let totalBytes = 0;
-          const additions = additionPaths.map((path) => {
-            if (!path.startsWith("http-clients/figma/") || !lstatSync(path).isFile()) {
-              throw new Error("Invalid generated package file: " + path);
+          const additions = modificationPaths.map((path) => {
+            if (!lstatSync(path).isFile()) {
+              throw new Error("Invalid formatted file: " + path);
             }
             const contents = readFileSync(path);
             totalBytes += contents.byteLength;
             return { path, contents: contents.toString("base64") };
           });
           if (totalBytes > 8 * 1024 * 1024) {
-            throw new Error("The generated Figma API payload is too large");
+            throw new Error("The formatted file payload is too large");
           }
 
           writeFileSync(
@@ -246,25 +234,25 @@ jobs:
           appendFileSync(githubOutput, "changed=true\n");
           NODE
 
-      - name: Upload generated package files
+      - name: Upload formatted files
         if: steps.collect.outputs.changed == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: figma-api-update
-          path: ${{ runner.temp }}/figma-api-update.json
+          name: oxfmt-update
+          path: ${{ runner.temp }}/oxfmt-update.json
           if-no-files-found: error
           retention-days: 1
 
   commit:
-    name: Commit generated Figma API
+    name: Commit formatted files
     needs:
       - detect
-      - generate
-    if: needs.generate.outputs.changed == 'true'
+      - format
+    if: needs.format.outputs.changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      actions: read # download the generated-data artifact from this workflow run
+      actions: read # download the formatted-data artifact from this workflow run
 
     steps:
       - name: Harden Runner
@@ -272,18 +260,18 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Download generated package files
+      - name: Download formatted files
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: figma-api-update
-          path: ${{ runner.temp }}/figma-api-artifact
+          name: oxfmt-update
+          path: ${{ runner.temp }}/oxfmt-artifact
 
       # Treat the artifact as untrusted data. This runner never checks out or executes PR code.
-      - name: Validate generated package files
+      - name: Validate formatted files
         env:
-          ARTIFACT_DIR: ${{ runner.temp }}/figma-api-artifact
+          ARTIFACT_DIR: ${{ runner.temp }}/oxfmt-artifact
           EXPECTED_HEAD_SHA: ${{ needs.detect.outputs.head-sha }}
-          VALIDATED_UPDATE_FILE: ${{ runner.temp }}/figma-api-update-validated.json
+          VALIDATED_UPDATE_FILE: ${{ runner.temp }}/oxfmt-update-validated.json
         run: |
           node --input-type=module - "$ARTIFACT_DIR" "$VALIDATED_UPDATE_FILE" <<'NODE'
           import { lstat, readFile, readdir, writeFile } from "node:fs/promises";
@@ -295,15 +283,15 @@ jobs:
             throw new Error("Artifact paths or pull-request identity are invalid");
           }
 
-          const artifactName = "figma-api-update.json";
+          const artifactName = "oxfmt-update.json";
           const entries = await readdir(directory, { withFileTypes: true });
           if (entries.length !== 1 || entries[0]?.name !== artifactName || !entries[0].isFile()) {
-            throw new Error("The Figma API artifact must contain only " + artifactName);
+            throw new Error("The oxfmt artifact must contain only " + artifactName);
           }
           const artifactPath = join(directory, artifactName);
           const artifact = await lstat(artifactPath);
           if (!artifact.isFile() || artifact.size > 12 * 1024 * 1024) {
-            throw new Error("The Figma API artifact is not a bounded regular file");
+            throw new Error("The oxfmt artifact is not a bounded regular file");
           }
 
           const payload = JSON.parse(await readFile(artifactPath, "utf8"));
@@ -315,9 +303,9 @@ jobs:
             payload.headSha !== expectedHeadSha ||
             !Array.isArray(payload.additions) ||
             payload.additions.length === 0 ||
-            payload.additions.length > 50
+            payload.additions.length > 100
           ) {
-            throw new Error("The Figma API artifact has an invalid shape");
+            throw new Error("The oxfmt artifact has an invalid shape");
           }
 
           const paths = new Set();
@@ -331,29 +319,30 @@ jobs:
               typeof addition.path !== "string" ||
               typeof addition.contents !== "string"
             ) {
-              throw new Error("The Figma API artifact contains an invalid file entry");
+              throw new Error("The oxfmt artifact contains an invalid file entry");
             }
             const segments = addition.path.split("/");
             if (
-              !addition.path.startsWith("http-clients/figma/") ||
+              addition.path.length === 0 ||
               addition.path.length > 240 ||
+              addition.path.startsWith("/") ||
               addition.path.includes("\\") ||
               /[\0\r\n]/.test(addition.path) ||
               segments.some((segment) => segment === "" || segment === "." || segment === "..") ||
               paths.has(addition.path)
             ) {
-              throw new Error("The Figma API artifact contains an unsafe file path");
+              throw new Error("The oxfmt artifact contains an unsafe file path");
             }
             const decoded = Buffer.from(addition.contents, "base64");
             if (decoded.toString("base64") !== addition.contents) {
-              throw new Error("The Figma API artifact contains invalid base64 data");
+              throw new Error("The oxfmt artifact contains invalid base64 data");
             }
             paths.add(addition.path);
             totalBytes += decoded.byteLength;
             return { path: addition.path, contents: addition.contents };
           });
           if (totalBytes > 8 * 1024 * 1024) {
-            throw new Error("The generated Figma API payload is too large");
+            throw new Error("The formatted file payload is too large");
           }
 
           await writeFile(
@@ -375,12 +364,12 @@ jobs:
           permission-pull-requests: read
 
       # GraphQL atomically creates a GitHub-signed commit attributed to the Branchkeeper App.
-      - name: Commit generated package files and changeset
+      - name: Commit formatted files
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           EXPECTED_HEAD_SHA: ${{ needs.detect.outputs.head-sha }}
           PR_NUMBER: ${{ needs.detect.outputs.pr-number }}
-          VALIDATED_UPDATE_FILE: ${{ runner.temp }}/figma-api-update-validated.json
+          VALIDATED_UPDATE_FILE: ${{ runner.temp }}/oxfmt-update-validated.json
         with:
           github-token: ${{ steps.release-branchkeeper-token.outputs.token }}
           script: |
@@ -393,7 +382,7 @@ jobs:
             }
             const payload = JSON.parse(readFileSync(process.env.VALIDATED_UPDATE_FILE, "utf8"));
             if (payload.headSha !== expectedHeadOid || !Array.isArray(payload.additions)) {
-              throw new Error("The validated Figma API update does not match the pull request");
+              throw new Error("The validated oxfmt update does not match the pull request");
             }
 
             const { data: pull } = await github.rest.pulls.get({
@@ -410,7 +399,7 @@ jobs:
               pull.head.sha !== expectedHeadOid ||
               !trustedAuthors.has(pull.user?.login ?? "")
             ) {
-              core.info("The pull request is no longer eligible for an automated Figma API update");
+              core.info("The pull request is no longer eligible for automated formatting");
               return;
             }
 
@@ -429,82 +418,24 @@ jobs:
               }
               return Buffer.from(data.content, "base64").toString("utf8");
             };
-            const manifestPath = "http-clients/figma/package.json";
-            const dependency = "@figma/rest-api-spec";
-            const dependencyAt = (source) => JSON.parse(source).dependencies?.[dependency];
+            const manifestPath = "package.json";
+            const dependencyAt = (source) => JSON.parse(source).devDependencies?.oxfmt;
             const before = dependencyAt(await readAt(manifestPath, pull.base.sha));
             const after = dependencyAt(await readAt(manifestPath, expectedHeadOid));
             if (typeof before !== "string" || typeof after !== "string" || before === after) {
-              core.info("The pull request no longer updates @figma/rest-api-spec");
+              core.info("The pull request no longer updates oxfmt");
               return;
             }
 
-            const files = await github.paginate(github.rest.pulls.listFiles, {
-              ...context.repo,
-              pull_number: pull.number,
-              per_page: 100,
-            });
-            const scalar = (value) => {
-              const trimmed = value.trim();
-              const quote = trimmed.at(0);
-              return (quote === '"' || quote === "'") && trimmed.at(-1) === quote
-                ? trimmed.slice(1, -1)
-                : trimmed;
-            };
-            const hasReleaseIntent = (source) => {
-              const body =
-                source.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1] ?? "";
-              for (const line of body.split(/\r?\n/)) {
-                const separator = line.indexOf(":");
-                if (
-                  separator >= 0 &&
-                  scalar(line.slice(0, separator)) === "@zemd/figma-rest-api" &&
-                  /^(?:major|minor|patch)$/.test(scalar(line.slice(separator + 1)))
-                ) {
-                  return true;
-                }
-              }
-              return false;
-            };
-
-            let releaseIntentExists = false;
-            for (const file of files) {
-              if (
-                (file.status === "added" || file.status === "modified") &&
-                /^\.changeset\/[^/]+\.md$/.test(file.filename) &&
-                hasReleaseIntent(await readAt(file.filename, expectedHeadOid))
-              ) {
-                releaseIntentExists = true;
-                break;
-              }
-            }
-
-            const additions = [...payload.additions];
-            if (!releaseIntentExists) {
-              const changesetPath = ".changeset/figma-api-" + pull.number + ".md";
-              try {
-                await github.rest.repos.getContent({
-                  ...context.repo,
-                  path: changesetPath,
-                  ref: expectedHeadOid,
-                });
-                throw new Error("Refusing to overwrite existing " + changesetPath);
-              } catch (error) {
-                if (!error || typeof error !== "object" || error.status !== 404) throw error;
-              }
-
-              const changeset = [
-                "---",
-                '"@zemd/figma-rest-api": patch',
-                "---",
-                "",
-                "Regenerate the Figma REST API client from the updated API specification.",
-                "",
-              ].join("\n");
-              additions.push({
-                path: changesetPath,
-                contents: Buffer.from(changeset).toString("base64"),
+            for (const addition of payload.additions) {
+              const { data } = await github.rest.repos.getContent({
+                ...context.repo,
+                path: addition.path,
+                ref: expectedHeadOid,
               });
+              if (Array.isArray(data) || data.type !== "file") {
+                throw new Error("Formatted path is not an existing file: " + addition.path);
+              }
             }
 
             const mutation = [
@@ -522,11 +453,11 @@ jobs:
                 },
                 expectedHeadOid,
                 message: {
-                  headline: "chore(figma): regenerate REST API client",
+                  headline: "chore: format with updated oxfmt",
                 },
-                fileChanges: { additions },
+                fileChanges: { additions: payload.additions },
               },
             });
             const oid = result.createCommitOnBranch?.commit?.oid;
             if (!oid) throw new Error("GitHub did not return the created commit");
-            core.notice("Committed the regenerated Figma API in " + oid);
+            core.notice("Committed oxfmt changes in " + oid);

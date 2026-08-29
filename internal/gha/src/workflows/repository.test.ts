@@ -79,7 +79,7 @@ void test("zizmor is configured to fail the workflow on every finding", () => {
 });
 
 void test("Release Branchkeeper adds missing changesets for shared action updates", () => {
-  const source = read(workflowsDir, "repo-changeset-action-updates.yml");
+  const source = read(workflowsDir, "repo-pr-automation-shared-action-release-intent.yml");
   const detect = workflowJob(source, "detect");
   const commit = workflowJob(source, "commit");
   const token = workflowStep(source, "Create Release Branchkeeper token");
@@ -129,7 +129,7 @@ void test("Release Branchkeeper adds missing changesets for shared action update
 });
 
 void test("the shared-action detector requires an action change without an existing intent", async () => {
-  const source = read(workflowsDir, "repo-changeset-action-updates.yml");
+  const source = read(workflowsDir, "repo-pr-automation-shared-action-release-intent.yml");
   const step = workflowStep(source, "Detect an action update without a changeset");
   const baseSha = "a".repeat(40);
   const headSha = "b".repeat(40);
@@ -325,7 +325,7 @@ void test("the shared-action detector requires an action change without an exist
 });
 
 void test("the Branchkeeper step creates only the fixed changeset commit", async () => {
-  const source = read(workflowsDir, "repo-changeset-action-updates.yml");
+  const source = read(workflowsDir, "repo-pr-automation-shared-action-release-intent.yml");
   const step = workflowStep(source, "Commit the changeset");
   const headSha = "b".repeat(40);
   let mutationInput: unknown;
@@ -399,7 +399,7 @@ void test("the Branchkeeper step creates only the fixed changeset commit", async
 });
 
 void test("Branchkeeper revalidates the author and release branch before writing", async () => {
-  const source = read(workflowsDir, "repo-changeset-action-updates.yml");
+  const source = read(workflowsDir, "repo-pr-automation-shared-action-release-intent.yml");
   const step = workflowStep(source, "Commit the changeset");
   const headSha = "b".repeat(40);
 

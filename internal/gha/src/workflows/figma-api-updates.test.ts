@@ -35,7 +35,7 @@ const runWorkflowJavaScript = async (
   await result;
 };
 
-const WORKFLOW = "repo-changeset-figma-api-updates.yml";
+const WORKFLOW = "repo-pr-automation-figma-api-regeneration.yml";
 
 void test("Figma spec updates run generation without exposing the commit credential", () => {
   const source = read(workflowsDir, WORKFLOW);
