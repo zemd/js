@@ -1,6 +1,6 @@
 {
   "name": "@zemd/gha",
-  "version": "4.0.3",
+  "version": "4.0.4",
   "private": true,
   "description": "Release tooling executed by the shared GitHub Actions workflows",
   "license": "Apache-2.0",
