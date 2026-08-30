@@ -1,5 +1,11 @@
 # @zemd/gha
 
+## 4.0.4
+
+### Patch Changes
+
+- Update the action versions used by the shared GitHub Actions workflows.
+
 ## 4.0.3
 
 ### Patch Changes
