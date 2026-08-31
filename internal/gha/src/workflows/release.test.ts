@@ -35,6 +35,10 @@ void test("release jobs configure the npm cache after runner allocation", () => 
 void test("shared workflow platform and release conventions are fixed", () => {
   const sharedFiles = yamlFiles(workflowsDir).filter((file) => file.startsWith("shared-"));
   const shared = sharedFiles.map((file) => read(workflowsDir, file));
+  const corepackWorkflow = read(workflowsDir, "shared-pnpm-update.yml");
+  const regularShared = sharedFiles
+    .filter((file) => file !== "shared-pnpm-update.yml")
+    .map((file) => read(workflowsDir, file));
   const examples = [read(examplesDir, "repo-ci.yml"), read(examplesDir, "repo-release.yml")];
   const removedInputs = [
     "node-version",
@@ -52,16 +56,18 @@ void test("shared workflow platform and release conventions are fixed", () => {
     for (const example of examples) assert.ok(!example.includes(`${input}:`));
   }
 
-  const setupNodeReferences = shared.reduce(
+  const setupNodeReferences = regularShared.reduce(
     (count, workflow) => count + [...workflow.matchAll(/^ {8}uses: actions\/setup-node@/gm)].length,
     0,
   );
-  const fixedNodeVersions = shared.reduce(
+  const fixedNodeVersions = regularShared.reduce(
     (count, workflow) => count + [...workflow.matchAll(/^ {10}node-version: "lts\/\*"$/gm)].length,
     0,
   );
   assert.ok(setupNodeReferences > 0);
   assert.strictEqual(fixedNodeVersions, setupNodeReferences);
+  assert.strictEqual([...corepackWorkflow.matchAll(/^ {8}uses: actions\/setup-node@/gm)].length, 1);
+  assert.match(corepackWorkflow, /^ {10}node-version: "24"$/m);
 
   const releasePr = workflowStep(
     read(workflowsDir, "shared-release.yml"),

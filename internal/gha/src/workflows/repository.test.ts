@@ -561,7 +561,7 @@ void test("examples pin the shared workflows through a replaceable placeholder",
     for (const { reference, comment } of usesReferences(read(examplesDir, file))) {
       assert.match(
         reference,
-        /^zemd\/js\/\.github\/workflows\/shared-[a-z]+\.yml@__SHA__$/,
+        /^zemd\/js\/\.github\/workflows\/shared-[a-z0-9-]+\.yml@__SHA__$/,
         `${file}: "${reference}" must reference a shared workflow`,
       );
       assert.strictEqual(
