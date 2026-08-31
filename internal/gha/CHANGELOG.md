@@ -1,5 +1,11 @@
 # @zemd/gha
 
+## 4.0.5
+
+### Patch Changes
+
+- Add a secure weekly Corepack workflow that opens pnpm update pull requests through Release Branchkeeper.
+
 ## 4.0.4
 
 ### Patch Changes

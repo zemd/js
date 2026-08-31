@@ -92,6 +92,10 @@
   dir: internal/gha
   intents:
     - shared-actions-68
+"@zemd/gha@4.0.5":
+  dir: internal/gha
+  intents:
+    - afraid-candles-warn
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
