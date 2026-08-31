@@ -1,0 +1,27 @@
+name: Update pnpm
+
+permissions: {}
+
+# Keep this caller schedule-only: scheduled workflows load from the default
+# branch, which protects the GitHub App credential from modified branch code.
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+
+concurrency:
+  group: pnpm-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update pnpm
+    uses: zemd/js/.github/workflows/shared-pnpm-update.yml@__SHA__ # v4
+    permissions:
+      contents: read
+    with:
+      # Install zemd-release-branchkeeper on this repository and configure its
+      # Client ID as this Actions variable.
+      release-branchkeeper-client-id: ${{ vars.RELEASE_BRANCHKEEPER_CLIENT_ID }}
+    secrets:
+      # Store the matching App private key as this Actions secret.
+      RELEASE_BRANCHKEEPER_PRIVATE_KEY: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}

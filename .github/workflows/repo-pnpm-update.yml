@@ -1,0 +1,24 @@
+name: Update pnpm
+
+permissions: {}
+
+# Scheduled workflows load only from the default branch. Keep this caller
+# schedule-only so the Branchkeeper key is never available to branch code.
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+
+concurrency:
+  group: pnpm-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    name: Update pnpm
+    uses: ./.github/workflows/shared-pnpm-update.yml
+    permissions:
+      contents: read
+    with:
+      release-branchkeeper-client-id: ${{ vars.RELEASE_BRANCHKEEPER_CLIENT_ID }}
+    secrets:
+      RELEASE_BRANCHKEEPER_PRIVATE_KEY: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}

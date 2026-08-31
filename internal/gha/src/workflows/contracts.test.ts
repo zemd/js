@@ -106,6 +106,7 @@ void test("callers delegate to the shared workflows", () => {
     ["repo-benchmarks.yml", "shared-benchmarks.yml"],
     ["repo-ci.yml", "shared-ci.yml"],
     ["repo-codeql.yml", "shared-codeql.yml"],
+    ["repo-pnpm-update.yml", "shared-pnpm-update.yml"],
     ["repo-scorecard.yml", "shared-scorecard.yml"],
     ["repo-zizmor.yml", "shared-zizmor.yml"],
     // npm trusted publishing validates the caller filename, so it is part of the contract.
@@ -167,7 +168,12 @@ void test("every runner job has a bounded timeout", () => {
 });
 
 void test("shared workflows set the telemetry opt-out themselves", () => {
-  for (const file of ["shared-benchmarks.yml", "shared-ci.yml", "shared-release.yml"]) {
+  for (const file of [
+    "shared-benchmarks.yml",
+    "shared-ci.yml",
+    "shared-pnpm-update.yml",
+    "shared-release.yml",
+  ]) {
     assert.match(
       read(workflowsDir, file),
       /^ {2}DO_NOT_TRACK: 1$/m,

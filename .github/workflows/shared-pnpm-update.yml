@@ -1,0 +1,203 @@
+name: Shared pnpm update
+
+# Runs Corepack in a credential-free checkout and passes the changed manifest
+# to the Release Branchkeeper job. Call this from a schedule-only workflow
+# pinned to a full commit SHA.
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      release-branchkeeper-client-id:
+        description: Client ID for the repository-installed zemd-release-branchkeeper GitHub App.
+        type: string
+        required: true
+    secrets:
+      RELEASE_BRANCHKEEPER_PRIVATE_KEY:
+        description: Private key for the zemd-release-branchkeeper GitHub App.
+        required: true
+
+env:
+  # https://consoledonottrack.com - opts out of package-manager telemetry
+  DO_NOT_TRACK: 1
+
+jobs:
+  prepare:
+    name: Prepare pnpm update
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # check out the exact scheduled default-branch revision
+    outputs:
+      required: ${{ steps.changed.outputs.required }}
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      # Node 24 is the final Node.js release line that bundles Corepack. The
+      # provider workflow can update this deliberate pin before that line EOLs.
+      - name: Setup Node.js with Corepack
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      # `corepack use` performs an install, so keep lifecycle scripts disabled.
+      # This job never receives the Branchkeeper credential.
+      - name: Update pnpm with Corepack
+        env:
+          COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+          COREPACK_ENABLE_STRICT: 1
+          COREPACK_ENABLE_UNSAFE_CUSTOM_URLS: 0
+          COREPACK_ENV_FILE: 0
+          COREPACK_HOME: ${{ runner.temp }}/corepack
+          COREPACK_NPM_REGISTRY: https://registry.npmjs.org
+          npm_config_ignore_scripts: "true"
+        run: corepack use pnpm@latest
+
+      - name: Check for pnpm update
+        id: changed
+        run: |
+          if git diff --quiet --exit-code; then
+            echo "required=false" >> "$GITHUB_OUTPUT"
+            echo "The repository already uses the latest pnpm version"
+          elif git diff --quiet --exit-code -- . ':(exclude)package.json'; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Corepack changed files other than package.json"
+            git status --short
+            exit 1
+          fi
+
+      - name: Upload pnpm update
+        if: steps.changed.outputs.required == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pnpm-update
+          path: package.json
+          if-no-files-found: error
+          retention-days: 1
+
+  pull-request:
+    name: Open pnpm update pull request
+    needs: prepare
+    if: needs.prepare.outputs.required == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read # download the updated package.json from this workflow run
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Download pnpm update
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pnpm-update
+          path: ${{ runner.temp }}/pnpm-update
+
+      - name: Create Release Branchkeeper token
+        id: release-branchkeeper-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ inputs.release-branchkeeper-client-id }}
+          private-key: ${{ secrets.RELEASE_BRANCHKEEPER_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.repository }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      # This credentialed step never checks out or executes consumer code.
+      - name: Open pnpm update pull request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          UPDATE_FILE: ${{ runner.temp }}/pnpm-update/package.json
+        with:
+          github-token: ${{ steps.release-branchkeeper-token.outputs.token }}
+          script: |
+            const { readFileSync } = require("node:fs");
+
+            const repositoryNameWithOwner = context.repo.owner + "/" + context.repo.repo;
+            const baseBranch = context.payload.repository.default_branch;
+            const baseSha = context.sha;
+            const branchName = "automation/pnpm-update";
+            const title = "chore: update pnpm";
+
+            try {
+              await github.rest.git.getRef({
+                ...context.repo,
+                ref: "heads/" + branchName,
+              });
+              await github.rest.git.updateRef({
+                ...context.repo,
+                ref: "heads/" + branchName,
+                sha: baseSha,
+                force: true,
+              });
+            } catch (error) {
+              if (error?.status !== 404) throw error;
+              await github.rest.git.createRef({
+                ...context.repo,
+                ref: "refs/heads/" + branchName,
+                sha: baseSha,
+              });
+            }
+
+            const mutation = [
+              "mutation ($input: CreateCommitOnBranchInput!) {",
+              "  createCommitOnBranch(input: $input) {",
+              "    commit { oid }",
+              "  }",
+              "}",
+            ].join("\n");
+            await github.graphql(mutation, {
+              input: {
+                branch: {
+                  repositoryNameWithOwner,
+                  branchName,
+                },
+                expectedHeadOid: baseSha,
+                message: { headline: title },
+                fileChanges: {
+                  additions: [
+                    {
+                      path: "package.json",
+                      contents: readFileSync(process.env.UPDATE_FILE).toString("base64"),
+                    },
+                  ],
+                },
+              },
+            });
+
+            const { data: pulls } = await github.rest.pulls.list({
+              ...context.repo,
+              head: context.repo.owner + ":" + branchName,
+              base: baseBranch,
+              state: "open",
+            });
+            if (pulls.length === 0) {
+              const { data: pull } = await github.rest.pulls.create({
+                ...context.repo,
+                head: branchName,
+                base: baseBranch,
+                title,
+                body: "Updates pnpm to the latest version with Corepack.",
+              });
+              core.notice("Opened pnpm update pull request #" + pull.number);
+            } else {
+              core.notice("Refreshed pnpm update pull request #" + pulls[0].number);
+            }
