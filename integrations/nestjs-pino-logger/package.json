@@ -59,7 +59,7 @@
     "ms": "2.1.3"
   },
   "devDependencies": {
-    "@nestjs/common": "11.2.1",
+    "@nestjs/common": "12.0.1",
     "@types/ms": "2.1.0",
     "@types/node": "catalog:",
     "@zemd/testing": "workspace:*",
