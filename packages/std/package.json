@@ -80,7 +80,7 @@
     "@zemd/testing": "workspace:*",
     "@zemd/tsconfig": "workspace:*",
     "fast-check": "catalog:",
-    "playwright": "1.62.1",
+    "playwright": "1.63.0",
     "tsdown": "catalog:",
     "typescript": "catalog:"
   }
