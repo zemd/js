@@ -1,5 +1,11 @@
 # @zemd/testing
 
+## 1.1.1
+
+### Patch Changes
+
+- Update dependencies
+
 ## 1.1.0
 
 ### Minor Changes

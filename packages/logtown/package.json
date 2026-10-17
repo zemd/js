@@ -1,6 +1,6 @@
 {
   "name": "logtown",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "description": "Versatile log wrapper for javascript projects",
   "keywords": [
     "facade",

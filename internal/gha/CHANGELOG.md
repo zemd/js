@@ -1,5 +1,15 @@
 # @zemd/gha
 
+## 4.0.6
+
+### Patch Changes
+
+- Update dependencies
+
+- Let pnpm apply private workflow contract version bumps once and validate the reported transition without pre-bumping the package manifest.
+
+- Update the action versions used by the shared GitHub Actions workflows.
+
 ## 4.0.5
 
 ### Patch Changes

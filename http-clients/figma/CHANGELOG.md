@@ -1,5 +1,17 @@
 # @zemd/figma-rest-api
 
+## 3.0.28
+
+### Patch Changes
+
+- Update dependencies
+
+- Migrate the Figma and Flickr clients to the namespace API of `@zemd/http-client`,
+  including Figma API generation, without changing client behavior.
+
+- Updated dependencies:
+  - @zemd/http-client@7.0.0
+
 ## 3.0.27
 
 ### Patch Changes
