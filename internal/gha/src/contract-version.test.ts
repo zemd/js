@@ -46,29 +46,11 @@ void test("does not plan a bump without a matching release intent", () => {
   );
 });
 
-void test("restores the real old version in pnpm's same-version result", () => {
-  const releases = reconcileContractRelease(
-    [
-      { name: "public-package", currentVersion: "2.0.0", newVersion: "2.0.1" },
-      { name: "@zemd/gha", currentVersion: "1.0.1", newVersion: "1.0.1" },
-    ],
-    {
-      name: "@zemd/gha",
-      currentVersion: "1.0.0",
-      newVersion: "1.0.1",
-      bump: "patch",
-      intentIds: ["fix"],
-    },
-  );
-
-  assert.deepStrictEqual(releases, [
+void test("accepts pnpm reporting the intended transition itself", () => {
+  const releases = [
     { name: "public-package", currentVersion: "2.0.0", newVersion: "2.0.1" },
     { name: "@zemd/gha", currentVersion: "1.0.0", newVersion: "1.0.1" },
-  ]);
-});
-
-void test("accepts pnpm reporting the intended transition itself", () => {
-  const releases = [{ name: "@zemd/gha", currentVersion: "1.0.0", newVersion: "1.0.1" }];
+  ];
   assert.strictEqual(
     reconcileContractRelease(releases, {
       name: "@zemd/gha",
@@ -82,18 +64,22 @@ void test("accepts pnpm reporting the intended transition itself", () => {
 });
 
 void test("rejects an unexpected pnpm transition", () => {
-  assert.throws(
-    () =>
-      reconcileContractRelease(
-        [{ name: "@zemd/gha", currentVersion: "1.0.1", newVersion: "1.0.2" }],
-        {
+  for (const [currentVersion, newVersion] of [
+    ["4.0.6", "4.0.7"],
+    ["4.0.6", "4.0.6"],
+    ["4.0.5", "4.0.5"],
+    ["4.0.5", "4.1.0"],
+  ] as const) {
+    assert.throws(
+      () =>
+        reconcileContractRelease([{ name: "@zemd/gha", currentVersion, newVersion }], {
           name: "@zemd/gha",
-          currentVersion: "1.0.0",
-          newVersion: "1.0.1",
+          currentVersion: "4.0.5",
+          newVersion: "4.0.6",
           bump: "patch",
           intentIds: ["fix"],
-        },
-      ),
-    /unexpected @zemd\/gha transition/,
-  );
+        }),
+      /unexpected @zemd\/gha transition: .*; expected 4\.0\.5 -> 4\.0\.6/,
+    );
+  }
 });

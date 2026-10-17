@@ -16,6 +16,11 @@ which is what CI keys on to require a release intent for this package.
 Its version is the shared workflow contract version: the release workflow tags
 `vX.Y.Z` and moves `vX` to match.
 
+`contract-version prepare` records the expected bump without changing the package
+manifest. `pnpm version -r` applies the bump, and `contract-version finalize`
+validates the reported transition. This relies on pnpm 12.7 or newer, which
+applies change intents to private packages.
+
 For package releases, each `name@version` tag is the immutable submission
 record. The publishing planner skips tagged versions even when a staged version
 was rejected on npm; another release must advance the package version.

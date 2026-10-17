@@ -25,7 +25,7 @@ jobs:
     with:
       release-branchkeeper-client-id: ${{ vars.RELEASE_BRANCHKEEPER_CLIENT_ID }}
       release-publisher-client-id: ${{ vars.RELEASE_PUBLISHER_CLIENT_ID }}
-      # pnpm does not advance this private, unpublished contract package.
+      # Validate pnpm's bump for this private, unpublished contract package.
       contract-version-package: internal/gha/package.json
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -14,7 +14,7 @@ afterEach(() => {
   }
 });
 
-void test("prepares a private contract bump and corrects pnpm's release report", async () => {
+void test("plans a private contract bump without applying it before pnpm", async () => {
   const directory = mkdtempSync(join(tmpdir(), "contract-version-"));
   directories.push(directory);
   const intents = join(directory, ".changeset");
@@ -22,10 +22,8 @@ void test("prepares a private contract bump and corrects pnpm's release report",
   const state = join(directory, "contract-version.json");
   const releases = join(directory, "releases.json");
   mkdirSync(intents);
-  writeFileSync(
-    manifest,
-    '{\n  "name": "@zemd/gha",\n  "version": "1.0.0",\n  "private": true\n}\n',
-  );
+  const source = '{\n  "name": "@zemd/gha",\n  "version": "4.0.5",\n  "private": true\n}\n';
+  writeFileSync(manifest, source);
   writeFileSync(
     join(intents, "fix.md"),
     '---\n"@zemd/gha": patch\n---\n\nFix the release contract.\n',
@@ -33,24 +31,22 @@ void test("prepares a private contract bump and corrects pnpm's release report",
 
   await contractVersion.run(["prepare", manifest, intents, state]);
 
-  assert.partialDeepStrictEqual(JSON.parse(readFileSync(manifest, "utf8")), { version: "1.0.1" });
+  assert.strictEqual(readFileSync(manifest, "utf8"), source);
   assert.deepStrictEqual(JSON.parse(readFileSync(state, "utf8")), {
     name: "@zemd/gha",
-    currentVersion: "1.0.0",
-    newVersion: "1.0.1",
+    currentVersion: "4.0.5",
+    newVersion: "4.0.6",
     bump: "patch",
     intentIds: ["fix"],
   });
 
-  writeFileSync(
-    releases,
-    JSON.stringify([{ name: "@zemd/gha", currentVersion: "1.0.1", newVersion: "1.0.1" }]),
-  );
+  const report = JSON.stringify([
+    { name: "@zemd/gha", currentVersion: "4.0.5", newVersion: "4.0.6" },
+  ]);
+  writeFileSync(releases, report);
   await contractVersion.run(["finalize", state, releases]);
 
-  assert.deepStrictEqual(JSON.parse(readFileSync(releases, "utf8")), [
-    { name: "@zemd/gha", currentVersion: "1.0.0", newVersion: "1.0.1" },
-  ]);
+  assert.deepStrictEqual(JSON.parse(readFileSync(releases, "utf8")), JSON.parse(report));
 });
 
 void test("writes a no-op state when no intent targets the configured package", async () => {

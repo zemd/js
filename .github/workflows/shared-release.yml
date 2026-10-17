@@ -109,9 +109,8 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      # pnpm preserves the version of a private package that is absent from the
-      # registry. Prepare that contract version explicitly before it consumes
-      # the intents, then repair its same-version entry in the release report.
+      # Record the expected private contract bump before pnpm consumes the
+      # intents. pnpm applies the bump; finalize validates its release report.
       - name: Prepare private contract version
         if: inputs.contract-version-package != ''
         env:

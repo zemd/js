@@ -421,7 +421,7 @@ void test("gates release work before requesting npm production approval", () => 
   );
 });
 
-void test("can advance a private release-contract version before pnpm consumes its intents", () => {
+void test("plans the private contract version before pnpm and validates it afterward", () => {
   const source = read(workflowsDir, "shared-release.yml");
   const caller = read(workflowsDir, "repo-release.yml");
   const example = read(examplesDir, "repo-release.yml");

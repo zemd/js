@@ -37,20 +37,6 @@ const parseManifest = (source: string, path: string): PackageManifest => {
   };
 };
 
-const replaceManifestVersion = (
-  source: string,
-  currentVersion: string,
-  newVersion: string,
-  path: string,
-): string => {
-  const property = /("version"\s*:\s*")([^"]*)(")/g;
-  const matches = [...source.matchAll(property)];
-  if (matches.length !== 1 || matches[0]?.[2] !== currentVersion) {
-    throw new Error(`${path}: could not replace the unique version field`);
-  }
-  return source.replace(property, `$1${newVersion}$3`);
-};
-
 const readIntents = (directory: string): readonly ChangeIntent[] =>
   readdirSync(directory)
     .filter((file) => file.endsWith(".md") && file.toLowerCase() !== "readme.md")
@@ -94,13 +80,9 @@ const prepare = (packagePath: string, intentsDirectory: string, statePath: strin
   const manifest = parseManifest(manifestSource, packagePath);
   const plan = planContractVersion(manifest, readIntents(intentsDirectory));
 
+  // pnpm applies private-package bumps itself. Record the expected transition
+  // before it consumes the intents, leaving the manifest at its original version.
   writeFileSync(statePath, `${JSON.stringify(plan ?? null, undefined, 2)}\n`);
-  if (!plan) return;
-
-  writeFileSync(
-    packagePath,
-    replaceManifestVersion(manifestSource, plan.currentVersion, plan.newVersion, packagePath),
-  );
 };
 
 const finalize = (statePath: string, releasesPath: string): void => {

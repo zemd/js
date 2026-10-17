@@ -104,18 +104,13 @@ export const reconcileContractRelease = (
   const release = matching[0];
   if (!release) throw new Error(`pnpm version did not report ${plan.name}`);
 
-  if (release.currentVersion === plan.currentVersion && release.newVersion === plan.newVersion) {
-    return releases;
-  }
-  if (release.currentVersion !== plan.newVersion || release.newVersion !== plan.newVersion) {
+  if (release.currentVersion !== plan.currentVersion || release.newVersion !== plan.newVersion) {
     throw new Error(
       `pnpm version reported an unexpected ${plan.name} transition: ` +
         `${release.currentVersion} -> ${release.newVersion}; expected ` +
-        `${plan.newVersion} -> ${plan.newVersion}`,
+        `${plan.currentVersion} -> ${plan.newVersion}`,
     );
   }
 
-  return releases.map((entry) =>
-    entry === release ? { ...entry, currentVersion: plan.currentVersion } : entry,
-  );
+  return releases;
 };

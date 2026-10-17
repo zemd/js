@@ -81,12 +81,8 @@ const reconcileContractRelease = (releases, plan) => {
 	if (matching.length !== 1) throw new Error(`pnpm version reported ${matching.length} releases for ${plan.name}; expected exactly one`);
 	const release = matching[0];
 	if (!release) throw new Error(`pnpm version did not report ${plan.name}`);
-	if (release.currentVersion === plan.currentVersion && release.newVersion === plan.newVersion) return releases;
-	if (release.currentVersion !== plan.newVersion || release.newVersion !== plan.newVersion) throw new Error(`pnpm version reported an unexpected ${plan.name} transition: ${release.currentVersion} -> ${release.newVersion}; expected ${plan.newVersion} -> ${plan.newVersion}`);
-	return releases.map((entry) => entry === release ? {
-		...entry,
-		currentVersion: plan.currentVersion
-	} : entry);
+	if (release.currentVersion !== plan.currentVersion || release.newVersion !== plan.newVersion) throw new Error(`pnpm version reported an unexpected ${plan.name} transition: ${release.currentVersion} -> ${release.newVersion}; expected ${plan.currentVersion} -> ${plan.newVersion}`);
+	return releases;
 };
 
 //#endregion
@@ -159,12 +155,6 @@ const parseManifest$1 = (source, path) => {
 		private: true
 	};
 };
-const replaceManifestVersion = (source, currentVersion, newVersion, path) => {
-	const property = /("version"\s*:\s*")([^"]*)(")/g;
-	const matches = [...source.matchAll(property)];
-	if (matches.length !== 1 || matches[0]?.[2] !== currentVersion) throw new Error(`${path}: could not replace the unique version field`);
-	return source.replace(property, `$1${newVersion}$3`);
-};
 const readIntents = (directory) => readdirSync(directory).filter((file) => file.endsWith(".md") && file.toLowerCase() !== "readme.md").sort().map((file) => ({
 	id: basename(file, ".md"),
 	source: readFileSync(join(directory, file), "utf8")
@@ -189,8 +179,6 @@ const prepare$1 = (packagePath, intentsDirectory, statePath) => {
 	const manifest = parseManifest$1(manifestSource, packagePath);
 	const plan = planContractVersion(manifest, readIntents(intentsDirectory));
 	writeFileSync(statePath, `${JSON.stringify(plan ?? null, void 0, 2)}\n`);
-	if (!plan) return;
-	writeFileSync(packagePath, replaceManifestVersion(manifestSource, plan.currentVersion, plan.newVersion, packagePath));
 };
 const finalize = (statePath, releasesPath) => {
 	const plan = parsePlan(readFileSync(statePath, "utf8"), statePath);
