@@ -1,5 +1,11 @@
 # logtown
 
+## 3.2.2
+
+### Patch Changes
+
+- Update dependencies
+
 ## 3.2.1
 
 ### Patch Changes

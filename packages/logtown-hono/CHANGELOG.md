@@ -1,5 +1,14 @@
 # @logtown/hono
 
+## 5.0.3
+
+### Patch Changes
+
+- Update dependencies
+
+- Updated dependencies:
+  - logtown@3.2.2
+
 ## 5.0.2
 
 ### Patch Changes

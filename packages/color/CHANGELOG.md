@@ -1,5 +1,14 @@
 # @zemd/color
 
+## 1.0.3
+
+### Patch Changes
+
+- Update dependencies
+
+- Updated dependencies:
+  - @zemd/std-modules@0.1.3
+
 ## 1.0.2
 
 ### Patch Changes

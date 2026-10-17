@@ -1,5 +1,15 @@
 # @zemd/http-client
 
+## 7.0.0
+
+### Major Changes
+
+- Introduce new namespace api
+
+### Patch Changes
+
+- Update dependencies
+
 ## 6.0.0
 
 ### Major Changes

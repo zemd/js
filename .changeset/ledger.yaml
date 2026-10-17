@@ -2,10 +2,18 @@
   dir: packages/logtown-hono
   intents:
     - quiet-heads-repeat
+"@logtown/hono@5.0.3":
+  dir: packages/logtown-hono
+  intents:
+    - fair-mangos-wait
 "@zemd/color@1.0.0":
   dir: packages/color
   intents:
     - light-plums-shine
+"@zemd/color@1.0.3":
+  dir: packages/color
+  intents:
+    - fair-mangos-wait
 "@zemd/figma-rest-api@3.0.26":
   dir: http-clients/figma
   intents:
@@ -14,6 +22,11 @@
   dir: http-clients/figma
   intents:
     - figma-api-56
+"@zemd/figma-rest-api@3.0.28":
+  dir: http-clients/figma
+  intents:
+    - fair-mangos-wait
+    - http-clients-namespace-api
 "@zemd/flickr-rest-api@2.0.0":
   dir: http-clients/flickr
   intents:
@@ -22,6 +35,11 @@
   dir: http-clients/flickr
   intents:
     - forty-geckos-sniff
+"@zemd/flickr-rest-api@2.0.3":
+  dir: http-clients/flickr
+  intents:
+    - fair-mangos-wait
+    - http-clients-namespace-api
 "@zemd/gha@1.0.0":
   dir: internal/gha
   intents:
@@ -96,6 +114,12 @@
   dir: internal/gha
   intents:
     - afraid-candles-warn
+"@zemd/gha@4.0.6":
+  dir: internal/gha
+  intents:
+    - fair-mangos-wait
+    - fix-private-contract-version
+    - shared-actions-74
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
@@ -108,14 +132,33 @@
   dir: packages/http-client
   intents:
     - honest-hairs-call
+"@zemd/http-client@7.0.0":
+  dir: packages/http-client
+  intents:
+    - fair-mangos-wait
+    - wicked-falcons-know
+"@zemd/js@0.0.1":
+  dir: ""
+  intents:
+    - fair-mangos-wait
 "@zemd/nestjs-pino-logger@2.0.0":
   dir: integrations/nestjs-pino-logger
   intents:
     - social-cities-greet
+"@zemd/nestjs-pino-logger@3.0.0":
+  dir: integrations/nestjs-pino-logger
+  intents:
+    - big-hats-dig
+    - fair-mangos-wait
+    - nestjs-12-logger
 "@zemd/openapi@0.0.2":
   dir: packages/openapi
   intents:
     - builder-own-properties
+"@zemd/openapi@0.0.3":
+  dir: packages/openapi
+  intents:
+    - fair-mangos-wait
 "@zemd/std-modules@0.1.0":
   dir: packages/std
   intents:
@@ -129,6 +172,10 @@
   dir: packages/std
   intents:
     - flat-bushes-pull
+"@zemd/std-modules@0.1.3":
+  dir: packages/std
+  intents:
+    - fair-mangos-wait
 "@zemd/testing@1.0.0":
   dir: packages/testing
   intents:
@@ -137,6 +184,10 @@
   dir: packages/testing
   intents:
     - floppy-cameras-matter
+"@zemd/testing@1.1.1":
+  dir: packages/testing
+  intents:
+    - fair-mangos-wait
 "@zemd/tsconfig@2.1.0":
   dir: packages/tsconfig
   intents:
@@ -149,3 +200,7 @@ logtown@3.2.1:
   dir: packages/logtown
   intents:
     - eager-clowns-lie
+logtown@3.2.2:
+  dir: packages/logtown
+  intents:
+    - fair-mangos-wait
