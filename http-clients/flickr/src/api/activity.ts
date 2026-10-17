@@ -1,4 +1,4 @@
-import { method, query } from "@zemd/http-client";
+import { RequestTransformer, UrlTransformer } from "@zemd/http-client";
 import { z } from "zod";
 
 export const GetUserCommentsQuerySchema = z.object({
@@ -28,9 +28,9 @@ export const userComments = (params: GetUserCommentsQuery) => {
   return {
     url: `/`,
     transformers: [
-      method("GET"),
-      query(GetUserCommentsQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.activity.userComments" }),
+      RequestTransformer.setMethod("GET"),
+      UrlTransformer.appendQuery(GetUserCommentsQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.activity.userComments" }),
     ],
   };
 };
@@ -66,9 +66,9 @@ export const userPhotos = (params: GetUserPhotosQuery) => {
   return {
     url: `/`,
     transformers: [
-      method("GET"),
-      query(GetUserPhotosQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.activity.userPhotos" }),
+      RequestTransformer.setMethod("GET"),
+      UrlTransformer.appendQuery(GetUserPhotosQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.activity.userPhotos" }),
     ],
   };
 };

@@ -47,12 +47,12 @@ async function generateApi(data: Schema) {
 
   sourceFile.addImportDeclaration({
     moduleSpecifier: "@zemd/http-client",
-    namedImports: ["createEndpoint", "query", "body", "method", "pathSegment", "prefix", "json"],
+    namedImports: ["Fetcher", "RequestTransformer", "UrlTransformer"],
   });
 
   sourceFile.addImportDeclaration({
     moduleSpecifier: "@zemd/http-client",
-    namedImports: ["TFetchTransformer"],
+    namedImports: ["HttpClient"],
     isTypeOnly: true,
   });
 
@@ -124,7 +124,10 @@ async function generateApi(data: Schema) {
           }) ?? [];
 
       const pathTemplate = pathParams.reduce((acc, param) => {
-        return acc.replace(`{${param.origName}}`, `\${pathSegment(${param.name})}`);
+        return acc.replace(
+          `{${param.origName}}`,
+          `\${UrlTransformer.encodePathSegment(${param.name})}`,
+        );
       }, path);
 
       let queryParams = null;
@@ -177,11 +180,11 @@ async function generateApi(data: Schema) {
       {
         name: "figma",
         initializer: (writer) => {
-          writer.write(`(initialTransformers: TFetchTransformer[]) => {`).indent();
+          writer.write(`(initialTransformers: HttpClient.Transformer[]) => {`).indent();
 
           writer
             .write(
-              `const endpoint = createEndpoint([prefix("${apiServerUrl}"), json(), ...initialTransformers]);`,
+              `const fetcher = Fetcher.make([UrlTransformer.prependPath("${apiServerUrl}"), RequestTransformer.jsonContentType(), ...initialTransformers]);`,
             )
             .newLine();
 
@@ -210,9 +213,11 @@ async function generateApi(data: Schema) {
                       !!operation.queryParams && !operation.queryParams.required;
 
                     let requiredTransformers = [
-                      `method("${operation.method.toUpperCase()}")`,
-                      operation.bodyParams && `body(JSON.stringify(obj))`,
-                      operation.queryParams && operation.queryParams.required && `query(options)`,
+                      `RequestTransformer.setMethod("${operation.method.toUpperCase()}")`,
+                      operation.bodyParams && `RequestTransformer.setBody(JSON.stringify(obj))`,
+                      operation.queryParams &&
+                        operation.queryParams.required &&
+                        `UrlTransformer.appendQuery(options)`,
                     ]
                       .filter(Boolean)
                       .join(",");
@@ -223,13 +228,15 @@ async function generateApi(data: Schema) {
                       if (queryIsOptional) {
                         writer.write(`const transformers = ${requiredTransformers};`).indent();
                         writer
-                          .write(`if (options) { transformers.push(query(options)); }`)
+                          .write(
+                            `if (options) { transformers.push(UrlTransformer.appendQuery(options)); }`,
+                          )
                           .indent();
                         requiredTransformers = "transformers";
                       }
                       writer
                         .write(
-                          `return endpoint<${operation.returnType}>(\`${operation.pathTemplate}\`, ${requiredTransformers})`,
+                          `return fetcher<${operation.returnType}>(\`${operation.pathTemplate}\`, ${requiredTransformers})`,
                         )
                         .indent();
                     });

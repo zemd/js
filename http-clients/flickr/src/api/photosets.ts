@@ -1,4 +1,4 @@
-import { method, query } from "@zemd/http-client";
+import { RequestTransformer, UrlTransformer } from "@zemd/http-client";
 import { z } from "zod";
 
 const PRIVACY_FILTER_PUBLIC_PHOTOS = "1";
@@ -62,9 +62,9 @@ export const getPhotos = (params: GetPhotosQuery) => {
   return {
     url: `/`,
     transformers: [
-      method("GET"),
-      query(GetPhotosQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.getPhotos" }),
+      RequestTransformer.setMethod("GET"),
+      UrlTransformer.appendQuery(GetPhotosQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.getPhotos" }),
     ],
   };
 };
@@ -83,9 +83,9 @@ export const addPhoto = (params: AddPhotoQuery) => {
   return {
     url: `/`,
     transformers: [
-      method("GET"),
-      query(AddPhotoQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.addPhoto" }),
+      RequestTransformer.setMethod("GET"),
+      UrlTransformer.appendQuery(AddPhotoQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.addPhoto" }),
     ],
   };
 };
@@ -112,9 +112,9 @@ export const createPhotoset = (params: CreateQuery) => {
   return {
     url: "/",
     transformers: [
-      method("GET"),
-      query(CreatePhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.create" }),
+      RequestTransformer.setMethod("GET"),
+      UrlTransformer.appendQuery(CreatePhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.create" }),
     ],
   };
 };
@@ -134,9 +134,9 @@ export const deletePhotoset = (params: DeletePhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("GET"),
-      query(DeletePhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.delete" }),
+      RequestTransformer.setMethod("GET"),
+      UrlTransformer.appendQuery(DeletePhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.delete" }),
     ],
   };
 };
@@ -156,9 +156,9 @@ export const editMeta = (params: EditMetaPhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("POST"),
-      query(EditMetaPhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.editMeta" }),
+      RequestTransformer.setMethod("POST"),
+      UrlTransformer.appendQuery(EditMetaPhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.editMeta" }),
     ],
   };
 };
@@ -188,9 +188,9 @@ export const editPhotos = (params: EditPhotosPhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("POST"),
-      query(EditPhotosPhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.editPhotos" }),
+      RequestTransformer.setMethod("POST"),
+      UrlTransformer.appendQuery(EditPhotosPhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.editPhotos" }),
     ],
   };
 };
@@ -211,9 +211,9 @@ export const getContext = (params: GetContextPhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("GET"),
-      query(GetContextPhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.getContext" }),
+      RequestTransformer.setMethod("GET"),
+      UrlTransformer.appendQuery(GetContextPhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.getContext" }),
     ],
   };
 };
@@ -232,9 +232,9 @@ export const getInfo = (params: GetInfoPhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("GET"),
-      query(GetInfoPhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.getInfo" }),
+      RequestTransformer.setMethod("GET"),
+      UrlTransformer.appendQuery(GetInfoPhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.getInfo" }),
     ],
   };
 };
@@ -291,9 +291,9 @@ export const getList = (params: GetListPhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("GET"),
-      query(GetListPhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.getList" }),
+      RequestTransformer.setMethod("GET"),
+      UrlTransformer.appendQuery(GetListPhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.getList" }),
     ],
   };
 };
@@ -315,9 +315,9 @@ export const orderSets = (params: OrderSetsPhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("POST"),
-      query(OrderSetsPhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.orderSets" }),
+      RequestTransformer.setMethod("POST"),
+      UrlTransformer.appendQuery(OrderSetsPhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.orderSets" }),
     ],
   };
 };
@@ -336,9 +336,9 @@ export const removePhoto = (params: RemovePhotoPhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("POST"),
-      query(RemovePhotoPhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.removePhoto" }),
+      RequestTransformer.setMethod("POST"),
+      UrlTransformer.appendQuery(RemovePhotoPhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.removePhoto" }),
     ],
   };
 };
@@ -359,9 +359,9 @@ export const removePhotos = (params: RemovePhotosPhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("POST"),
-      query(RemovePhotosPhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.removePhotos" }),
+      RequestTransformer.setMethod("POST"),
+      UrlTransformer.appendQuery(RemovePhotosPhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.removePhotos" }),
     ],
   };
 };
@@ -385,9 +385,9 @@ export const reorderPhotos = (params: ReorderPhotosPhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("POST"),
-      query(ReorderPhotosPhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.reorderPhotos" }),
+      RequestTransformer.setMethod("POST"),
+      UrlTransformer.appendQuery(ReorderPhotosPhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.reorderPhotos" }),
     ],
   };
 };
@@ -405,9 +405,9 @@ export const setPrimaryPhoto = (params: SetPrimaryPhotoPhotosetQuery) => {
   return {
     url: "/",
     transformers: [
-      method("POST"),
-      query(SetPrimaryPhotoPhotosetQuerySchema.passthrough().parse(params)),
-      query({ method: "flickr.photosets.setPrimaryPhoto" }),
+      RequestTransformer.setMethod("POST"),
+      UrlTransformer.appendQuery(SetPrimaryPhotoPhotosetQuerySchema.passthrough().parse(params)),
+      UrlTransformer.appendQuery({ method: "flickr.photosets.setPrimaryPhoto" }),
     ],
   };
 };

@@ -130,54 +130,59 @@ import type {
   PutWebhookRequestBody,
   PutWebhookResponse,
 } from "@figma/rest-api-spec";
-import type { TFetchTransformer } from "@zemd/http-client";
-import { body, createEndpoint, json, method, pathSegment, prefix, query } from "@zemd/http-client";
+import type { HttpClient } from "@zemd/http-client";
+import { Fetcher, RequestTransformer, UrlTransformer } from "@zemd/http-client";
 
-export const figma = (initialTransformers: TFetchTransformer[]) => {
-  const endpoint = createEndpoint([
-    prefix("https://api.figma.com"),
-    json(),
+export const figma = (initialTransformers: HttpClient.Transformer[]) => {
+  const fetcher = Fetcher.make([
+    UrlTransformer.prependPath("https://api.figma.com"),
+    RequestTransformer.jsonContentType(),
     ...initialTransformers,
   ]);
   return {
     v1: {
       files: {
         getFile: async (fileKey: GetFilePathParams["file_key"], options?: GetFileQueryParams) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetFileResponse>(`/v1/files/${pathSegment(fileKey)}`, transformers);
+          return fetcher<GetFileResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}`,
+            transformers,
+          );
         },
         getFileNodes: async (
           fileKey: GetFileNodesPathParams["file_key"],
           options: GetFileNodesQueryParams,
         ) => {
-          return endpoint<GetFileNodesResponse>(`/v1/files/${pathSegment(fileKey)}/nodes`, [
-            method("GET"),
-            query(options),
-          ]);
+          return fetcher<GetFileNodesResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/nodes`,
+            [RequestTransformer.setMethod("GET"), UrlTransformer.appendQuery(options)],
+          );
         },
         getImageFills: async (fileKey: GetImageFillsPathParams["file_key"]) => {
-          return endpoint<GetImageFillsResponse>(`/v1/files/${pathSegment(fileKey)}/images`, [
-            method("GET"),
-          ]);
+          return fetcher<GetImageFillsResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/images`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
         getFileMeta: async (fileKey: GetFileMetaPathParams["file_key"]) => {
-          return endpoint<GetFileMetaResponse>(`/v1/files/${pathSegment(fileKey)}/meta`, [
-            method("GET"),
-          ]);
+          return fetcher<GetFileMetaResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/meta`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
         getFileVersions: async (
           fileKey: GetFileVersionsPathParams["file_key"],
           options?: GetFileVersionsQueryParams,
         ) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetFileVersionsResponse>(
-            `/v1/files/${pathSegment(fileKey)}/versions`,
+          return fetcher<GetFileVersionsResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/versions`,
             transformers,
           );
         },
@@ -185,12 +190,12 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
           fileKey: GetCommentsPathParams["file_key"],
           options?: GetCommentsQueryParams,
         ) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetCommentsResponse>(
-            `/v1/files/${pathSegment(fileKey)}/comments`,
+          return fetcher<GetCommentsResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/comments`,
             transformers,
           );
         },
@@ -198,18 +203,18 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
           fileKey: PostCommentPathParams["file_key"],
           obj: PostCommentRequestBody,
         ) => {
-          return endpoint<PostCommentResponse>(`/v1/files/${pathSegment(fileKey)}/comments`, [
-            method("POST"),
-            body(JSON.stringify(obj)),
-          ]);
+          return fetcher<PostCommentResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/comments`,
+            [RequestTransformer.setMethod("POST"), RequestTransformer.setBody(JSON.stringify(obj))],
+          );
         },
         deleteComment: async (
           fileKey: DeleteCommentPathParams["file_key"],
           commentId: DeleteCommentPathParams["comment_id"],
         ) => {
-          return endpoint<DeleteCommentResponse>(
-            `/v1/files/${pathSegment(fileKey)}/comments/${pathSegment(commentId)}`,
-            [method("DELETE")],
+          return fetcher<DeleteCommentResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/comments/${UrlTransformer.encodePathSegment(commentId)}`,
+            [RequestTransformer.setMethod("DELETE")],
           );
         },
         getCommentReactions: async (
@@ -217,12 +222,12 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
           commentId: GetCommentReactionsPathParams["comment_id"],
           options?: GetCommentReactionsQueryParams,
         ) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetCommentReactionsResponse>(
-            `/v1/files/${pathSegment(fileKey)}/comments/${pathSegment(commentId)}/reactions`,
+          return fetcher<GetCommentReactionsResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/comments/${UrlTransformer.encodePathSegment(commentId)}/reactions`,
             transformers,
           );
         },
@@ -231,9 +236,9 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
           commentId: PostCommentReactionPathParams["comment_id"],
           obj: PostCommentReactionRequestBody,
         ) => {
-          return endpoint<PostCommentReactionResponse>(
-            `/v1/files/${pathSegment(fileKey)}/comments/${pathSegment(commentId)}/reactions`,
-            [method("POST"), body(JSON.stringify(obj))],
+          return fetcher<PostCommentReactionResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/comments/${UrlTransformer.encodePathSegment(commentId)}/reactions`,
+            [RequestTransformer.setMethod("POST"), RequestTransformer.setBody(JSON.stringify(obj))],
           );
         },
         deleteCommentReaction: async (
@@ -241,59 +246,60 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
           commentId: DeleteCommentReactionPathParams["comment_id"],
           options: DeleteCommentReactionQueryParams,
         ) => {
-          return endpoint<DeleteCommentReactionResponse>(
-            `/v1/files/${pathSegment(fileKey)}/comments/${pathSegment(commentId)}/reactions`,
-            [method("DELETE"), query(options)],
+          return fetcher<DeleteCommentReactionResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/comments/${UrlTransformer.encodePathSegment(commentId)}/reactions`,
+            [RequestTransformer.setMethod("DELETE"), UrlTransformer.appendQuery(options)],
           );
         },
         getFileComponents: async (fileKey: GetFileComponentsPathParams["file_key"]) => {
-          return endpoint<GetFileComponentsResponse>(
-            `/v1/files/${pathSegment(fileKey)}/components`,
-            [method("GET")],
+          return fetcher<GetFileComponentsResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/components`,
+            [RequestTransformer.setMethod("GET")],
           );
         },
         getFileComponentSets: async (fileKey: GetFileComponentSetsPathParams["file_key"]) => {
-          return endpoint<GetFileComponentSetsResponse>(
-            `/v1/files/${pathSegment(fileKey)}/component_sets`,
-            [method("GET")],
+          return fetcher<GetFileComponentSetsResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/component_sets`,
+            [RequestTransformer.setMethod("GET")],
           );
         },
         getFileStyles: async (fileKey: GetFileStylesPathParams["file_key"]) => {
-          return endpoint<GetFileStylesResponse>(`/v1/files/${pathSegment(fileKey)}/styles`, [
-            method("GET"),
-          ]);
+          return fetcher<GetFileStylesResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/styles`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
         getLocalVariables: async (fileKey: GetLocalVariablesPathParams["file_key"]) => {
-          return endpoint<GetLocalVariablesResponse>(
-            `/v1/files/${pathSegment(fileKey)}/variables/local`,
-            [method("GET")],
+          return fetcher<GetLocalVariablesResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/variables/local`,
+            [RequestTransformer.setMethod("GET")],
           );
         },
         getPublishedVariables: async (fileKey: GetPublishedVariablesPathParams["file_key"]) => {
-          return endpoint<GetPublishedVariablesResponse>(
-            `/v1/files/${pathSegment(fileKey)}/variables/published`,
-            [method("GET")],
+          return fetcher<GetPublishedVariablesResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/variables/published`,
+            [RequestTransformer.setMethod("GET")],
           );
         },
         postVariables: async (
           fileKey: PostVariablesPathParams["file_key"],
           obj: PostVariablesRequestBody,
         ) => {
-          return endpoint<PostVariablesResponse>(`/v1/files/${pathSegment(fileKey)}/variables`, [
-            method("POST"),
-            body(JSON.stringify(obj)),
-          ]);
+          return fetcher<PostVariablesResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/variables`,
+            [RequestTransformer.setMethod("POST"), RequestTransformer.setBody(JSON.stringify(obj))],
+          );
         },
         getDevResources: async (
           fileKey: GetDevResourcesPathParams["file_key"],
           options?: GetDevResourcesQueryParams,
         ) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetDevResourcesResponse>(
-            `/v1/files/${pathSegment(fileKey)}/dev_resources`,
+          return fetcher<GetDevResourcesResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/dev_resources`,
             transformers,
           );
         },
@@ -301,9 +307,9 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
           fileKey: DeleteDevResourcePathParams["file_key"],
           devResourceId: DeleteDevResourcePathParams["dev_resource_id"],
         ) => {
-          return endpoint<DeleteDevResourceResponse>(
-            `/v1/files/${pathSegment(fileKey)}/dev_resources/${pathSegment(devResourceId)}`,
-            [method("DELETE")],
+          return fetcher<DeleteDevResourceResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/dev_resources/${UrlTransformer.encodePathSegment(devResourceId)}`,
+            [RequestTransformer.setMethod("DELETE")],
           );
         },
       },
@@ -312,28 +318,29 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
           fileKey: GetImagesPathParams["file_key"],
           options: GetImagesQueryParams,
         ) => {
-          return endpoint<GetImagesResponse>(`/v1/images/${pathSegment(fileKey)}`, [
-            method("GET"),
-            query(options),
-          ]);
+          return fetcher<GetImagesResponse>(
+            `/v1/images/${UrlTransformer.encodePathSegment(fileKey)}`,
+            [RequestTransformer.setMethod("GET"), UrlTransformer.appendQuery(options)],
+          );
         },
       },
       teams: {
         getTeamProjects: async (teamId: GetTeamProjectsPathParams["team_id"]) => {
-          return endpoint<GetTeamProjectsResponse>(`/v1/teams/${pathSegment(teamId)}/projects`, [
-            method("GET"),
-          ]);
+          return fetcher<GetTeamProjectsResponse>(
+            `/v1/teams/${UrlTransformer.encodePathSegment(teamId)}/projects`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
         getTeamComponents: async (
           teamId: GetTeamComponentsPathParams["team_id"],
           options?: GetTeamComponentsQueryParams,
         ) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetTeamComponentsResponse>(
-            `/v1/teams/${pathSegment(teamId)}/components`,
+          return fetcher<GetTeamComponentsResponse>(
+            `/v1/teams/${UrlTransformer.encodePathSegment(teamId)}/components`,
             transformers,
           );
         },
@@ -341,12 +348,12 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
           teamId: GetTeamComponentSetsPathParams["team_id"],
           options?: GetTeamComponentSetsQueryParams,
         ) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetTeamComponentSetsResponse>(
-            `/v1/teams/${pathSegment(teamId)}/component_sets`,
+          return fetcher<GetTeamComponentSetsResponse>(
+            `/v1/teams/${UrlTransformer.encodePathSegment(teamId)}/component_sets`,
             transformers,
           );
         },
@@ -354,105 +361,110 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
           teamId: GetTeamStylesPathParams["team_id"],
           options?: GetTeamStylesQueryParams,
         ) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetTeamStylesResponse>(
-            `/v1/teams/${pathSegment(teamId)}/styles`,
+          return fetcher<GetTeamStylesResponse>(
+            `/v1/teams/${UrlTransformer.encodePathSegment(teamId)}/styles`,
             transformers,
           );
         },
       },
       projects: {
         getProjectMeta: async (projectId: GetProjectMetaPathParams["project_id"]) => {
-          return endpoint<GetProjectMetaResponse>(`/v1/projects/${pathSegment(projectId)}/meta`, [
-            method("GET"),
-          ]);
+          return fetcher<GetProjectMetaResponse>(
+            `/v1/projects/${UrlTransformer.encodePathSegment(projectId)}/meta`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
         getProjectFiles: async (
           projectId: GetProjectFilesPathParams["project_id"],
           options?: GetProjectFilesQueryParams,
         ) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetProjectFilesResponse>(
-            `/v1/projects/${pathSegment(projectId)}/files`,
+          return fetcher<GetProjectFilesResponse>(
+            `/v1/projects/${UrlTransformer.encodePathSegment(projectId)}/files`,
             transformers,
           );
         },
       },
       me: {
         getMe: async () => {
-          return endpoint<GetMeResponse>(`/v1/me`, [method("GET")]);
+          return fetcher<GetMeResponse>(`/v1/me`, [RequestTransformer.setMethod("GET")]);
         },
       },
       components: {
         getComponent: async (key: GetComponentPathParams["key"]) => {
-          return endpoint<GetComponentResponse>(`/v1/components/${pathSegment(key)}`, [
-            method("GET"),
-          ]);
+          return fetcher<GetComponentResponse>(
+            `/v1/components/${UrlTransformer.encodePathSegment(key)}`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
       },
       component_sets: {
         getComponentSet: async (key: GetComponentSetPathParams["key"]) => {
-          return endpoint<GetComponentSetResponse>(`/v1/component_sets/${pathSegment(key)}`, [
-            method("GET"),
-          ]);
+          return fetcher<GetComponentSetResponse>(
+            `/v1/component_sets/${UrlTransformer.encodePathSegment(key)}`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
       },
       styles: {
         getStyle: async (key: GetStylePathParams["key"]) => {
-          return endpoint<GetStyleResponse>(`/v1/styles/${pathSegment(key)}`, [method("GET")]);
+          return fetcher<GetStyleResponse>(`/v1/styles/${UrlTransformer.encodePathSegment(key)}`, [
+            RequestTransformer.setMethod("GET"),
+          ]);
         },
       },
       activity_logs: {
         getActivityLogs: async (options?: GetActivityLogsQueryParams) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetActivityLogsResponse>(`/v1/activity_logs`, transformers);
+          return fetcher<GetActivityLogsResponse>(`/v1/activity_logs`, transformers);
         },
       },
       developer_logs: {
         getDeveloperLogs: async (obj: GetDeveloperLogsRequestBody) => {
-          return endpoint<PostDeveloperLogsResponse>(`/v1/developer_logs`, [
-            method("POST"),
-            body(JSON.stringify(obj)),
+          return fetcher<PostDeveloperLogsResponse>(`/v1/developer_logs`, [
+            RequestTransformer.setMethod("POST"),
+            RequestTransformer.setBody(JSON.stringify(obj)),
           ]);
         },
       },
       ai_usage: {
         getAiUsageDaily: async (options: GetAiUsageDailyQueryParams) => {
-          return endpoint<GetAiUsageDailyResponse>(`/v1/ai_usage/daily`, [
-            method("GET"),
-            query(options),
+          return fetcher<GetAiUsageDailyResponse>(`/v1/ai_usage/daily`, [
+            RequestTransformer.setMethod("GET"),
+            UrlTransformer.appendQuery(options),
           ]);
         },
       },
       payments: {
         getPayments: async (options?: GetPaymentsQueryParams) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetPaymentsResponse>(`/v1/payments`, transformers);
+          return fetcher<GetPaymentsResponse>(`/v1/payments`, transformers);
         },
       },
       dev_resources: {
         postDevResources: async (obj: PostDevResourcesRequestBody) => {
-          return endpoint<PostDevResourcesResponse>(`/v1/dev_resources`, [
-            method("POST"),
-            body(JSON.stringify(obj)),
+          return fetcher<PostDevResourcesResponse>(`/v1/dev_resources`, [
+            RequestTransformer.setMethod("POST"),
+            RequestTransformer.setBody(JSON.stringify(obj)),
           ]);
         },
         putDevResources: async (obj: PutDevResourcesRequestBody) => {
-          return endpoint<PutDevResourcesResponse>(`/v1/dev_resources`, [
-            method("PUT"),
-            body(JSON.stringify(obj)),
+          return fetcher<PutDevResourcesResponse>(`/v1/dev_resources`, [
+            RequestTransformer.setMethod("PUT"),
+            RequestTransformer.setBody(JSON.stringify(obj)),
           ]);
         },
       },
@@ -461,139 +473,147 @@ export const figma = (initialTransformers: TFetchTransformer[]) => {
           fileKey: GetLibraryAnalyticsComponentActionsPathParams["file_key"],
           options: GetLibraryAnalyticsComponentActionsQueryParams,
         ) => {
-          return endpoint<GetLibraryAnalyticsComponentActionsResponse>(
-            `/v1/analytics/libraries/${pathSegment(fileKey)}/component/actions`,
-            [method("GET"), query(options)],
+          return fetcher<GetLibraryAnalyticsComponentActionsResponse>(
+            `/v1/analytics/libraries/${UrlTransformer.encodePathSegment(fileKey)}/component/actions`,
+            [RequestTransformer.setMethod("GET"), UrlTransformer.appendQuery(options)],
           );
         },
         getLibraryAnalyticsComponentUsages: async (
           fileKey: GetLibraryAnalyticsComponentUsagesPathParams["file_key"],
           options: GetLibraryAnalyticsComponentUsagesQueryParams,
         ) => {
-          return endpoint<GetLibraryAnalyticsComponentUsagesResponse>(
-            `/v1/analytics/libraries/${pathSegment(fileKey)}/component/usages`,
-            [method("GET"), query(options)],
+          return fetcher<GetLibraryAnalyticsComponentUsagesResponse>(
+            `/v1/analytics/libraries/${UrlTransformer.encodePathSegment(fileKey)}/component/usages`,
+            [RequestTransformer.setMethod("GET"), UrlTransformer.appendQuery(options)],
           );
         },
         getLibraryAnalyticsStyleActions: async (
           fileKey: GetLibraryAnalyticsStyleActionsPathParams["file_key"],
           options: GetLibraryAnalyticsStyleActionsQueryParams,
         ) => {
-          return endpoint<GetLibraryAnalyticsStyleActionsResponse>(
-            `/v1/analytics/libraries/${pathSegment(fileKey)}/style/actions`,
-            [method("GET"), query(options)],
+          return fetcher<GetLibraryAnalyticsStyleActionsResponse>(
+            `/v1/analytics/libraries/${UrlTransformer.encodePathSegment(fileKey)}/style/actions`,
+            [RequestTransformer.setMethod("GET"), UrlTransformer.appendQuery(options)],
           );
         },
         getLibraryAnalyticsStyleUsages: async (
           fileKey: GetLibraryAnalyticsStyleUsagesPathParams["file_key"],
           options: GetLibraryAnalyticsStyleUsagesQueryParams,
         ) => {
-          return endpoint<GetLibraryAnalyticsStyleUsagesResponse>(
-            `/v1/analytics/libraries/${pathSegment(fileKey)}/style/usages`,
-            [method("GET"), query(options)],
+          return fetcher<GetLibraryAnalyticsStyleUsagesResponse>(
+            `/v1/analytics/libraries/${UrlTransformer.encodePathSegment(fileKey)}/style/usages`,
+            [RequestTransformer.setMethod("GET"), UrlTransformer.appendQuery(options)],
           );
         },
         getLibraryAnalyticsVariableActions: async (
           fileKey: GetLibraryAnalyticsVariableActionsPathParams["file_key"],
           options: GetLibraryAnalyticsVariableActionsQueryParams,
         ) => {
-          return endpoint<GetLibraryAnalyticsVariableActionsResponse>(
-            `/v1/analytics/libraries/${pathSegment(fileKey)}/variable/actions`,
-            [method("GET"), query(options)],
+          return fetcher<GetLibraryAnalyticsVariableActionsResponse>(
+            `/v1/analytics/libraries/${UrlTransformer.encodePathSegment(fileKey)}/variable/actions`,
+            [RequestTransformer.setMethod("GET"), UrlTransformer.appendQuery(options)],
           );
         },
         getLibraryAnalyticsVariableUsages: async (
           fileKey: GetLibraryAnalyticsVariableUsagesPathParams["file_key"],
           options: GetLibraryAnalyticsVariableUsagesQueryParams,
         ) => {
-          return endpoint<GetLibraryAnalyticsVariableUsagesResponse>(
-            `/v1/analytics/libraries/${pathSegment(fileKey)}/variable/usages`,
-            [method("GET"), query(options)],
+          return fetcher<GetLibraryAnalyticsVariableUsagesResponse>(
+            `/v1/analytics/libraries/${UrlTransformer.encodePathSegment(fileKey)}/variable/usages`,
+            [RequestTransformer.setMethod("GET"), UrlTransformer.appendQuery(options)],
           );
         },
       },
       oembed: {
         getOEmbed: async (options: GetOEmbedQueryParams) => {
-          return endpoint<GetOEmbedResponse>(`/v1/oembed`, [method("GET"), query(options)]);
+          return fetcher<GetOEmbedResponse>(`/v1/oembed`, [
+            RequestTransformer.setMethod("GET"),
+            UrlTransformer.appendQuery(options),
+          ]);
         },
       },
     },
     v2: {
       teams: {
         getTeamFolders: async (teamId: GetTeamFoldersPathParams["team_id"]) => {
-          return endpoint<GetTeamFoldersResponse>(`/v2/teams/${pathSegment(teamId)}/folders`, [
-            method("GET"),
-          ]);
+          return fetcher<GetTeamFoldersResponse>(
+            `/v2/teams/${UrlTransformer.encodePathSegment(teamId)}/folders`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
         getTeamWebhooks: async (teamId: GetTeamWebhooksPathParams["team_id"]) => {
-          return endpoint<GetTeamWebhooksResponse>(`/v2/teams/${pathSegment(teamId)}/webhooks`, [
-            method("GET"),
-          ]);
+          return fetcher<GetTeamWebhooksResponse>(
+            `/v2/teams/${UrlTransformer.encodePathSegment(teamId)}/webhooks`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
       },
       folders: {
         getFolderFolders: async (folderId: GetFolderFoldersPathParams["folder_id"]) => {
-          return endpoint<GetFolderFoldersResponse>(
-            `/v2/folders/${pathSegment(folderId)}/folders`,
-            [method("GET")],
+          return fetcher<GetFolderFoldersResponse>(
+            `/v2/folders/${UrlTransformer.encodePathSegment(folderId)}/folders`,
+            [RequestTransformer.setMethod("GET")],
           );
         },
         getFolderFiles: async (
           folderId: GetFolderFilesPathParams["folder_id"],
           options?: GetFolderFilesQueryParams,
         ) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetFolderFilesResponse>(
-            `/v2/folders/${pathSegment(folderId)}/files`,
+          return fetcher<GetFolderFilesResponse>(
+            `/v2/folders/${UrlTransformer.encodePathSegment(folderId)}/files`,
             transformers,
           );
         },
         getFolderMeta: async (folderId: GetFolderMetaPathParams["folder_id"]) => {
-          return endpoint<GetFolderMetaResponse>(`/v2/folders/${pathSegment(folderId)}/meta`, [
-            method("GET"),
-          ]);
+          return fetcher<GetFolderMetaResponse>(
+            `/v2/folders/${UrlTransformer.encodePathSegment(folderId)}/meta`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
       },
       webhooks: {
         getWebhooks: async (options?: GetWebhooksQueryParams) => {
-          const transformers = [method("GET")];
+          const transformers = [RequestTransformer.setMethod("GET")];
           if (options) {
-            transformers.push(query(options));
+            transformers.push(UrlTransformer.appendQuery(options));
           }
-          return endpoint<GetWebhooksResponse>(`/v2/webhooks`, transformers);
+          return fetcher<GetWebhooksResponse>(`/v2/webhooks`, transformers);
         },
         postWebhook: async (obj: PostWebhookRequestBody) => {
-          return endpoint<PostWebhookResponse>(`/v2/webhooks`, [
-            method("POST"),
-            body(JSON.stringify(obj)),
+          return fetcher<PostWebhookResponse>(`/v2/webhooks`, [
+            RequestTransformer.setMethod("POST"),
+            RequestTransformer.setBody(JSON.stringify(obj)),
           ]);
         },
         getWebhook: async (webhookId: GetWebhookPathParams["webhook_id"]) => {
-          return endpoint<GetWebhookResponse>(`/v2/webhooks/${pathSegment(webhookId)}`, [
-            method("GET"),
-          ]);
+          return fetcher<GetWebhookResponse>(
+            `/v2/webhooks/${UrlTransformer.encodePathSegment(webhookId)}`,
+            [RequestTransformer.setMethod("GET")],
+          );
         },
         putWebhook: async (
           webhookId: PutWebhookPathParams["webhook_id"],
           obj: PutWebhookRequestBody,
         ) => {
-          return endpoint<PutWebhookResponse>(`/v2/webhooks/${pathSegment(webhookId)}`, [
-            method("PUT"),
-            body(JSON.stringify(obj)),
-          ]);
+          return fetcher<PutWebhookResponse>(
+            `/v2/webhooks/${UrlTransformer.encodePathSegment(webhookId)}`,
+            [RequestTransformer.setMethod("PUT"), RequestTransformer.setBody(JSON.stringify(obj))],
+          );
         },
         deleteWebhook: async (webhookId: DeleteWebhookPathParams["webhook_id"]) => {
-          return endpoint<DeleteWebhookResponse>(`/v2/webhooks/${pathSegment(webhookId)}`, [
-            method("DELETE"),
-          ]);
+          return fetcher<DeleteWebhookResponse>(
+            `/v2/webhooks/${UrlTransformer.encodePathSegment(webhookId)}`,
+            [RequestTransformer.setMethod("DELETE")],
+          );
         },
         getWebhookRequests: async (webhookId: GetWebhookRequestsPathParams["webhook_id"]) => {
-          return endpoint<GetWebhookRequestsResponse>(
-            `/v2/webhooks/${pathSegment(webhookId)}/requests`,
-            [method("GET")],
+          return fetcher<GetWebhookRequestsResponse>(
+            `/v2/webhooks/${UrlTransformer.encodePathSegment(webhookId)}/requests`,
+            [RequestTransformer.setMethod("GET")],
           );
         },
       },

