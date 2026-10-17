@@ -17,9 +17,9 @@ void describe("package contract", () => {
       await readFile(new URL("../package.json", import.meta.url), "utf8"),
     ) as Record<string, unknown>;
 
-    assert.deepStrictEqual(packageJson["engines"], { node: ">=20" });
+    assert.deepStrictEqual(packageJson["engines"], { node: ">=22.12.0" });
     assert.deepStrictEqual(packageJson["peerDependencies"], {
-      "@nestjs/common": "^11.0.0",
+      "@nestjs/common": "^12.1.2",
       pino: "^10.0.0",
       "pino-pretty": "^13.0.0",
     });

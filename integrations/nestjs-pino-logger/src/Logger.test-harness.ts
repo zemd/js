@@ -1,6 +1,8 @@
 import type { Logger as PinoLogger } from "pino";
+import { ConsoleLogger, type LogLevel } from "@nestjs/common";
 
 import { Logger, type NestLogLevel } from "@zemd/nestjs-pino-logger";
+import type { ParsedNestLogCall } from "./nest-log-call.ts";
 
 export type PinoLogLevel = "debug" | "error" | "fatal" | "info" | "trace" | "warn";
 
@@ -18,6 +20,45 @@ export const LOG_LEVELS: readonly NestLogLevel[] = [
   "verbose",
   "warn",
 ];
+
+/** Capture the arguments produced by the installed NestJS public logging methods. */
+export class ConsoleLoggerParser extends ConsoleLogger {
+  private parsedCall: ParsedNestLogCall = {
+    context: undefined,
+    messages: [],
+    params: undefined,
+    stack: undefined,
+  };
+
+  constructor() {
+    super({ logLevels: [...LOG_LEVELS] });
+  }
+
+  parseCall(
+    level: LogLevel,
+    message: unknown,
+    optionalParameters: readonly unknown[],
+  ): ParsedNestLogCall {
+    this[level](message, ...optionalParameters);
+    return this.parsedCall;
+  }
+
+  protected override printMessages(
+    messages: unknown[],
+    context?: string,
+    _logLevel?: LogLevel,
+    _writeStreamType?: "stdout" | "stderr",
+    errorStack?: unknown,
+    params?: Record<string, unknown>,
+  ): void {
+    this.parsedCall = {
+      context,
+      messages,
+      params,
+      stack: typeof errorStack === "string" ? errorStack : undefined,
+    };
+  }
+}
 
 export const PINO_LEVEL_BY_NEST_LEVEL: Readonly<Record<NestLogLevel, PinoLogLevel>> = {
   debug: "debug",

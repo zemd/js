@@ -3,15 +3,16 @@
 [![npm](https://img.shields.io/npm/v/@zemd/nestjs-pino-logger?color=0000ff&label=npm&labelColor=000)](https://npmjs.com/package/@zemd/nestjs-pino-logger)
 
 `@zemd/nestjs-pino-logger` provides an ESM-only NestJS `LoggerService` backed
-by Pino. It requires Node.js 20 or newer and uses Pino's standard levels:
+by Pino. It requires NestJS `^12.1.2`, Node.js 22.12 or newer, and Pino 10.
+It uses Pino's standard levels:
 `fatal`, `error`, `warn`, `info`, `debug`, and `trace`.
 
 ## Installation
 
 ```bash
-pnpm add @zemd/nestjs-pino-logger @nestjs/common pino
+pnpm add @zemd/nestjs-pino-logger @nestjs/common@^12.1.2 pino@^10
 # or
-npm install @zemd/nestjs-pino-logger @nestjs/common pino
+npm install @zemd/nestjs-pino-logger @nestjs/common@^12.1.2 pino@^10
 ```
 
 Install `pino-pretty` only when using the optional development transport:
@@ -57,9 +58,22 @@ await app.listen(3000);
 ```
 
 `LoggerModule.forRoot(options)` is available when configuration is synchronous.
-Logger calls follow NestJS `ConsoleLogger` parameter parsing: a trailing string
-is the context, `error` accepts the stack before the context, and every other
-optional value is emitted as a separate Pino record in its original order.
+Logger calls follow NestJS 12 `ConsoleLogger` parameter parsing: a trailing string
+is the context, and `error` and `fatal` accept a stack before the context or a
+trailing stack trace. Plain objects after the first message are merged into a
+`params` field on every emitted record; later objects override earlier keys.
+Other optional values are emitted as separate Pino records in their original order.
+
+```typescript
+logger.log("Handled request", { requestId: "01JABC" }, "Application");
+// One record with msg: "Handled request", params: { requestId: "01JABC" },
+// and context: "Application".
+```
+
+When migrating from NestJS 11, update consumers that expected optional objects
+to produce separate records, and include `params.*` paths in Pino redaction rules.
+The first message object and `buildPinoMessage().mergingObject` still supply
+top-level fields.
 
 Use `formatLogMessage` when several values should become one formatted message.
 It returns a string, so it works with this package and the default NestJS
@@ -115,6 +129,9 @@ export const loggerOptions: LoggerOptions = {
       "req.headers.authorization",
       "req.headers.cookie",
       'res.headers["set-cookie"]',
+      "params.password",
+      "params.token",
+      "params.credentials.token",
     ],
     remove: true,
   },
@@ -142,8 +159,8 @@ logger.log(message, "Application");
 
 The input object is not modified. Redaction applies to `mergingObject`; values
 placed directly in `message` or `interpolationValues` are intentionally part
-of the rendered message. Optional values passed after the structured message
-retain standard NestJS behavior and are emitted as separate records.
+of the rendered message. Plain objects passed after the structured message are
+merged under `params`; other optional values are emitted as separate records.
 
 ## HTTP logging
 

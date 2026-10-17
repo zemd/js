@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { Logger as NestLogger } from "@nestjs/common";
 
 import pino, { type Logger as PinoLogger } from "pino";
 
@@ -90,7 +91,7 @@ void describe("Logger", () => {
     const pinoInstance = pino(
       {
         level: "trace",
-        redact: ["password", "credentials.token"],
+        redact: ["password", "credentials.token", "params.password", "params.credentials.token"],
       },
       {
         write(message: string) {
@@ -115,14 +116,23 @@ void describe("Logger", () => {
       }),
       "Security",
     );
+    logger.log(
+      "login",
+      { password: "params-secret", credentials: { token: "params-token-secret" } },
+      "Security",
+    );
 
-    assert.strictEqual(output.length, 2);
+    assert.strictEqual(output.length, 3);
     const records = output.map((line) => {
       return JSON.parse(line) as Record<string, unknown>;
     });
     assert.strictEqual(records[0]?.["password"], "[Redacted]");
     assert.deepStrictEqual(records[0]?.["credentials"], { token: "[Redacted]" });
     assert.strictEqual(records[1]?.["password"], "[Redacted]");
+    assert.deepStrictEqual(records[2]?.["params"], {
+      password: "[Redacted]",
+      credentials: { token: "[Redacted]" },
+    });
     assert.ok(output.every((line) => !line.includes("secret")));
     assert.ok(records.every((record) => !Object.hasOwn(record, "formattedMsg")));
   });
@@ -172,17 +182,16 @@ void describe("Logger", () => {
     });
     assert.deepStrictEqual(calls[5], {
       arguments: [
-        { err: { message: "multi failure", stack: "multi stack", type: "Error" } },
+        {
+          params: details,
+          err: { message: "multi failure", stack: "multi stack", type: "Error" },
+        },
         "multi failure",
       ],
       bindings: { context: "Errors:multi" },
       level: "error",
     });
-    assert.deepStrictEqual(calls[6], {
-      arguments: [details],
-      bindings: { context: "Errors:multi" },
-      level: "error",
-    });
+    assert.strictEqual(calls.length, 6);
   });
 
   void it("preserves optional messages and combines them only through formatLogMessage", () => {
@@ -196,8 +205,7 @@ void describe("Logger", () => {
     assert.deepStrictEqual(childBindings, []);
     assert.deepStrictEqual(calls, [
       { arguments: ["contextless"], level: "info" },
-      { arguments: ["value: %j"], level: "info" },
-      { arguments: [value], level: "info" },
+      { arguments: [{ params: value }, "value: %j"], level: "info" },
       { arguments: ['value: {"id":42}'], level: "info" },
     ]);
   });
@@ -209,10 +217,107 @@ void describe("Logger", () => {
     logger.log("first", record, 42, "Ordered");
 
     assert.deepStrictEqual(calls, [
-      { arguments: ["first"], bindings: { context: "Ordered" }, level: "info" },
-      { arguments: [record], bindings: { context: "Ordered" }, level: "info" },
-      { arguments: ["42"], bindings: { context: "Ordered" }, level: "info" },
+      { arguments: [{ params: record }, "first"], bindings: { context: "Ordered" }, level: "info" },
+      { arguments: [{ params: record }, "42"], bindings: { context: "Ordered" }, level: "info" },
     ]);
+  });
+
+  void it("merges optional plain objects into params for every level without mutating them", () => {
+    const { calls, logger } = createLoggerHarness();
+    const first = Object.freeze({ requestId: "request-1", attempt: 1 });
+    const second = Object.freeze({ attempt: 2 });
+
+    for (const level of LOG_LEVELS) {
+      writeLog(logger, level, "processed", [first, second, "Worker"]);
+    }
+
+    assert.deepStrictEqual(
+      calls,
+      LOG_LEVELS.map((level) => ({
+        arguments: [{ params: { requestId: "request-1", attempt: 2 } }, "processed"],
+        bindings: { context: "Worker" },
+        level: PINO_LEVEL_BY_NEST_LEVEL[level],
+      })),
+    );
+    assert.deepStrictEqual(first, { requestId: "request-1", attempt: 1 });
+    assert.deepStrictEqual(second, { attempt: 2 });
+  });
+
+  void it("preserves params alongside objects, errors, and buildPinoMessage fields", () => {
+    const { calls, logger } = createLoggerHarness();
+    const params = { requestId: "request-1" };
+    const error = new Error("failed");
+
+    logger.log({ user: "alice" }, params);
+    logger.error(error, params);
+    logger.log(
+      buildPinoMessage({
+        message: "user %s",
+        interpolationValues: ["alice"],
+        mergingObject: { user: "alice" },
+      }),
+      params,
+    );
+
+    assert.deepStrictEqual(calls, [
+      { arguments: [{ user: "alice", params }], level: "info" },
+      { arguments: [{ err: error, params }, "failed"], level: "error" },
+      { arguments: [{ user: "alice", params }, "user alice"], level: "info" },
+    ]);
+  });
+
+  void it("keeps arrays and class instances as separate messages", () => {
+    const { calls, logger } = createLoggerHarness();
+    const array = [1, 2];
+    const date = new Date(0);
+    const error = new Error("failed");
+
+    logger.log("first", array, date, error);
+
+    assert.deepStrictEqual(calls, [
+      { arguments: ["first"], level: "info" },
+      { arguments: [array], level: "info" },
+      { arguments: [date], level: "info" },
+      { arguments: [{ err: error }, "failed"], level: "info" },
+    ]);
+  });
+
+  void it("parses error and fatal stacks with params, with or without a context", () => {
+    const stack = "Error: failed\n    at run (/workspace/job.ts:1:1)";
+    const params = { attempt: 2 };
+
+    for (const level of ["error", "fatal"] as const) {
+      const { calls, logger } = createLoggerHarness();
+      logger[level]("failed", params, stack);
+      logger[level]("failed", params, stack, "Worker");
+      logger[level]("failed", stack);
+
+      const err = { message: "failed", stack, type: "Error" };
+      assert.deepStrictEqual(calls, [
+        { arguments: [{ params, err }, "failed"], level },
+        { arguments: [{ params, err }, "failed"], bindings: { context: "Worker" }, level },
+        { arguments: [{ err }, "failed"], level },
+      ]);
+    }
+  });
+
+  void it("handles NestJS Logger delegation with its bound context", () => {
+    const { calls, logger } = createLoggerHarness();
+    const previousLogger = new NestLogger().localInstance;
+    NestLogger.overrideLogger(logger);
+    try {
+      const nestLogger = new NestLogger("Application");
+      nestLogger.log("started", { port: 3000 });
+      assert.deepStrictEqual(calls, [
+        {
+          arguments: [{ params: { port: 3000 } }, "started"],
+          bindings: { context: "Application" },
+          level: "info",
+        },
+      ]);
+    } finally {
+      NestLogger.overrideLogger(previousLogger);
+    }
   });
 
   void it("keeps a bounded, instance-local context cache", () => {

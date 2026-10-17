@@ -1,32 +1,10 @@
 import fc from "fast-check";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { runInNewContext } from "node:vm";
 
-import { ConsoleLogger, type LogLevel } from "@nestjs/common";
-
-import { LOG_LEVELS } from "./Logger.test-harness.ts";
-import { parseNestLogCall, type ParsedNestLogCall } from "./nest-log-call.ts";
-
-class ConsoleLoggerParser extends ConsoleLogger {
-  parseCall(
-    level: LogLevel,
-    message: unknown,
-    optionalParameters: readonly unknown[],
-  ): ParsedNestLogCall {
-    const values = [message, ...optionalParameters];
-    if (level !== "error") {
-      const parsed = this.getContextAndMessagesToPrint(values);
-      return { ...parsed, stack: undefined };
-    }
-
-    const parsed = this.getContextAndStackAndMessagesToPrint(values);
-    return {
-      context: parsed.context,
-      messages: parsed.messages,
-      stack: "stack" in parsed ? parsed.stack : undefined,
-    };
-  }
-}
+import { ConsoleLoggerParser, LOG_LEVELS } from "./Logger.test-harness.ts";
+import { parseNestLogCall } from "./nest-log-call.ts";
 
 const logValue = fc.oneof(
   fc.jsonValue(),
@@ -58,12 +36,50 @@ void describe("NestJS log-call parsing", () => {
     assert.deepStrictEqual(parseNestLogCall("error", "failed", [undefined]), {
       context: undefined,
       messages: ["failed", undefined],
+      params: undefined,
       stack: undefined,
     });
     assert.deepStrictEqual(parseNestLogCall("error", "failed", [undefined, "Worker"]), {
       context: "Worker",
       messages: ["failed"],
+      params: undefined,
       stack: undefined,
     });
+  });
+
+  void it("recognizes plain objects from other realms and without a prototype", () => {
+    const oracle = new ConsoleLoggerParser();
+    const foreignObject: unknown = runInNewContext("({ requestId: 'foreign' })");
+    const nullPrototypeObject: Record<string, unknown> = Object.create(null);
+    nullPrototypeObject["attempt"] = 2;
+    const values = [foreignObject, nullPrototypeObject, "Worker"];
+
+    assert.deepStrictEqual(
+      parseNestLogCall("log", "processed", values),
+      oracle.parseCall("log", "processed", values),
+    );
+    assert.deepStrictEqual(parseNestLogCall("log", "processed", values).params, {
+      requestId: "foreign",
+      attempt: 2,
+    });
+  });
+
+  void it("merges structured params without invoking prototype setters", () => {
+    const fields = Object.freeze(
+      Object.fromEntries([
+        ["__proto__", { polluted: true }],
+        ["requestId", "request-1"],
+      ]),
+    );
+
+    const { params } = parseNestLogCall("log", "processed", [fields, { attempt: 2 }]);
+
+    assert.ok(params);
+    assert.strictEqual(Object.getPrototypeOf(params), Object.prototype);
+    assert.strictEqual(Object.hasOwn(params, "__proto__"), true);
+    assert.deepStrictEqual(params["__proto__"], { polluted: true });
+    assert.strictEqual(params["requestId"], "request-1");
+    assert.strictEqual(params["attempt"], 2);
+    assert.strictEqual(Object.hasOwn(fields, "attempt"), false);
   });
 });

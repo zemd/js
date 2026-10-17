@@ -55,7 +55,8 @@ export class Logger implements LoggerService {
     this.doLog("error", message, optionalParams);
   }
 
-  fatal(message: unknown, context?: string): void;
+  fatal(message: unknown, stackOrContext?: string): void;
+  fatal(message: unknown, stack?: string, context?: string): void;
   fatal(message: unknown, ...optionalParams: unknown[]): void;
   fatal(message: unknown, ...optionalParams: unknown[]): void {
     this.doLog("fatal", message, optionalParams);
@@ -84,12 +85,16 @@ export class Logger implements LoggerService {
     message: unknown,
     optionalParameters: readonly unknown[],
   ): void {
-    const { context, messages, stack } = parseNestLogCall(level, message, optionalParameters);
+    const { context, messages, params, stack } = parseNestLogCall(
+      level,
+      message,
+      optionalParameters,
+    );
     const instance = this.getPinoInstance(context);
     const log = this.getLogMethod(instance, level);
 
     for (const [index, nestMessage] of messages.entries()) {
-      this.writeMessage(instance, log, nestMessage, index === 0 ? stack : undefined);
+      this.writeMessage(instance, log, nestMessage, index === 0 ? stack : undefined, params);
     }
   }
 
@@ -98,7 +103,9 @@ export class Logger implements LoggerService {
     log: LogMethod,
     message: unknown,
     stack: string | undefined,
+    params: Readonly<Record<string, unknown>> | undefined,
   ): void {
+    const structuredFields = params === undefined ? {} : { params };
     if (isPinoMessage(message)) {
       const renderedMessage = formatLogMessage(
         message.message,
@@ -106,6 +113,7 @@ export class Logger implements LoggerService {
       );
       const record: Record<string, unknown> = {
         ...message.mergingObject,
+        ...structuredFields,
         ...(stack === undefined ? {} : { err: createStackError(renderedMessage, stack) }),
       };
       log.call(instance, record, renderedMessage);
@@ -117,16 +125,17 @@ export class Logger implements LoggerService {
         stack === undefined
           ? message
           : { message: message.message, stack, type: message.name || "Error" };
-      log.call(instance, { err: error }, message.message);
+      log.call(instance, { ...structuredFields, err: error }, message.message);
       return;
     }
 
     if (isObject(message)) {
       if (stack === undefined) {
-        log.call(instance, message);
+        log.call(instance, params === undefined ? message : { ...message, ...structuredFields });
       } else {
         log.call(instance, {
           ...message,
+          ...structuredFields,
           err: createStackError("Logged error", stack),
         });
       }
@@ -135,7 +144,16 @@ export class Logger implements LoggerService {
 
     const renderedMessage = formatLogMessage(message);
     if (stack !== undefined) {
-      log.call(instance, { err: createStackError(renderedMessage, stack) }, renderedMessage);
+      log.call(
+        instance,
+        { ...structuredFields, err: createStackError(renderedMessage, stack) },
+        renderedMessage,
+      );
+      return;
+    }
+
+    if (params !== undefined) {
+      log.call(instance, structuredFields, renderedMessage);
       return;
     }
 
