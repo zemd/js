@@ -1,12 +1,10 @@
-import {
-  body,
-  createEndpoint,
-  method,
-  prefix,
-  type TFetchFn,
-  type TFetchFnParams,
-  type TFetchTransformer,
-} from "./index.ts";
+/**
+ * Example of composing OAuth token retrieval and authenticated API clients.
+ *
+ * @module example
+ */
+
+import { Fetcher, RequestTransformer, UrlTransformer, type HttpClient } from "./index.ts";
 
 type Token = {
   access_token: string;
@@ -22,7 +20,7 @@ const createOAuth2Client = (opts: {
   debug?: boolean;
   credentials: { client_id: string; client_secret: string; audience: string };
 }) => {
-  const endpoint = createEndpoint([prefix("https://auth.example.com/oauth")]);
+  const fetcher = Fetcher.make([UrlTransformer.prependPath("https://auth.example.com/oauth")]);
 
   let cachedToken: Token | null = null;
   const fetchToken = async (payload: {
@@ -31,7 +29,10 @@ const createOAuth2Client = (opts: {
     audience: string;
     //...
   }) => {
-    return endpoint<Token>("/token", [method("POST"), body(JSON.stringify(payload))]);
+    return fetcher<Token>("/token", [
+      RequestTransformer.setMethod("POST"),
+      RequestTransformer.setBody(JSON.stringify(payload)),
+    ]);
   };
 
   return {
@@ -45,8 +46,10 @@ const createOAuth2Client = (opts: {
   };
 };
 
-const bearerToken = (oauthClient: ReturnType<typeof createOAuth2Client>): TFetchTransformer => {
-  return async (fetchFn: TFetchFn, ...args: TFetchFnParams) => {
+const bearerToken = (
+  oauthClient: ReturnType<typeof createOAuth2Client>,
+): HttpClient.Transformer => {
+  return async (fetchFn: HttpClient.Type, ...args: HttpClient.Params) => {
     const [input, init] = args;
     const token = await oauthClient.token();
 
@@ -64,10 +67,13 @@ type ActionResponse = {
   hello: string;
 };
 const createApiSdk = (oauthClient: ReturnType<typeof createOAuth2Client>) => {
-  const endpoint = createEndpoint([prefix("https://api.example.com"), bearerToken(oauthClient)]);
+  const fetcher = Fetcher.make([
+    UrlTransformer.prependPath("https://api.example.com"),
+    bearerToken(oauthClient),
+  ]);
   return {
     someAction: async (param: number) => {
-      return endpoint<ActionResponse>(`/some/path/${param}`, [method("GET")]);
+      return fetcher<ActionResponse>(`/some/path/${param}`, [RequestTransformer.setMethod("GET")]);
     },
   };
 };

@@ -1,3 +1,9 @@
+/**
+ * Property-based tests for request transformation and composition invariants.
+ *
+ * @module http-client.property.test
+ */
+
 import fc from "fast-check";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";

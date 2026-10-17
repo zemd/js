@@ -1,3 +1,9 @@
+/**
+ * Behavioral and integration tests for the public compatibility API.
+ *
+ * @module index.test
+ */
+
 import assert from "node:assert/strict";
 import { beforeEach, describe, it, type Mock } from "node:test";
 import { advanceTimersByTime, mockImplementationSequence } from "@zemd/testing";
