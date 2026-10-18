@@ -120,6 +120,10 @@
     - fair-mangos-wait
     - fix-private-contract-version
     - shared-actions-74
+"@zemd/gha@4.0.7":
+  dir: internal/gha
+  intents:
+    - shared-actions-94
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
