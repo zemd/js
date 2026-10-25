@@ -16,7 +16,7 @@ catalog:
   fast-check: 4.10.2
   tsdown: 0.23.1
   typescript: 7.0.2
-  zod: 4.6.5
+  zod: 4.6.7
 
 # Seven days; keep aligned with Dependabot's npm cooldown.
 minimumReleaseAge: 10080

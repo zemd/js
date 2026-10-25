@@ -177,8 +177,8 @@ catalogs:
       specifier: 7.0.2
       version: 7.0.2
     zod:
-      specifier: 4.6.5
-      version: 4.6.5
+      specifier: 4.6.7
+      version: 4.6.7
 
 overrides:
   hono@<4.12.34: ^4.12.34
@@ -210,8 +210,8 @@ importers:
   http-clients/figma:
     dependencies:
       '@figma/rest-api-spec':
-        specifier: 0.44.0
-        version: 0.44.0
+        specifier: 0.45.0
+        version: 0.45.0
       '@zemd/http-client':
         specifier: workspace:*
         version: link:../../packages/http-client
@@ -248,7 +248,7 @@ importers:
         version: link:../../packages/http-client
       zod:
         specifier: 'catalog:'
-        version: 4.6.5
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -328,7 +328,7 @@ importers:
         version: link:../std
       zod:
         specifier: 'catalog:'
-        version: 4.6.5
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -417,7 +417,7 @@ importers:
     dependencies:
       zod:
         specifier: 'catalog:'
-        version: 4.6.5
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -481,8 +481,8 @@ packages:
   '@borewit/text-codec@0.2.2':
     resolution: {integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==}
 
-  '@figma/rest-api-spec@0.44.0':
-    resolution: {integrity: sha512-cbMG8ko7dEjKYY/bOIuWkX7pFJpXqKjZMndYpN0o8G+mMNesqqybN3Xs334stJRb/mMBu/qGLS70YiLBWsSKqw==}
+  '@figma/rest-api-spec@0.45.0':
+    resolution: {integrity: sha512-MnovFeiLW49e+oBdvb9t8kRhO0B47ucaroEdRqQT7NkYua0BHlpA49twNuXC7v8mPt2rAxqxP396vDhpoXP9Nw==}
 
   '@lukeed/csprng@1.1.0':
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
@@ -1552,14 +1552,14 @@ packages:
     resolution: {integrity: sha512-t5pANCF6k9rgJre7jk8DMAU4lEoI1oWWZgXk0fcvmCYQquFVWv0rf6Awwt56nnPiHb0E24dhtrpfgf9ChTCbrQ==}
     engines: {node: '>=14.18.0'}
 
-  zod@4.6.5:
-    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
 snapshots:
 
   '@borewit/text-codec@0.2.2': {}
 
-  '@figma/rest-api-spec@0.44.0': {}
+  '@figma/rest-api-spec@0.45.0': {}
 
   '@lukeed/csprng@1.1.0': {}
 
@@ -2340,4 +2340,4 @@ snapshots:
       '@yuku-toolchain/types': 0.18.1
       yuku-core: 0.18.1
 
-  zod@4.6.5: {}
+  zod@4.6.7: {}

@@ -54,7 +54,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@figma/rest-api-spec": "0.44.0",
+    "@figma/rest-api-spec": "0.45.0",
     "@zemd/http-client": "workspace:*"
   },
   "devDependencies": {
