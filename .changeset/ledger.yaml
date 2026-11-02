@@ -124,6 +124,10 @@
   dir: internal/gha
   intents:
     - shared-actions-94
+"@zemd/gha@4.0.8":
+  dir: internal/gha
+  intents:
+    - shared-actions-103
 "@zemd/http-client@4.1.0":
   dir: packages/http-client
   intents:
