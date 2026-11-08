@@ -1,4 +1,5 @@
 import type {
+  CreateFolderResponse,
   DeleteCommentPathParams,
   DeleteCommentReactionPathParams,
   DeleteCommentReactionQueryParams,
@@ -97,6 +98,7 @@ import type {
   GetTeamComponentsResponse,
   GetTeamFoldersPathParams,
   GetTeamFoldersResponse,
+  GetTeamPathParams,
   GetTeamProjectsPathParams,
   GetTeamProjectsResponse,
   GetTeamStylesPathParams,
@@ -110,6 +112,7 @@ import type {
   GetWebhookResponse,
   GetWebhooksQueryParams,
   GetWebhooksResponse,
+  InviteTeamMembersResponse,
   PostCommentPathParams,
   PostCommentReactionPathParams,
   PostCommentReactionRequestBody,
@@ -119,6 +122,14 @@ import type {
   PostDeveloperLogsResponse,
   PostDevResourcesRequestBody,
   PostDevResourcesResponse,
+  PostFileDuplicatePathParams,
+  PostFileDuplicateRequestBody,
+  PostFileDuplicateResponse,
+  PostTeamFolderPathParams,
+  PostTeamFolderRequestBody,
+  PostTeamInvitesPathParams,
+  PostTeamInvitesRequestBody,
+  PostTeamRequestBody,
   PostVariablesPathParams,
   PostVariablesRequestBody,
   PostVariablesResponse,
@@ -129,6 +140,7 @@ import type {
   PutWebhookPathParams,
   PutWebhookRequestBody,
   PutWebhookResponse,
+  TeamResponse,
 } from "@figma/rest-api-spec";
 import type { HttpClient } from "@zemd/http-client";
 import { Fetcher, RequestTransformer, UrlTransformer } from "@zemd/http-client";
@@ -171,6 +183,15 @@ export const figma = (initialTransformers: HttpClient.Transformer[]) => {
           return fetcher<GetFileMetaResponse>(
             `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/meta`,
             [RequestTransformer.setMethod("GET")],
+          );
+        },
+        postFileDuplicate: async (
+          fileKey: PostFileDuplicatePathParams["file_key"],
+          obj: PostFileDuplicateRequestBody,
+        ) => {
+          return fetcher<PostFileDuplicateResponse>(
+            `/v1/files/${UrlTransformer.encodePathSegment(fileKey)}/duplicate`,
+            [RequestTransformer.setMethod("POST"), RequestTransformer.setBody(JSON.stringify(obj))],
           );
         },
         getFileVersions: async (
@@ -325,10 +346,39 @@ export const figma = (initialTransformers: HttpClient.Transformer[]) => {
         },
       },
       teams: {
+        postTeam: async (obj: PostTeamRequestBody) => {
+          return fetcher<TeamResponse>(`/v1/teams`, [
+            RequestTransformer.setMethod("POST"),
+            RequestTransformer.setBody(JSON.stringify(obj)),
+          ]);
+        },
+        getTeam: async (teamId: GetTeamPathParams["team_id"]) => {
+          return fetcher<TeamResponse>(`/v1/teams/${UrlTransformer.encodePathSegment(teamId)}`, [
+            RequestTransformer.setMethod("GET"),
+          ]);
+        },
+        postTeamInvites: async (
+          teamId: PostTeamInvitesPathParams["team_id"],
+          obj: PostTeamInvitesRequestBody,
+        ) => {
+          return fetcher<InviteTeamMembersResponse>(
+            `/v1/teams/${UrlTransformer.encodePathSegment(teamId)}/invites`,
+            [RequestTransformer.setMethod("POST"), RequestTransformer.setBody(JSON.stringify(obj))],
+          );
+        },
         getTeamProjects: async (teamId: GetTeamProjectsPathParams["team_id"]) => {
           return fetcher<GetTeamProjectsResponse>(
             `/v1/teams/${UrlTransformer.encodePathSegment(teamId)}/projects`,
             [RequestTransformer.setMethod("GET")],
+          );
+        },
+        postTeamFolder: async (
+          teamId: PostTeamFolderPathParams["team_id"],
+          obj: PostTeamFolderRequestBody,
+        ) => {
+          return fetcher<CreateFolderResponse>(
+            `/v1/teams/${UrlTransformer.encodePathSegment(teamId)}/folders`,
+            [RequestTransformer.setMethod("POST"), RequestTransformer.setBody(JSON.stringify(obj))],
           );
         },
         getTeamComponents: async (
