@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM ghcr.io/zizmorcore/zizmor:1.31.1@sha256:42d409dbb851d4c5d35a058cf042b828bea1e3f2884378c526eb0974780e18d9 AS zizmor
+FROM ghcr.io/zizmorcore/zizmor:1.32.0@sha256:3014cc8f68f663935f69b3c3e0e41f5ce102b268d97db13db0f62208747f860d AS zizmor
 
 FROM mcr.microsoft.com/devcontainers/javascript-node:5-26-bookworm@sha256:b47c85979be280319feb03fa4089cc8b168a13d50fc28d2f8333c15077a4989c
 
